@@ -19,10 +19,9 @@ module Main (
 
 import qualified Data.ByteString.Lazy as BS
 import Data.Binary.Get
-
+import Data.Tuple.Curry
 import Numeric
 import Data.Bits (Bits(..))
-import Data.Word (Word8)
 
 ssFile = "C:\\Users\\Dan\\Desktop\\sharedstash_v2.bin"
 ssDFile = "C:\\Users\\Dan\\Desktop\\sharedstash_haskell.bin"
@@ -42,7 +41,7 @@ parseFileSections fileBS = let
     version = toInteger $ runGet getWord32be versionString
     (dummyString, afterDummy) = BS.splitAt 1 afterVers
     (checkSumString, afterCheckSum) = case version of
-        0x40 -> BS.splitAt 0 $ afterDummy
+        0x40 -> BS.splitAt 0 $ afterDummy   -- version 0x40 has no checksum
         0x41 -> BS.splitAt csl $ afterDummy
         0x42 -> BS.splitAt csl $ afterDummy
         _    -> BS.splitAt csl $ afterDummy
@@ -62,7 +61,7 @@ showHexPadded word = case length $ showHex word "" of
 
 descramble dataString = let
     bytePairs = BS.zip dataString $ BS.reverse dataString
-    in BS.pack $ map (uncurry byteMerger) bytePairs
+    in BS.pack $ map (uncurryN byteMerger) bytePairs
 
 
 byteMerger fByte rByte = let
