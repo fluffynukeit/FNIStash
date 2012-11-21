@@ -1,3 +1,0 @@
-test-FNIStash.exe: C:\Users\Dan\Desktop\sharedstash_haskell.bin: openBinaryFile: permission denied (Permission denied)
-Test suite test-FNIStash: FAIL
-Test suite logged to: dist\test\FNIStash-0.0.1-test-FNIStash.log
