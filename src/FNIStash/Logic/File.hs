@@ -33,8 +33,8 @@ parseFileSections fileBS = let
         0x42 -> BS.splitAt csl $ afterDummy
         _    -> BS.splitAt csl $ afterDummy
     (dataString, footerString) = BS.splitAt (BS.length afterCheckSum - fl) afterCheckSum
-    in (versionString, dummyString, checkSumString, dataString, footerString)
+    in [versionString, dummyString, checkSumString, dataString, footerString]
 
-combineFileSections (vs, dus, cs, ds, fs) = BS.concat [vs, dus, cs, ds, fs]
+combineFileSections = BS.concat
 
-processFileSections (vs, dus, cs, ds, fs) = (vs, dus, BS.replicate csl 0x00, descramble ds, fs)
+processFileSections (vs:dus:cs:ds:fs) = [vs, dus, BS.replicate csl 0x00, descramble ds] ++ fs
