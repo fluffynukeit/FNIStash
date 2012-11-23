@@ -31,8 +31,10 @@ main = do
     let sections = parseFileSections input
     let procSections@(v:dum:c:d:f) = processFileSections sections
     BS.writeFile ssDFile $ combineFileSections procSections
-    BS.writeFile ssDScrambled $ combineFileSections $ [v, dum, c, scramble d] ++ f
-    print "Finished"
+    let calcCS = checksum d
+    let calcF = footer d
+    BS.writeFile ssDScrambled $ combineFileSections $ [v, dum, calcCS, scramble d] ++ f
+    print $ "Checksum, footer are " ++ streamToHex calcCS ++ ", " ++ streamToHex calcF
 
 
 streamToHex :: BS.ByteString -> String
