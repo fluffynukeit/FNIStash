@@ -13,7 +13,8 @@
 -----------------------------------------------------------------------------
 
 module FNIStash.Logic.Crypto (
-    descramble
+    descramble,
+    scramble
 ) where
 
 import qualified Data.ByteString.Lazy as BS
@@ -21,17 +22,34 @@ import Data.Binary.Get
 import Data.Tuple.Curry
 import Data.Bits (Bits(..))
 
--- modeled after Jonathan Gevaryahu AKA Lord Nightmare's descramble c code
-descramble dataString = let
+
+descramble = processScrambler desByteMerger
+scramble = processScrambler scrByteMerger
+
+
+-- modeled after Jonathan Gevaryahu AKA Lord Nightmare's scramlbe/descramble c code, then
+-- cleaned up a bit so the logic is more obvious to me
+processScrambler merger dataString =  let
     bytePairs = BS.zip dataString $ BS.reverse dataString
-    in BS.pack $ map (uncurryN desByteMerger) bytePairs
+    in BS.pack $ map (uncurryN merger) bytePairs
+
+desByteMerger forByte revByte = let
+    forLeft = leftNyb forByte
+    revRight = rightNyb revByte
+    constructedByte = mergeNybs revRight forLeft
+    in if (constructedByte == 0 || constructedByte == 0xFF)
+        then constructedByte
+        else constructedByte `xor` 0xFF
+
+scrByteMerger forByte revByte = let
+    forRight = rightNyb forByte
+    revLeft = leftNyb revByte
+    revertNyb byte n = if (byte == 0 || byte == 0xFF) then n else invertNyb n
+    in mergeNybs (revertNyb forByte forRight) (revertNyb revByte revLeft)
 
 
-desByteMerger fByte rByte = let
-    leastSigNyb = flip shiftR 4 $ fByte .&. 0xF0
-    mostSigNyb = rByte .&. 0x0F
-    in if (mostSigNyb == 0 && leastSigNyb == 0) || (mostSigNyb == 0xF && leastSigNyb == 0xF)
-        then flip shiftL 4 mostSigNyb .|. leastSigNyb
-        else flip shiftL 4 (mostSigNyb `xor` 0xF) .|. (leastSigNyb `xor` 0xF)
-
-
+-- helper functions
+leftNyb byte = flip shiftR 4 $ byte .&. 0xF0
+rightNyb = (.&. 0x0F)
+mergeNybs left right = (flip shiftL 4 left) .|. right
+invertNyb n = (.&.) 0x0F $ xor n 0x0F

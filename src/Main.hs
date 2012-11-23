@@ -20,15 +20,18 @@ module Main (
 import Numeric
 import qualified Data.ByteString.Lazy as BS
 import FNIStash.Logic.File
+import FNIStash.Logic.Crypto
 
 ssFile = "C:\\Users\\Dan\\Desktop\\sharedstash_v2.bin"
 ssDFile = "C:\\Users\\Dan\\Desktop\\sharedstash_haskell.bin"
+ssDScrambled = "C:\\Users\\Dan\\Desktop\\sharedstash_haskellScrambled.bin"
 
 main = do
     input <- BS.readFile ssFile
     let sections = parseFileSections input
-    let procSections = processFileSections sections
+    let procSections@(v:dum:c:d:f) = processFileSections sections
     BS.writeFile ssDFile $ combineFileSections procSections
+    BS.writeFile ssDScrambled $ combineFileSections $ [v, dum, c, scramble d] ++ f
     print "Finished"
 
 
