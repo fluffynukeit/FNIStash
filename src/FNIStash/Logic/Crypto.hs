@@ -15,7 +15,7 @@
 module FNIStash.Logic.Crypto (
     descramble,
     scramble,
-    checksum
+    checksum,
 ) where
 
 import qualified Data.ByteString.Lazy as BS

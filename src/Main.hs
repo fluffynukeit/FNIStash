@@ -20,21 +20,18 @@ module Main (
 import Numeric
 import qualified Data.ByteString.Lazy as BS
 import FNIStash.Logic.File
-import FNIStash.Logic.Crypto
 
-ssFile = "C:\\Users\\Dan\\Desktop\\sharedstash_v2.bin"
-ssDFile = "C:\\Users\\Dan\\Desktop\\sharedstash_haskell.bin"
-ssDScrambled = "C:\\Users\\Dan\\Desktop\\sharedstash_haskellScrambled.bin"
+ssFileOrig = "C:\\Users\\Dan\\Desktop\\sharedstash_v2.bin"
+ssDescrambled = "C:\\Users\\Dan\\Desktop\\sharedstash_haskell.bin"
+ssScrambled = "C:\\Users\\Dan\\Desktop\\sharedstash_haskellScrambled.bin"
 
 main = do
-    input <- BS.readFile ssFile
-    let sections = parseFileSections input
-    let procSections@(v:dum:c:d:f) = processFileSections sections
-    BS.writeFile ssDFile $ combineFileSections procSections
-    let calcCS = checksum d
-    let calcF = footer d
-    BS.writeFile ssDScrambled $ combineFileSections $ [v, dum, calcCS, scramble d] ++ f
-    print $ "Checksum, footer are " ++ streamToHex calcCS ++ ", " ++ streamToHex calcF
+    input <- BS.readFile ssFileOrig
+    let gfSOrig = parseGameFile input
+    let gfD = descrambleGameFile gfSOrig
+    let gfS = scrambleGameFile gfD
+    BS.writeFile ssScrambled $ formGameFile gfS
+
 
 
 streamToHex :: BS.ByteString -> String
