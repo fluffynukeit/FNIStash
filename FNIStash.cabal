@@ -4,18 +4,21 @@ cabal-version: >=1.2
 build-type: Simple
 license: AllRightsReserved
 license-file: ""
+description:  
 data-dir: ""
  
 executable FNIStash
-    build-depends: tuple -any, binary -any, bytestring -any,
-                   QuickCheck -any, base -any
+    build-depends: QuickCheck -any, base -any, binary -any,
+                   bytestring -any, text -any, tuple -any
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: FNIStash.Logic.File FNIStash.Logic.Crypto
+    other-modules: FNIStash.Logic.File FNIStash.Logic.Data
+                   FNIStash.Logic.Crypto
  
 test-suite test-FNIStash
-    build-depends: QuickCheck -any, base -any
+    build-depends: QuickCheck -any, base -any, binary -any,
+                   bytestring -any, text -any, tuple -any
     type: exitcode-stdio-1.0
     main-is: Main.hs
     buildable: True
