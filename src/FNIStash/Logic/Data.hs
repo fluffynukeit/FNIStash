@@ -17,16 +17,16 @@ module FNIStash.Logic.Data (
     streamToHex
 ) where
 
-import qualified Data.ByteString.Lazy as BS
+import qualified Data.ByteString as BS
+import qualified Data.Text as T
 import Numeric
-import Data.Binary (Binary)
 import Data.Word (Word16, Word32)
 
 data Item = Item {
     model :: BS.ByteString,
-    name :: String,
-    prefix :: String,
-    suffix :: String,
+    name :: T.Text,
+    prefix :: T.Text,
+    suffix :: T.Text,
     serial :: BS.ByteString,
     bytes1 :: BS.ByteString, -- 00 FFx24 00 4x
     nEnchants :: Word32,
@@ -46,7 +46,7 @@ data Item = Item {
     nElements :: Word16,
     elements :: [BS.ByteString],
     nMods :: Word32,
-    mods :: [BS.ByteString],
+    mods :: BS.ByteString,
     footer :: BS.ByteString
     }
 
@@ -54,14 +54,14 @@ instance Show Item where
     show = itemShow
 
 itemShow i = unlines
-    ["Full name: " ++ unwords [prefix i, name i, suffix i],
+    ["Full name: " ++ (T.unpack $ T.unwords [prefix i, name i, suffix i]),
      "Num Enchants: " ++ (show $ nEnchants i),
      "Item level: " ++ (show $ level i),
      "Used Sockets: " ++ (show $ nSocketsUsed i) ++ "/" ++ (show $ nSockets i),
      "Dmg/Armor: " ++ (show $ maxDmg i) ++ "/" ++ (show $ armor i),
      "Num elements: " ++ (show $ nElements i),
      "Num mods: " ++ (show $ nMods i),
-     "Mods : " ++ (show $ fmap streamToHex $ mods i),
+     "Mods : " ++ (streamToHex $ mods i),
      "Footer: " ++ (streamToHex $ footer i),
      "", ""]
 

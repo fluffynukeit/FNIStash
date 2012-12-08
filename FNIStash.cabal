@@ -9,7 +9,8 @@ data-dir: ""
  
 executable FNIStash
     build-depends: QuickCheck -any, base -any, binary -any,
-                   bytestring -any, text -any, tuple -any
+                   binary-strict -any, bytestring -any, errors -any, text -any,
+                   tuple -any
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
@@ -18,7 +19,8 @@ executable FNIStash
  
 test-suite test-FNIStash
     build-depends: QuickCheck -any, base -any, binary -any,
-                   bytestring -any, text -any, tuple -any
+                   binary-strict -any, bytestring -any, errors -any, text -any,
+                   tuple -any
     type: exitcode-stdio-1.0
     main-is: Main.hs
     buildable: True

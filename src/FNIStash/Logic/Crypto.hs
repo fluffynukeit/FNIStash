@@ -18,12 +18,10 @@ module FNIStash.Logic.Crypto (
     checksum,
 ) where
 
-import qualified Data.ByteString.Lazy as BS
+import qualified Data.ByteString as BS
 import Data.Tuple.Curry
 import Data.Bits (Bits(..))
-import Data.Binary (encode)
 import Data.Word (Word32)
-
 
 descramble = processScrambler desByteMerger
 scramble = processScrambler scrByteMerger
@@ -60,7 +58,8 @@ invertNyb n = (.&.) 0x0F $ xor n 0x0F
 -- checksum stuff
 csSeed = 0x14D3::Word32
 
-checksum bs = BS.reverse . encode $ BS.foldl'
+checksum :: BS.ByteString -> Word32
+checksum bs = BS.foldl'
     (\acc byte -> (shiftL acc 0x5 + acc + fromIntegral byte) .&. 0xFFFFFFFF)
     csSeed bs
 
