@@ -36,9 +36,9 @@ inputToString input =
             return . descrambleGameFile >>=
             bsToItems . fileGameData . unDescrambled
     in either id (\(failItems, succItems) ->
-                        unlines ["N Items successfully parsed: " ++ (show $ length succItems),
-                                "",
-                                concatMap show succItems]) k
+                    unlines ["N Items successfully parsed: " ++ (show $ length succItems),
+                            "",
+                            concatMap show succItems]) k
 
 
 

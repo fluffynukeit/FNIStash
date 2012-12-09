@@ -75,8 +75,8 @@ instance Show Mod where
     show = modShow
 
 modShow i = unlines
-    ["Type: " ++ (show . modType $ i),
-     "Name: " ++ (show . T.unpack . modName $ i)]
+    ["","","Type: " ++ (show . modType $ i),
+     "Name: " ++ (show . T.unpack . modName $ i),"",""]
 
 streamToHex :: BS.ByteString -> String
 streamToHex = ("0x" ++) . concatMap ((" "++) . showHexPadded) . BS.unpack
