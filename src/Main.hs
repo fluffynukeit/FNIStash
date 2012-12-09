@@ -31,19 +31,14 @@ main = do
     writeFile examineFile $ inputToString input
 
 inputToString :: BS.ByteString -> String
-inputToString input = let result = fst $ runGet getScrambled input
-                      in case result of
-                            Left x -> x
-                            Right gfsOrig ->
-                                let gfD = descrambleGameFile gfsOrig
-                                    f = fileGameData $ unDescrambled gfD
-                                    in case bsToItems f of
-                                        Left n -> n
-                                        Right (failItems, succItems) ->
-                                            unlines ["N Items successfully parsed: " ++ (show $ length succItems),
-                                                    "",
-                                                    concatMap show succItems]
-
+inputToString input =
+    let k = (fst $ runGet getScrambled input) >>=
+            return . descrambleGameFile >>=
+            bsToItems . fileGameData . unDescrambled
+    in either id (\(failItems, succItems) ->
+                        unlines ["N Items successfully parsed: " ++ (show $ length succItems),
+                                "",
+                                concatMap show succItems]) k
 
 
 

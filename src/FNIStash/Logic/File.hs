@@ -34,7 +34,9 @@ import Data.Binary.Strict.Get
 import Data.Word
 import Control.Applicative
 import Control.Error (fmapR)
-
+import Data.Binary.Put (putWord32le, runPut)
+import Data.ByteString.Lazy (toStrict)
+import Debug.Trace (trace)
 
 
 data GameFile = GameFile {
@@ -47,6 +49,7 @@ data GameFile = GameFile {
 
 newtype Scrambled = Scrambled GameFile
 newtype Descrambled = Descrambled GameFile
+
 
 unScrambled (Scrambled gf) = gf
 unDescrambled (Descrambled gf) = gf
@@ -127,24 +130,46 @@ getItem = do
     bytes8 <- getByteString 12
     nElements <- fromIntegral <$> getWord16le
     elements <- sequence $ replicate (fromIntegral nElements) $ getByteString 12
-    nMods <- fromIntegral <$> getWord32le
-    mods <- remaining >>= \x -> return (x-4) >>= getByteString
-    footer <- remaining >>= getByteString
+    theRest <- remaining >>= getByteString
+    let (modsData, footer) = BS.spanEnd (==0) theRest
     return (Item model name prefix suffix serial bytes1 nEnchants location bytes2 bytes3
             bytes4 level bytes5 nSockets nUsedSockets bytes6 maxDmg armor bytes7 bytes8
-            nElements elements nMods mods footer)
+            nElements elements (bsToMods modsData) footer)
 
 bsToItems :: BS.ByteString -> Either String ([String], [Item])
-bsToItems bs = if BS.null bs
-               then Right ([],[])
-               else let bsp = bsPieces bs
-                    in case bsp of
-                        Left x -> Left x
-                        Right eitherList -> Right $ k where
-                            (failedBS, returnedBS) = partitionEithers eitherList
-                            n = map (\x -> fst $ runGet getItem x) returnedBS
-                            k = partitionEithers n
+bsToItems bs =
+    if BS.null bs
+    then return ([],[])
+    else bsPieces bs >>=
+         return . partitionEithers >>=
+         return . snd >>=
+         return . map (\x -> fst $ runGet getItem x) >>=
+         return . partitionEithers
 
+modDelimiter = toStrict $ runPut $ putWord32le 0x03
 
+modPieces :: BS.ByteString -> [BS.ByteString]
+modPieces bs =
+    if BS.null bs
+    then []
+    else let (bsPiece, remainingBS) = BS.breakSubstring modDelimiter bs
+         in bsPiece:modPieces (BS.drop (BS.length modDelimiter) remainingBS)
 
+getMod :: Get Mod
+getMod = do
+    modType <- getWord32le
+    modName <- getTorchText
+    restData <- remaining >>= getByteString
+    return $ Mod modType modName restData
+
+bsToMods :: BS.ByteString -> Either String [Either String Mod]
+bsToMods bs = let (eitherNMods, remBS) = runGet getWord32le bs
+                  pieces = modPieces remBS
+                  eitherList = map (fst . runGet getMod) pieces
+              in case eitherNMods of
+                  Left msg -> Left $ "Couldn't read number of mods: " ++ msg
+                  Right x  -> if length eitherList /= fromIntegral x
+                              then Left $ "Number of mods from item " ++ show x ++
+                                          " doesn't match number parsed " ++ show (length eitherList)
+                              else Right eitherList
 

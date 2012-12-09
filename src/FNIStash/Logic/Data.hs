@@ -14,6 +14,7 @@
 
 module FNIStash.Logic.Data (
     Item(..),
+    Mod(..),
     streamToHex
 ) where
 
@@ -45,10 +46,15 @@ data Item = Item {
     bytes8 :: BS.ByteString, -- FFx12
     nElements :: Word16,
     elements :: [BS.ByteString],
-    nMods :: Word32,
-    mods :: BS.ByteString,
+    mods :: Either String [Either String Mod],
     footer :: BS.ByteString
     }
+
+data Mod = Mod {
+    modType :: Word32,
+    modName :: T.Text,
+    modData :: BS.ByteString
+}
 
 instance Show Item where
     show = itemShow
@@ -60,12 +66,17 @@ itemShow i = unlines
      "Used Sockets: " ++ (show $ nSocketsUsed i) ++ "/" ++ (show $ nSockets i),
      "Dmg/Armor: " ++ (show $ maxDmg i) ++ "/" ++ (show $ armor i),
      "Num elements: " ++ (show $ nElements i),
-     "Num mods: " ++ (show $ nMods i),
-     "Mods : " ++ (streamToHex $ mods i),
+     "Num mods: " ++ (either (\x -> "Unknown: " ++ x) (show . length) $ mods i),
+     "Mods: " ++ (show $ mods i),
      "Footer: " ++ (streamToHex $ footer i),
      "", ""]
 
+instance Show Mod where
+    show = modShow
 
+modShow i = unlines
+    ["Type: " ++ (show . modType $ i),
+     "Name: " ++ (show . T.unpack . modName $ i)]
 
 streamToHex :: BS.ByteString -> String
 streamToHex = ("0x" ++) . concatMap ((" "++) . showHexPadded) . BS.unpack
