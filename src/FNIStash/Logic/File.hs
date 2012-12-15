@@ -36,6 +36,7 @@ import Control.Applicative
 import Control.Error (fmapR)
 import Data.Binary.Put (putWord32le, runPut)
 import Data.ByteString.Lazy (toStrict)
+import qualified Data.Map as M
 import Debug.Trace (trace)
 
 
@@ -131,10 +132,9 @@ getItem = do
     nElements <- fromIntegral <$> getWord16le
     elements <- sequence $ replicate (fromIntegral nElements) $ getByteString 12
     theRest <- remaining >>= getByteString
-    let (modsData, footer) = BS.spanEnd (==0) theRest
     return (Item model name prefix suffix serial bytes1 nEnchants location bytes2 bytes3
             bytes4 level bytes5 nSockets nUsedSockets bytes6 maxDmg armor bytes7 bytes8
-            nElements elements (bsToMods modsData) footer)
+            nElements elements (bsToMods theRest))
 
 bsToItems :: BS.ByteString -> Either String ([String], [Item])
 bsToItems bs =
@@ -147,28 +147,44 @@ bsToItems bs =
          return . partitionEithers
 
 modDelimiter = toStrict $ runPut $ putWord32le 0x03
+m804A = getByteString 39
+m8149 = getByteString 44
+m8041 = lookAhead getWord8 >>= \x -> getByteString (1 + 30 + 4* fromIntegral x + 4)
+m8441 = m8041
+m8141 = plus (getByteString 2) m8041
+m8050 = m8041
+mDefault = getByteString 45
 
-modPieces :: BS.ByteString -> [BS.ByteString]
-modPieces bs =
-    if BS.null bs
-    then []
-    else let (bsPiece, remainingBS) = BS.breakSubstring modDelimiter bs
-         in bsPiece:modPieces (BS.drop (BS.length modDelimiter) remainingBS)
+
+modTypeSizeMap = M.fromList [(0x804A, m804A), (0x8041, m8041), (0x8441, m8441), (0x8149, m8149),
+                             (0x8050, m8050)]
+
+
+lkModReader modType = M.findWithDefault mDefault modType modTypeSizeMap
+
 
 getMod :: Get Mod
 getMod = do
     modType <- getWord32le
     modName <- getTorchText
-    restData <- remaining >>= getByteString
+    restData <- lkModReader modType
     return $ Mod modType modName restData
 
+parseModString bs = if BS.null bs || (BS.null $ BS.dropWhile (==0) bs) || (BS.take 4 bs == modDelimiter)
+                 -- if empty or all 0's or 03 00 00 00
+                    then []
+                    else let (eitherMod, remBS) = runGet getMod bs
+                         in case eitherMod of
+                            Left msg -> [eitherMod]
+                            Right _ -> eitherMod: parseModString remBS
+
 bsToMods :: BS.ByteString -> Either String [Either String Mod]
-bsToMods bs = let (eitherNMods, remBS) = runGet getWord32le bs
-                  pieces = modPieces remBS
-                  eitherList = map (fst . runGet getMod) pieces
+bsToMods bs = let (eitherNMods, remBS) = runGet getWord32le bs -- total number of mods
+                  --pieces = modPieces remBS
+                  eitherList = parseModString remBS -- map (fst . runGet getMod) pieces
               in case eitherNMods of
                   Left msg -> Left $ "Couldn't read number of mods: " ++ msg
-                  Right x  -> if length eitherList /= fromIntegral x
+                  Right x  -> if False --length eitherList /= fromIntegral x
                               then Left $ "Number of mods from item " ++ show x ++
                                           " doesn't match number parsed " ++ show (length eitherList)
                               else Right eitherList

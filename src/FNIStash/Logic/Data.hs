@@ -46,8 +46,7 @@ data Item = Item {
     bytes8 :: BS.ByteString, -- FFx12
     nElements :: Word16,
     elements :: [BS.ByteString],
-    mods :: Either String [Either String Mod],
-    footer :: BS.ByteString
+    mods :: Either String [Either String Mod]
     }
 
 data Mod = Mod {
@@ -68,15 +67,16 @@ itemShow i = unlines
      "Num elements: " ++ (show $ nElements i),
      "Num mods: " ++ (either (\x -> "Unknown: " ++ x) (show . length) $ mods i),
      "Mods: " ++ (show $ mods i),
-     "Footer: " ++ (streamToHex $ footer i),
      "", ""]
 
 instance Show Mod where
     show = modShow
 
 modShow i = unlines
-    ["","","Type: " ++ (show . modType $ i),
-     "Name: " ++ (show . T.unpack . modName $ i),"",""]
+    ["","","Type: " ++ (show $ modType i),
+     "Name: " ++ (show . T.unpack . modName $ i),
+     "Data: " ++ (streamToHex $ modData i),
+     "",""]
 
 streamToHex :: BS.ByteString -> String
 streamToHex = ("0x" ++) . concatMap ((" "++) . showHexPadded) . BS.unpack
