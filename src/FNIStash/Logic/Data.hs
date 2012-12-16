@@ -46,7 +46,7 @@ data Item = Item {
     bytes8 :: BS.ByteString, -- FFx12
     nElements :: Word16,
     elements :: [BS.ByteString],
-    mods :: Either String [Either String Mod]
+    mods :: Either String [[Mod]]
     }
 
 data Mod = Mod {
@@ -65,7 +65,6 @@ itemShow i = unlines
      "Used Sockets: " ++ (show $ nSocketsUsed i) ++ "/" ++ (show $ nSockets i),
      "Dmg/Armor: " ++ (show $ maxDmg i) ++ "/" ++ (show $ armor i),
      "Num elements: " ++ (show $ nElements i),
-     "Num mods: " ++ (either (\x -> "Unknown: " ++ x) (show . length) $ mods i),
      "Mods: " ++ (show $ mods i),
      "", ""]
 

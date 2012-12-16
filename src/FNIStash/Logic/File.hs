@@ -38,7 +38,8 @@ import Data.Binary.Put (putWord32le, runPut)
 import Data.ByteString.Lazy (toStrict)
 import qualified Data.Map as M
 import Debug.Trace (trace)
-
+import Control.Monad.Loops
+import Control.Monad
 
 data GameFile = GameFile {
     fileVersion   :: Word32,
@@ -134,7 +135,7 @@ getItem = do
     theRest <- remaining >>= getByteString
     return (Item model name prefix suffix serial bytes1 nEnchants location bytes2 bytes3
             bytes4 level bytes5 nSockets nUsedSockets bytes6 maxDmg armor bytes7 bytes8
-            nElements elements (bsToMods theRest))
+            nElements elements (bsToModLists theRest))
 
 bsToItems :: BS.ByteString -> Either String ([String], [Item])
 bsToItems bs =
@@ -162,7 +163,6 @@ modTypeSizeMap = M.fromList [(0x804A, m804A), (0x8041, m8041), (0x8441, m8441), 
 
 lkModReader modType = M.findWithDefault mDefault modType modTypeSizeMap
 
-
 getMod :: Get Mod
 getMod = do
     modType <- getWord32le
@@ -170,22 +170,23 @@ getMod = do
     restData <- lkModReader modType
     return $ Mod modType modName restData
 
-parseModString bs = if BS.null bs || (BS.null $ BS.dropWhile (==0) bs) || (BS.take 4 bs == modDelimiter)
-                 -- if empty or all 0's or 03 00 00 00
-                    then []
-                    else let (eitherMod, remBS) = runGet getMod bs
-                         in case eitherMod of
-                            Left msg -> [eitherMod]
-                            Right _ -> eitherMod: parseModString remBS
+getModList :: Get [Mod]
+getModList = do
+    modCount <- getWord32le
+    modList <- replicateM (fromIntegral modCount) getMod
+    when (fromIntegral modCount /= length modList)
+        (fail $ "Number of mods in list " ++ show modCount ++ " doesn't match number parsed " ++ (show $ length modList))
+    whileM (andM [moreBS, isZeroNext getWord32le])
+        getWord32le -- discard 0's after reading last mod
+    return modList
 
-bsToMods :: BS.ByteString -> Either String [Either String Mod]
-bsToMods bs = let (eitherNMods, remBS) = runGet getWord32le bs -- total number of mods
-                  --pieces = modPieces remBS
-                  eitherList = parseModString remBS -- map (fst . runGet getMod) pieces
-              in case eitherNMods of
-                  Left msg -> Left $ "Couldn't read number of mods: " ++ msg
-                  Right x  -> if False --length eitherList /= fromIntegral x
-                              then Left $ "Number of mods from item " ++ show x ++
-                                          " doesn't match number parsed " ++ show (length eitherList)
-                              else Right eitherList
+moreBS = remaining >>= \x -> return (0/=x)
+isZeroNext m = lookAhead m >>= \x -> return (0==x)
+
+getModLists = whileM moreBS getModList
+
+bsToModLists :: BS.ByteString -> Either String [[Mod]]
+bsToModLists bs = fst $ runGet getModLists bs
+
+
 
