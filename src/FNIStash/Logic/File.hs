@@ -149,16 +149,20 @@ bsToItems bs =
 
 modDelimiter = toStrict $ runPut $ putWord32le 0x03
 m804A = getByteString 39
-m8149 = getByteString 44
+m8149 = getByteString 45
 m8041 = lookAhead getWord8 >>= \x -> getByteString (1 + 30 + 4* fromIntegral x + 4)
 m8441 = m8041
-m8141 = plus (getByteString 2) m8041
+m8141 = getByteString 45
 m8050 = m8041
+m8058 = getByteString 39
+mA141 = getByteString 53
+mA041 = getByteString 51
 mDefault = getByteString 45
 
 
 modTypeSizeMap = M.fromList [(0x804A, m804A), (0x8041, m8041), (0x8441, m8441), (0x8149, m8149),
-                             (0x8050, m8050)]
+                             (0x8050, m8050), (0x8141, m8141), (0x8058, m8058), (0xA141, mA141),
+                             (0xA041, mA041)]
 
 
 lkModReader modType = M.findWithDefault mDefault modType modTypeSizeMap
