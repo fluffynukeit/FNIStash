@@ -29,6 +29,8 @@ examineFile = "C:\\Users\\Dan\\Desktop\\shareStashExamine.txt"
 main = do
     input <- BS.readFile ssFileOrig
     writeFile examineFile $ inputToString input
+    let (Right a, bs) = runGet (getScrambled >>= return . fileGameData . unDescrambled . descrambleGameFile) input
+    BS.writeFile ssDescrambled a
 
 inputToString :: BS.ByteString -> String
 inputToString input =
@@ -39,6 +41,5 @@ inputToString input =
                     unlines ["N Items successfully parsed: " ++ (show $ length succItems),
                             "",
                             concatMap show succItems]) k
-
 
 
