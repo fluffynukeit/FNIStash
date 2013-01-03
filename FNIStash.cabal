@@ -14,8 +14,9 @@ executable FNIStash
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: FNIStash.Logic.File FNIStash.Logic.Data
-                   FNIStash.Logic.Crypto
+    other-modules: FNIStash.Logic.Data
+                   FNIStash.Logic.File.User.SharedStash
+                   FNIStash.Logic.File.User.Crypto
  
 test-suite test-FNIStash
     build-depends: QuickCheck -any, base -any, binary -any,

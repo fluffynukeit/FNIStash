@@ -12,7 +12,7 @@
 --
 -----------------------------------------------------------------------------
 
-module FNIStash.Logic.File (
+module FNIStash.Logic.File.User.SharedStash (
     getScrambled,
     descrambleGameFile,
     scrambleGameFile,
@@ -22,7 +22,7 @@ module FNIStash.Logic.File (
     bsToItems
 ) where
 
-import FNIStash.Logic.Crypto
+import FNIStash.Logic.File.User.Crypto
 import FNIStash.Logic.Data
 
 
