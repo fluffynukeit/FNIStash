@@ -157,12 +157,17 @@ m8050 = m8041
 m8058 = getByteString 39
 mA141 = getByteString 53
 mA041 = getByteString 51
+m8048 = getByteString 39
+m8042 = getByteString 33
+m9041 = getByteString 59
+m8051 = getByteString 67
 mDefault = getByteString 45
 
 
 modTypeSizeMap = M.fromList [(0x804A, m804A), (0x8041, m8041), (0x8441, m8441), (0x8149, m8149),
                              (0x8050, m8050), (0x8141, m8141), (0x8058, m8058), (0xA141, mA141),
-                             (0xA041, mA041)]
+                             (0xA041, mA041), (0x8048, m8048), (0x8042, m8042), (0x9041, m9041),
+                             (0x8051, m8051)]
 
 
 lkModReader modType = M.findWithDefault mDefault modType modTypeSizeMap
