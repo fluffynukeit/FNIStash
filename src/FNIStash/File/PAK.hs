@@ -16,7 +16,7 @@
 
 -- functions for exploring and extracting raw data from PAK files
 
-module FNIStash.Logic.File.App.PAK (
+module FNIStash.File.PAK (
 
 ) where
 

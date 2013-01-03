@@ -18,7 +18,7 @@ module Main (
 ) where
 
 import qualified Data.ByteString as BS
-import FNIStash.Logic.File.User.SharedStash
+import FNIStash.File.SharedStash
 import Data.Binary.Strict.Get (runGet)
 
 ssFileOrig = "C:\\Users\\Dan\\Desktop\\sharedstash_v2.bin"

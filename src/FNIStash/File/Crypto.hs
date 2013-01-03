@@ -12,7 +12,7 @@
 --
 -----------------------------------------------------------------------------
 
-module FNIStash.Logic.File.User.Crypto (
+module FNIStash.File.Crypto (
     descramble,
     scramble,
     checksum,
