@@ -23,7 +23,9 @@ module FNIStash.File.SharedStash (
 ) where
 
 import FNIStash.File.Crypto
+import FNIStash.File.General
 import FNIStash.Logic.Data
+import FNIStash.File.PAK
 
 
 import qualified Data.ByteString as BS
@@ -105,8 +107,6 @@ bsPieces bs = let (eitherL, remBS) = runGet getWord32le bs
                                           " doesn't match number parsed " ++ show (length listOfBS)
                               else Right listOfBS
 
-getTorchText :: Get T.Text
-getTorchText = fromIntegral . (*2) <$> getWord16le >>= getByteString >>= \x -> return (decodeUtf16LE x)
 
 getItem :: Get Item
 getItem = do

@@ -4,6 +4,7 @@ cabal-version: >=1.2
 build-type: Simple
 license: AllRightsReserved
 license-file: ""
+description:  
 data-dir: ""
  
 executable FNIStash
@@ -13,9 +14,8 @@ executable FNIStash
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: FNIStash.File.PAK FNIStash.Logic.Data
-                   FNIStash.File.SharedStash
-                   FNIStash.File.Crypto
+    other-modules: FNIStash.Logic.Data FNIStash.File.SharedStash
+                   FNIStash.File.PAK FNIStash.File.General FNIStash.File.Crypto
  
 test-suite test-FNIStash
     build-depends: QuickCheck -any, base -any, binary -any,

@@ -20,17 +20,24 @@ module Main (
 import qualified Data.ByteString as BS
 import FNIStash.File.SharedStash
 import Data.Binary.Strict.Get (runGet)
+import FNIStash.File.PAK
 
 ssFileOrig = "C:\\Users\\Dan\\Desktop\\sharedstash_v2.bin"
 ssDescrambled = "C:\\Users\\Dan\\Desktop\\sharedstash_haskell.bin"
 ssScrambled = "C:\\Users\\Dan\\Desktop\\sharedstash_haskellScrambled.bin"
 examineFile = "C:\\Users\\Dan\\Desktop\\shareStashExamine.txt"
+pakManFileBinary = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Torchlight II\\PAKS\\DATA.PAK.MAN"
+pakManFileText = "C:\\Users\\Dan\\Desktop\\pakMan.txt"
 
 main = do
     input <- BS.readFile ssFileOrig
     writeFile examineFile $ inputToString input
     let (Right a, bs) = runGet (getScrambled >>= return . fileGameData . unDescrambled . descrambleGameFile) input
     BS.writeFile ssDescrambled a
+    man <- readPAKMAN pakManFileBinary
+    writeFile pakManFileText (show man)
+
+    
 
 inputToString :: BS.ByteString -> String
 inputToString input =

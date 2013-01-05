@@ -17,41 +17,97 @@
 -- functions for exploring and extracting raw data from PAK files
 
 module FNIStash.File.PAK (
-
+    readPAKMAN
 ) where
 
 
-import Codec.Compression.Zlib (decompress)
-import Data.ByteString as BS
-import Data.Binary.Get
+import FNIStash.File.General
+
+import Data.ByteString as BS hiding (length)
+import Data.Binary.Strict.Get
 import qualified Data.Map.Lazy as Map
-import qualified Data.Text
+import Data.Map.Lazy
+import Data.Word
+import Data.Text hiding (length)
+import Control.Applicative
+import Control.Monad (replicateM)
+import GHC.TopHandler (runIO)
+
 
 type PAKHierarchy = Map
+
+
+readPAKMAN fileName = do
+    content <- BS.readFile fileName
+    return $ runGet getMANHeader content
+
+
+
+data MANEntry = MANEntry {
+    entryCrc32 :: Word32,
+    entryType :: PAKFileType,
+    entryName :: Text,
+    entryOffset :: Word32,
+    entryDecodedSize :: Word32,
+    entryUnknown1W32 :: Word32,
+    entryUnknown2W32 :: Word32
+    }
+
+instance Show MANEntry where
+    show me = (show . entryType) me ++ " named " ++ (show . entryName) me ++ "\n"
+
+getMANEntry :: Get MANEntry
+getMANEntry =
+    MANEntry <$> getWord32le <*> getFileType <*> getTorchText
+             <*> getWord32le <*> getWord32le <*> getWord32le <*> getWord32le
+
+
+
+
+data MANFolder = MANFolder {
+    folderName :: Text,
+    folderEntries :: [MANEntry]
+    }
+
+instance Show MANFolder where
+    show mf = "-- Contents folder " ++ (show . folderName) mf ++
+              "(" ++ (show . length . folderEntries) mf ++ " entries)\n" ++
+              (show . folderEntries) mf
+
+getMANFolder :: Get MANFolder
+getMANFolder =
+    MANFolder <$> getTorchText
+              <*> (getWord32le >>= (flip replicateM getMANEntry) . fromIntegral)
+
+
+
+
+
+data MANHeader = MANHeader {
+    headerVersion :: Word16,
+    headerName :: Text,
+    headerUnknown1W32 :: Word32,
+    headerFolders :: [MANFolder]
+    }
+
+instance Show MANHeader where
+    show mh = "Hierarchy for " ++ (show . headerName) mh ++ "\n" ++
+              (show . headerFolders) mh
+
+getMANHeader :: Get MANHeader
+getMANHeader =
+    MANHeader <$> getWord16le
+              <*> getTorchText
+              <*> getWord32le
+              <*> (getWord32le >>= (flip replicateM getMANFolder) . fromIntegral)
+
+
 
 data PAKFileType =
     DatTemplate | Layout | Mesh | Skeleton | Dds | Png | OggWav |
     Folder | Material | Raw | Imageset | Ttf | Font | Animation |
     Hie | Scheme | Looknfeel | Mpp | Unrecognized
-
-
-data MANEntry = MANEntry {
-    crc32 :: Word32,
-    fileType :: PAKFileType,
-    name :: Text,
-    pakOffset :: Word32,
-    decodedSize :: Word32,
-    unknown1W32 :: Word32,
-    unknown2W32 :: Word32
-    }
-
-
-
-getMANEntry :: Get MANEntry
-getMANEntry = do
-    crc <- getWord32le
-    fType <- getFileType
-
+    deriving Show
 
 
 getFileType :: Get PAKFileType
@@ -76,6 +132,7 @@ getFileType = do
         0x13 -> Scheme
         0x14 -> Looknfeel
         0x15 -> Mpp
+        _    -> Unrecognized
 
 
 
