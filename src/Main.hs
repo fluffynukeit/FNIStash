@@ -34,8 +34,8 @@ main = do
     writeFile examineFile $ inputToString input
     let (Right a, bs) = runGet (getScrambled >>= return . fileGameData . unDescrambled . descrambleGameFile) input
     BS.writeFile ssDescrambled a
-    man <- readPAKMAN pakManFileBinary
-    writeFile pakManFileText (show man)
+    (Right man, bs) <- readPAKMAN pakManFileBinary
+    writeFile pakManFileText $ (show man) ++ "\n\n All files: \n" ++ (unlines $ pakFileList man)
 
     
 

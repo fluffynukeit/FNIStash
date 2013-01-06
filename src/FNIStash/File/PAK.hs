@@ -17,7 +17,8 @@
 -- functions for exploring and extracting raw data from PAK files
 
 module FNIStash.File.PAK (
-    readPAKMAN
+    readPAKMAN,
+    pakFileList
 ) where
 
 
@@ -26,13 +27,14 @@ import FNIStash.File.General
 import Data.ByteString as BS hiding (length)
 import Data.Binary.Strict.Get
 import qualified Data.Map.Lazy as Map
+import qualified Data.List as L
 import Data.Map.Lazy
 import Data.Word
-import Data.Text hiding (length)
+import qualified Data.Text as T
 import Control.Applicative
 import Control.Monad (replicateM)
 import GHC.TopHandler (runIO)
-
+import System.FilePath
 
 ----- Worker functions
 
@@ -41,7 +43,16 @@ readPAKMAN fileName = do
     content <- BS.readFile fileName
     return $ runGet getMANHeader content
 
+pakFileList hdr =
+    let folders = headerFolders hdr
+        fileEntriesOnly entries = L.filter ((Folder /=) . entryType) entries
+        namesOf entries = L.map entryName entries
+        filePathsOf manFolder = L.map (forText2 (</>) $ folderName manFolder)
+                                    ((namesOf . fileEntriesOnly . folderEntries) manFolder)
+    in L.concatMap filePathsOf folders
 
+forText f = f . T.unpack
+forText2 f a b = f (T.unpack a) (T.unpack b)
 
 -----  Data Declarations ------
 
@@ -50,30 +61,30 @@ type PAKHierarchy = Map
 data MANEntry = MANEntry {
     entryCrc32 :: Word32,
     entryType :: PAKFileType,
-    entryName :: Text,
+    entryName :: T.Text,
     entryOffset :: Word32,
     entryDecodedSize :: Word32,
     entryUnknown1W32 :: Word32,
     entryUnknown2W32 :: Word32
-    }
+    } deriving Eq
 
 data MANFolder = MANFolder {
-    folderName :: Text,
+    folderName :: T.Text,
     folderEntries :: [MANEntry]
-    }
+    } deriving Eq
 
 data MANHeader = MANHeader {
     headerVersion :: Word16,
-    headerName :: Text,
+    headerName :: T.Text,
     headerUnknown1W32 :: Word32,
     headerFolders :: [MANFolder]
-    }
+    } deriving Eq
 
 data PAKFileType =
     DatTemplate | Layout | Mesh | Skeleton | Dds | Png | OggWav |
     Folder | Material | Raw | Imageset | Ttf | Font | Animation |
     Hie | Scheme | Looknfeel | Mpp | Unrecognized
-    deriving Show
+    deriving (Show, Eq)
 
 ---- Gets -------
 

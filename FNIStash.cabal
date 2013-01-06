@@ -4,13 +4,12 @@ cabal-version: >=1.2
 build-type: Simple
 license: AllRightsReserved
 license-file: ""
-description:  
 data-dir: ""
  
 executable FNIStash
-    build-depends: QuickCheck -any, base -any, binary -any,
-                   binary-strict -any, bytestring -any, containers -any, errors -any,
-                   monad-loops -any, text -any, tuple -any
+    build-depends: filepath -any, QuickCheck -any, base -any,
+                   binary -any, binary-strict -any, bytestring -any, containers -any,
+                   errors -any, monad-loops -any, text -any, tuple -any
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
