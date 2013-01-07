@@ -16,10 +16,14 @@ module FNIStash.File.General
 
 where
 
-import Data.Binary.Strict.Get
+import qualified Data.Binary.Strict.Get as S
+import qualified Data.Binary.Get as L
 import qualified Data.Text as T
 import Control.Applicative
 import Data.Text.Encoding (decodeUtf16LE)
 
-getTorchText :: Get T.Text
-getTorchText = fromIntegral . (*2) <$> getWord16le >>= getByteString >>= \x -> return (decodeUtf16LE x)
+getTorchText :: S.Get T.Text
+getTorchText = fromIntegral . (*2) <$> S.getWord16le >>= S.getByteString >>= \x -> return (decodeUtf16LE x)
+
+getTorchTextL :: L.Get T.Text
+getTorchTextL = fromIntegral . (*2) <$> L.getWord16le >>= L.getByteString >>= \x -> return (decodeUtf16LE x)

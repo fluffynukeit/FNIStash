@@ -18,23 +18,25 @@
 
 module FNIStash.File.PAK (
     readPAKMAN,
+    readPAKFiles,
+    lkupPAKFile,
     pakFileList
 ) where
 
 
 import FNIStash.File.General
 
-import Data.ByteString as BS hiding (length)
-import Data.Binary.Strict.Get
-import qualified Data.Map.Lazy as Map
+import Data.ByteString.Lazy as BS hiding (length)
+import Data.Binary.Get
+import qualified Data.Map.Lazy as M
 import qualified Data.List as L
-import Data.Map.Lazy
 import Data.Word
 import qualified Data.Text as T
 import Control.Applicative
 import Control.Monad (replicateM)
-import GHC.TopHandler (runIO)
 import System.FilePath
+import Codec.Compression.Zlib
+import Data.Char (toUpper)
 
 ----- Worker functions
 
@@ -44,19 +46,44 @@ readPAKMAN fileName = do
     return $ runGet getMANHeader content
 
 pakFileList hdr =
+    let f folder entry = forText2 (</>) (folderName folder) (entryName entry)
+    in folderAndEntryToList f hdr
+
+pakFileOffsets hdr =
+    let f folder entry = entryOffset entry
+    in folderAndEntryToList f hdr
+
+folderAndEntryToList :: (MANFolder -> MANEntry -> a) -> MANHeader -> [a]
+folderAndEntryToList f hdr =
     let folders = headerFolders hdr
-        fileEntriesOnly entries = L.filter ((Folder /=) . entryType) entries
-        namesOf entries = L.map entryName entries
-        filePathsOf manFolder = L.map (forText2 (</>) $ folderName manFolder)
-                                    ((namesOf . fileEntriesOnly . folderEntries) manFolder)
-    in L.concatMap filePathsOf folders
+    in L.concat $ flip L.map folders (\fol ->
+        flip L.map (fileEntriesOnly $ folderEntries fol) (f fol))
+
+
+readPAKFiles :: FilePath -> FilePath -> IO PAKFiles
+readPAKFiles manFile pakFile = do
+    man <- readPAKMAN manFile
+    pak <- BS.readFile pakFile
+    let fileList = pakFileList man
+        offsetList = pakFileOffsets man
+        fileOffsetList = L.zip fileList offsetList
+        f offset = flip runGet pak ((getPAKEntry . fromIntegral) offset)
+        mapList = L.zip fileList (L.map f offsetList) :: [(FilePath, PAKEntry)]
+    return $ M.fromList mapList
+
+
+lkupPAKFile :: PAKFiles -> FilePath -> Maybe BS.ByteString
+lkupPAKFile pakFiles filePath =
+    fmap (decompress . pakEncodedData) $ flip M.lookup pakFiles (L.map toUpper filePath)
 
 forText f = f . T.unpack
 forText2 f a b = f (T.unpack a) (T.unpack b)
 
+fileEntriesOnly entries = L.filter ((Folder /=) . entryType) entries
+
 -----  Data Declarations ------
 
-type PAKHierarchy = Map
+type PAKFiles = M.Map FilePath PAKEntry
 
 data MANEntry = MANEntry {
     entryCrc32 :: Word32,
@@ -86,22 +113,29 @@ data PAKFileType =
     Hie | Scheme | Looknfeel | Mpp | Unrecognized
     deriving (Show, Eq)
 
+data PAKEntry = PAKEntry {
+    pakHeader :: Word32,
+    pakDecodedSize :: Word32,
+    pakEncodedSize :: Word32,
+    pakEncodedData :: BS.ByteString
+    } deriving Eq
+
 ---- Gets -------
 
 getMANEntry :: Get MANEntry
 getMANEntry =
-    MANEntry <$> getWord32le <*> getFileType <*> getTorchText
+    MANEntry <$> getWord32le <*> getFileType <*> getTorchTextL
              <*> getWord32le <*> getWord32le <*> getWord32le <*> getWord32le
 
 getMANFolder :: Get MANFolder
 getMANFolder =
-    MANFolder <$> getTorchText
+    MANFolder <$> getTorchTextL
               <*> (getWord32le >>= (flip replicateM getMANEntry) . fromIntegral)
 
 getMANHeader :: Get MANHeader
 getMANHeader =
     MANHeader <$> getWord16le
-              <*> getTorchText
+              <*> getTorchTextL
               <*> getWord32le
               <*> (getWord32le >>= (flip replicateM getMANFolder) . fromIntegral)
  
@@ -129,7 +163,14 @@ getFileType = do
         0x15 -> Mpp
         _    -> Unrecognized
 
-
+getPAKEntry :: Word32 -> Get PAKEntry
+getPAKEntry offset = do
+    (skip . fromIntegral) (offset-4)
+    hdr <- getWord32le
+    decSize <- getWord32le
+    encSize <- getWord32le
+    encData <- getLazyByteString $ fromIntegral encSize
+    return $ PAKEntry hdr decSize encSize encData
 
 ----- Show Instances ----
 
