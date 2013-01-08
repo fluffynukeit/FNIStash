@@ -35,15 +35,15 @@ examineFile = testDir </>  "shareStashExamine.txt"
 pakManFileBinary = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Torchlight II\\PAKS\\DATA.PAK.MAN"
 pakFileBinary = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Torchlight II\\PAKS\\DATA.PAK"
 pakManFileText = testDir </>  "pakMan.txt"
---pakTestFile = "Media\\Shadows.png"
-pakTestFile = "Media\\Affixes.raw"
+pakTestFile = "Media\\Shadows.png"
+--pakTestFile = "Media\\Affixes.raw"
 
 main = do
     input <- BS.readFile ssFileOrig
     writeFile examineFile $ inputToString input
     let (Right a, bs) = runGet (getScrambled >>= return . fileGameData . unDescrambled . descrambleGameFile) input
     BS.writeFile ssDescrambled a
-    man <- readPAKMAN pakManFileBinary
+    (Right man, bs) <- readPAKMAN pakManFileBinary
     writeFile pakManFileText $ (show man) ++ "\n\n All files: \n" ++ (unlines $ pakFileList man)
     pakFiles <- readPAKFiles pakManFileBinary pakFileBinary
     let posixName = (P.joinPath $ splitDirectories pakTestFile)
@@ -52,6 +52,7 @@ main = do
         Just testFileData -> testFileData
         _ -> BSLC.pack $ "Media file " ++ pakTestFile ++ " with Posix name " ++ posixName ++
                          " does not exist in PAKFile mapping:\n" ++ (unlines $ keys pakFiles)
+    getLine
 
 
     

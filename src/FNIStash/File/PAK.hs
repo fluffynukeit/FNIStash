@@ -26,8 +26,9 @@ module FNIStash.File.PAK (
 
 import FNIStash.File.General
 
-import Data.ByteString.Lazy as BS hiding (length)
-import Data.Binary.Get
+import Data.ByteString as BS hiding (length)
+import qualified Data.ByteString.Lazy as BSL
+import Data.Binary.Strict.Get
 import qualified Data.Map.Lazy as M
 import qualified Data.List as L
 import Data.Word
@@ -62,19 +63,20 @@ folderAndEntryToList f hdr =
 
 readPAKFiles :: FilePath -> FilePath -> IO PAKFiles
 readPAKFiles manFile pakFile = do
-    man <- readPAKMAN manFile
+    (Right man, bs) <- readPAKMAN manFile
     pak <- BS.readFile pakFile
     let fileList = pakFileList man
         offsetList = pakFileOffsets man
         fileOffsetList = L.zip fileList offsetList
         f offset = flip runGet pak ((getPAKEntry . fromIntegral) offset)
-        mapList = L.zip fileList (L.map f offsetList) :: [(FilePath, PAKEntry)]
+        mapList = L.zip fileList (L.map (fromRight . fst . f) offsetList) :: [(FilePath, PAKEntry)]
     return $ M.fromList mapList
 
+fromRight (Right a) = a
 
-lkupPAKFile :: PAKFiles -> FilePath -> Maybe BS.ByteString
+lkupPAKFile :: PAKFiles -> FilePath -> Maybe BSL.ByteString
 lkupPAKFile pakFiles filePath =
-    fmap (decompress . pakEncodedData) $ flip M.lookup pakFiles (L.map toUpper filePath)
+    fmap (decompress . BSL.fromStrict . pakEncodedData) $ flip M.lookup pakFiles (L.map toUpper filePath)
 
 forText f = f . T.unpack
 forText2 f a b = f (T.unpack a) (T.unpack b)
@@ -124,18 +126,18 @@ data PAKEntry = PAKEntry {
 
 getMANEntry :: Get MANEntry
 getMANEntry =
-    MANEntry <$> getWord32le <*> getFileType <*> getTorchTextL
+    MANEntry <$> getWord32le <*> getFileType <*> getTorchText
              <*> getWord32le <*> getWord32le <*> getWord32le <*> getWord32le
 
 getMANFolder :: Get MANFolder
 getMANFolder =
-    MANFolder <$> getTorchTextL
+    MANFolder <$> getTorchText
               <*> (getWord32le >>= (flip replicateM getMANEntry) . fromIntegral)
 
 getMANHeader :: Get MANHeader
 getMANHeader =
     MANHeader <$> getWord16le
-              <*> getTorchTextL
+              <*> getTorchText
               <*> getWord32le
               <*> (getWord32le >>= (flip replicateM getMANFolder) . fromIntegral)
  
@@ -169,7 +171,7 @@ getPAKEntry offset = do
     hdr <- getWord32le
     decSize <- getWord32le
     encSize <- getWord32le
-    encData <- getLazyByteString $ fromIntegral encSize
+    encData <- getByteString $ fromIntegral encSize
     return $ PAKEntry hdr decSize encSize encData
 
 ----- Show Instances ----
