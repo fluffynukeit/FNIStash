@@ -37,6 +37,7 @@ import Control.Monad (replicateM)
 import System.FilePath
 import Codec.Compression.Zlib
 import Data.Char (toUpper)
+import System.IO 
 
 ----- Worker functions
 
@@ -63,18 +64,24 @@ folderAndEntryToList f hdr =
 readPAKFiles :: FilePath -> FilePath -> IO PAKFiles
 readPAKFiles manFile pakFile = do
     man <- readPAKMAN manFile
-    pak <- BS.readFile pakFile
     let fileList = pakFileList man
         offsetList = pakFileOffsets man
         fileOffsetList = L.zip fileList offsetList
-        f offset = flip runGet pak ((getPAKEntry . fromIntegral) offset)
-        mapList = L.zip fileList (L.map f offsetList) :: [(FilePath, PAKEntry)]
+        f offset =  do
+            h <- openBinaryFile pakFile ReadMode
+            hSeek h AbsoluteSeek (fromIntegral offset - 4)
+            pak <- BS.hGetContents h
+            let parsedEntry = flip runGet pak getPAKEntry
+            hClose h
+            return parsedEntry
+        mapList = L.zip fileList (L.map f offsetList) :: [(FilePath, IO PAKEntry)]
     return $ M.fromList mapList
 
 
-lkupPAKFile :: PAKFiles -> FilePath -> Maybe BS.ByteString
-lkupPAKFile pakFiles filePath =
-    fmap (decompress . pakEncodedData) $ flip M.lookup pakFiles (L.map toUpper filePath)
+lkupPAKFile :: PAKFiles -> FilePath -> Maybe (IO BS.ByteString)
+lkupPAKFile pakFiles filePath = do
+    entry <- flip M.lookup pakFiles (L.map toUpper filePath)
+    return $ fmap (decompress . pakEncodedData) entry
 
 forText f = f . T.unpack
 forText2 f a b = f (T.unpack a) (T.unpack b)
@@ -83,7 +90,7 @@ fileEntriesOnly entries = L.filter ((Folder /=) . entryType) entries
 
 -----  Data Declarations ------
 
-type PAKFiles = M.Map FilePath PAKEntry
+type PAKFiles = M.Map FilePath (IO PAKEntry)
 
 data MANEntry = MANEntry {
     entryCrc32 :: Word32,
@@ -163,9 +170,9 @@ getFileType = do
         0x15 -> Mpp
         _    -> Unrecognized
 
-getPAKEntry :: Word32 -> Get PAKEntry
-getPAKEntry offset = do
-    (skip . fromIntegral) (offset-4)
+getPAKEntry :: Get PAKEntry
+getPAKEntry = do
+    --(skip . fromIntegral) (offset-4) -- commented out.  Using hSeek instead.
     hdr <- getWord32le
     decSize <- getWord32le
     encSize <- getWord32le
