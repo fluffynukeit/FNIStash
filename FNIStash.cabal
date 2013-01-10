@@ -4,22 +4,24 @@ cabal-version: >=1.2
 build-type: Simple
 license: AllRightsReserved
 license-file: ""
+description:  
 data-dir: ""
  
 executable FNIStash
-    build-depends: zlib -any, QuickCheck -any, base -any, binary -any,
+    build-depends: QuickCheck -any, base -any, binary -any,
                    binary-strict -any, bytestring -any, containers -any, errors -any,
-                   filepath -any, monad-loops -any, text -any, tuple -any
+                   filepath -any, monad-loops -any, text -any, tuple -any, zlib -any
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
     other-modules: FNIStash.Logic.Data FNIStash.File.SharedStash
                    FNIStash.File.PAK FNIStash.File.General FNIStash.File.Crypto
+    ghc-options: -Wall -O2
  
 test-suite test-FNIStash
     build-depends: QuickCheck -any, base -any, binary -any,
                    binary-strict -any, bytestring -any, containers -any, errors -any,
-                   filepath -any, monad-loops -any, text -any, tuple -any
+                   filepath -any, monad-loops -any, text -any, tuple -any, zlib -any
     type: exitcode-stdio-1.0
     main-is: Main.hs
     buildable: True

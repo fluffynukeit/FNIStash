@@ -35,8 +35,8 @@ examineFile = testDir </>  "shareStashExamine.txt"
 pakManFileBinary = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Torchlight II\\PAKS\\DATA.PAK.MAN"
 pakFileBinary = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Torchlight II\\PAKS\\DATA.PAK"
 pakManFileText = testDir </>  "pakMan.txt"
-pakTestFile = "Media\\Shadows.png"
---pakTestFile = "Media\\Affixes.raw"
+--pakTestFile = "Media\\Shadows.png"
+pakTestFile = "Media\\Affixes.raw"
 
 main = do
     input <- BS.readFile ssFileOrig

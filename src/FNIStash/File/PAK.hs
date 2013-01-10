@@ -66,14 +66,11 @@ readPAKFiles manFile pakFile = do
     man <- readPAKMAN manFile
     let fileList = pakFileList man
         offsetList = pakFileOffsets man
-        fileOffsetList = L.zip fileList offsetList
         f offset =  do
-            h <- openBinaryFile pakFile ReadMode
-            hSeek h AbsoluteSeek (fromIntegral offset - 4)
-            pak <- BS.hGetContents h
-            let parsedEntry = flip runGet pak getPAKEntry
-            hClose h
-            return parsedEntry
+            withBinaryFile pakFile ReadMode (\h -> do
+                hSeek h AbsoluteSeek (fromIntegral offset - 4)
+                pak <- BS.hGetContents h
+                return $! (flip runGet pak getPAKEntry))
         mapList = L.zip fileList (L.map f offsetList) :: [(FilePath, IO PAKEntry)]
     return $ M.fromList mapList
 
