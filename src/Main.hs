@@ -1,11 +1,11 @@
 -----------------------------------------------------------------------------
 --
 -- Module      :  Main
--- Copyright   :
+-- Copyright   :  2013 Daniel Austin
 -- License     :  AllRightsReserved
 --
--- Maintainer  :
--- Stability   :
+-- Maintainer  :  dan@fluffynukeit.com
+-- Stability   :  Development
 -- Portability :
 --
 -- |
@@ -44,7 +44,6 @@ main = do
     writeFile examineFile $ inputToString input
     let (Right a, bs) = runGet (getScrambled >>= return . fileGameData . unDescrambled . descrambleGameFile) input
     BS.writeFile ssDescrambled a
-    getLine
     man <- readPAKMAN pakManFileBinary
     writeFile pakManFileText $ (show man) ++ "\n\n All files: \n" ++ (T.unpack . T.unlines $ pakFileList man)
     let pakFiles = readPAKFiles man pakFileBinary
@@ -54,7 +53,6 @@ main = do
         Just testFileData -> testFileData
         _ -> return . BSLC.pack $ "Media file " ++ pakTestFile ++ " with Posix name " ++ posixName ++
                          " does not exist in PAKFile mapping:\n" ++ (T.unpack . T.unlines $ keys pakFiles)
-    getLine
 
 
     

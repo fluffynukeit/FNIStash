@@ -1,11 +1,11 @@
 -----------------------------------------------------------------------------
 --
 -- Module      :  FNIStash.Logic.Data
--- Copyright   :
+-- Copyright   :  2013 Daniel Austin
 -- License     :  AllRightsReserved
 --
--- Maintainer  :
--- Stability   :
+-- Maintainer  :  dan@fluffynukeit.com
+-- Stability   :  Development
 -- Portability :
 --
 -- |
@@ -21,10 +21,11 @@ module FNIStash.Logic.Data (
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import Numeric
-import Data.Word (Word16, Word32)
+import Data.Word (Word16, Word32, Word64)
+import Data.Int (Int64)
 
 data Item = Item {
-    model :: BS.ByteString,
+    guid :: Word64,
     name :: T.Text,
     prefix :: T.Text,
     suffix :: T.Text,
@@ -59,7 +60,8 @@ instance Show Item where
     show = itemShow
 
 itemShow i = unlines
-    ["Full name: " ++ (T.unpack $ T.unwords [prefix i, name i, suffix i]),
+    ["GUID: " ++ show (fromIntegral $ guid i::Int64),
+     "Full name: " ++ (T.unpack $ T.unwords [prefix i, name i, suffix i]),
      "Num Enchants: " ++ (show $ nEnchants i),
      "Item level: " ++ (show $ level i),
      "Used Sockets: " ++ (show $ nSocketsUsed i) ++ "/" ++ (show $ nSockets i),

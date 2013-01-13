@@ -1,11 +1,11 @@
 -----------------------------------------------------------------------------
 --
--- Module      :  FNI.Logic.Crypto
--- Copyright   :
+-- Module      :  FNIStash.File.Crypto
+-- Copyright   :  2013 Daniel Austin
 -- License     :  AllRightsReserved
 --
--- Maintainer  :
--- Stability   :
+-- Maintainer  :  dan@fluffynukeit.com
+-- Stability   :  Development
 -- Portability :
 --
 -- |

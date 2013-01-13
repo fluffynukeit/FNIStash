@@ -3,20 +3,12 @@ version: 0.0.1
 cabal-version: >=1.2
 build-type: Simple
 license: AllRightsReserved
-license-file: ""
-description:  
+license-file: LICENSE
+copyright: 2013 Daniel Austin
+maintainer: dan@fluffynukeit.com
+stability: Development
+author: Daniel Austin
 data-dir: ""
- 
-executable FNIStash
-    build-depends: base -any, binary -any, binary-strict -any,
-                   bytestring -any, containers -any, errors -any, filepath -any,
-                   monad-loops -any, text -any, tuple -any, zlib -any
-    main-is: Main.hs
-    buildable: True
-    hs-source-dirs: src
-    other-modules: FNIStash.Logic.Data FNIStash.File.SharedStash
-                   FNIStash.File.PAK FNIStash.File.General FNIStash.File.Crypto
-    ghc-options: -O2
  
 executable FNIStash-Debug
     build-depends: base -any, binary -any, binary-strict -any,
@@ -25,9 +17,22 @@ executable FNIStash-Debug
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: FNIStash.Logic.Data FNIStash.File.SharedStash
-                   FNIStash.File.PAK FNIStash.File.General FNIStash.File.Crypto
+    other-modules: FNIStash.File.DAT FNIStash.File.DAT
+                   FNIStash.Logic.Data FNIStash.File.SharedStash FNIStash.File.PAK
+                   FNIStash.File.General FNIStash.File.DAT FNIStash.File.Crypto
     ghc-options: -O2 -prof -auto-all
+ 
+executable FNIStash
+    build-depends: base -any, binary -any, binary-strict -any,
+                   bytestring -any, containers -any, errors -any, filepath -any,
+                   monad-loops -any, text -any, tuple -any, zlib -any
+    main-is: Main.hs
+    buildable: True
+    hs-source-dirs: src
+    other-modules: FNIStash.File.DAT FNIStash.File.DAT
+                   FNIStash.Logic.Data FNIStash.File.SharedStash FNIStash.File.PAK
+                   FNIStash.File.General FNIStash.File.DAT FNIStash.File.Crypto
+    ghc-options: -O2
  
 test-suite test-FNIStash
     build-depends: base -any, binary -any, binary-strict -any,

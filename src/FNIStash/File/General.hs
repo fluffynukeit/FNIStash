@@ -1,11 +1,11 @@
 -----------------------------------------------------------------------------
 --
 -- Module      :  FNIStash.File.General
--- Copyright   :
+-- Copyright   :  2013 Daniel Austin
 -- License     :  AllRightsReserved
 --
--- Maintainer  :
--- Stability   :
+-- Maintainer  :  dan@fluffynukeit.com
+-- Stability   :  Development
 -- Portability :
 --
 -- |

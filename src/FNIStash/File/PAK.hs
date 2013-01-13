@@ -1,11 +1,11 @@
 -----------------------------------------------------------------------------
 --
--- Module      :  FNIStash.Logic.File.App.PAK
--- Copyright   :
+-- Module      :  FNIStash.File.PAK
+-- Copyright   :  2013 Daniel Austin
 -- License     :  AllRightsReserved
 --
--- Maintainer  :
--- Stability   :
+-- Maintainer  :  dan@fluffynukeit.com
+-- Stability   :  Development
 -- Portability :
 --
 -- |

@@ -1,11 +1,11 @@
 -----------------------------------------------------------------------------
 --
--- Module      :  FNI.Logic.File
--- Copyright   :
+-- Module      :  FNIStash.File.SharedStash
+-- Copyright   :  2013 Daniel Austin
 -- License     :  AllRightsReserved
 --
--- Maintainer  :
--- Stability   :
+-- Maintainer  :  dan@fluffynukeit.com
+-- Stability   :  Development
 -- Portability :
 --
 -- |
@@ -110,7 +110,8 @@ bsPieces bs = let (eitherL, remBS) = runGet getWord32le bs
 
 getItem :: Get Item
 getItem = do
-    model <- getByteString 11
+    skip 3
+    model <- getWord64le
     name <- getTorchText
     prefix <- getTorchText
     suffix <- getTorchText
