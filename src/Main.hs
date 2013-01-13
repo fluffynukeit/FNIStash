@@ -26,6 +26,7 @@ import FNIStash.File.PAK
 import System.FilePath
 import qualified System.FilePath.Posix as P
 import Data.Map
+import qualified Data.Text as T
 
 testDir = "C:\\Users\\Dan\\Desktop\\FNI Testing"
 ssFileOrig = testDir </> "sharedstash_v2.bin"
@@ -45,14 +46,14 @@ main = do
     BS.writeFile ssDescrambled a
     getLine
     man <- readPAKMAN pakManFileBinary
-    writeFile pakManFileText $ (show man) ++ "\n\n All files: \n" ++ (unlines $ pakFileList man)
-    pakFiles <- readPAKFiles pakManFileBinary pakFileBinary
-    let posixName = (P.joinPath $ splitDirectories pakTestFile)
+    writeFile pakManFileText $ (show man) ++ "\n\n All files: \n" ++ (T.unpack . T.unlines $ pakFileList man)
+    let pakFiles = readPAKFiles man pakFileBinary
+        posixName = (P.joinPath $ splitDirectories pakTestFile)
         maybeIOGetFile = lkupPAKFile pakFiles posixName
     BSL.writeFile (testDir </> pakTestFile) =<< case maybeIOGetFile of
         Just testFileData -> testFileData
         _ -> return . BSLC.pack $ "Media file " ++ pakTestFile ++ " with Posix name " ++ posixName ++
-                         " does not exist in PAKFile mapping:\n" ++ (unlines $ keys pakFiles)
+                         " does not exist in PAKFile mapping:\n" ++ (T.unpack . T.unlines $ keys pakFiles)
     getLine
 
 

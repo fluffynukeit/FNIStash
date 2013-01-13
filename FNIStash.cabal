@@ -8,22 +8,35 @@ description:
 data-dir: ""
  
 executable FNIStash
-    build-depends: QuickCheck -any, base -any, binary -any,
-                   binary-strict -any, bytestring -any, containers -any, errors -any,
-                   filepath -any, monad-loops -any, text -any, tuple -any, zlib -any
+    build-depends: base -any, binary -any, binary-strict -any,
+                   bytestring -any, containers -any, errors -any, filepath -any,
+                   monad-loops -any, text -any, tuple -any, zlib -any
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
     other-modules: FNIStash.Logic.Data FNIStash.File.SharedStash
                    FNIStash.File.PAK FNIStash.File.General FNIStash.File.Crypto
-    ghc-options: -Wall -O2
+    ghc-options: -O2
+ 
+executable FNIStash-Debug
+    build-depends: base -any, binary -any, binary-strict -any,
+                   bytestring -any, containers -any, errors -any, filepath -any,
+                   monad-loops -any, text -any, tuple -any, zlib -any
+    main-is: Main.hs
+    buildable: True
+    hs-source-dirs: src
+    other-modules: FNIStash.Logic.Data FNIStash.File.SharedStash
+                   FNIStash.File.PAK FNIStash.File.General FNIStash.File.Crypto
+    ghc-options: -O2 -prof -auto-all
  
 test-suite test-FNIStash
-    build-depends: QuickCheck -any, base -any, binary -any,
-                   binary-strict -any, bytestring -any, containers -any, errors -any,
-                   filepath -any, monad-loops -any, text -any, tuple -any, zlib -any
+    build-depends: base -any, binary -any, binary-strict -any,
+                   bytestring -any, containers -any, errors -any, filepath -any,
+                   monad-loops -any, text -any, tuple -any, zlib -any
     type: exitcode-stdio-1.0
     main-is: Main.hs
     buildable: True
-    cpp-options: -DMAIN_FUNCTION=testMain
     hs-source-dirs: src
+    other-modules: FNIStash.Logic.Data FNIStash.File.SharedStash
+                   FNIStash.File.PAK FNIStash.File.General FNIStash.File.Crypto
+    ghc-options: -O2

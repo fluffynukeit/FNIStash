@@ -47,7 +47,7 @@ readPAKMAN fileName = do
     return $ runGet getMANHeader content
 
 pakFileList hdr =
-    let f folder entry = forText2 (</>) (folderName folder) (entryName entry)
+    let f folder entry = (folderName folder) `T.append` (entryName entry)
     in folderAndEntryToList f hdr
 
 pakFileOffsets hdr =
@@ -61,9 +61,8 @@ folderAndEntryToList f hdr =
         flip L.map (fileEntriesOnly $ folderEntries fol) (f fol))
 
 
-readPAKFiles :: FilePath -> FilePath -> IO PAKFiles
-readPAKFiles manFile pakFile = do
-    man <- readPAKMAN manFile
+readPAKFiles :: MANHeader -> FilePath -> PAKFiles
+readPAKFiles man pakFile = 
     let fileList = pakFileList man
         offsetList = pakFileOffsets man
         f offset =  do
@@ -71,23 +70,21 @@ readPAKFiles manFile pakFile = do
                 hSeek h AbsoluteSeek (fromIntegral offset - 4)
                 pak <- BS.hGetContents h
                 return $! (flip runGet pak getPAKEntry))
-        mapList = L.zip fileList (L.map f offsetList) :: [(FilePath, IO PAKEntry)]
-    return $ M.fromList mapList
+        mapList = L.zip fileList (L.map f offsetList) :: [(T.Text, IO PAKEntry)]
+    in (M.fromList mapList)
 
 
 lkupPAKFile :: PAKFiles -> FilePath -> Maybe (IO BS.ByteString)
 lkupPAKFile pakFiles filePath = do
-    entry <- flip M.lookup pakFiles (L.map toUpper filePath)
+    entry <- flip M.lookup pakFiles $ (T.toUpper . T.pack) filePath
     return $ fmap (decompress . pakEncodedData) entry
 
-forText f = f . T.unpack
-forText2 f a b = f (T.unpack a) (T.unpack b)
 
 fileEntriesOnly entries = L.filter ((Folder /=) . entryType) entries
 
 -----  Data Declarations ------
 
-type PAKFiles = M.Map FilePath (IO PAKEntry)
+type PAKFiles = M.Map T.Text (IO PAKEntry)
 
 data MANEntry = MANEntry {
     entryCrc32 :: Word32,
@@ -100,7 +97,7 @@ data MANEntry = MANEntry {
     } deriving Eq
 
 data MANFolder = MANFolder {
-    folderName :: T.Text,
+    folderName :: !T.Text,
     folderEntries :: [MANEntry]
     } deriving Eq
 
