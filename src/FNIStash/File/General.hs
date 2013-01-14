@@ -17,7 +17,9 @@ module FNIStash.File.General
     (getTorchText,
      getTorchTextL,
      wordToFloat,
-     wordToDouble)
+     wordToDouble,
+     streamToHex,
+     intToHex)
 where
 
 import qualified Data.Binary.Strict.Get as S
@@ -25,8 +27,8 @@ import qualified Data.Binary.Get as L
 import qualified Data.Text as T
 import Control.Applicative
 import Data.Text.Encoding (decodeUtf16LE)
-
-
+import Numeric
+import qualified Data.ByteString as BS
 
 import Data.Word (Word32, Word64)
 import Data.Array.ST (newArray, readArray, MArray, STUArray)
@@ -40,6 +42,15 @@ getTorchText = fromIntegral . (*2) <$> S.getWord16le >>= S.getByteString >>= \x 
 getTorchTextL :: L.Get T.Text
 getTorchTextL = fromIntegral . (*2) <$> L.getWord16le >>= L.getByteString >>= \x -> return (decodeUtf16LE x)
 
+streamToHex :: BS.ByteString -> T.Text
+streamToHex = T.pack . ("0x" ++) . concatMap ((" "++) . showHexPadded) . BS.unpack
+
+showHexPadded word = case length $ showHex word "" of
+    1 -> "0" ++ showHex word ""
+    2 -> showHex word ""
+
+intToHex i = T.pack ("0x" ++ padding ++ (showHex i ""))
+        where padding = replicate (8 - (length $ showHex i "")) '0'
 
 -- Here I copied the Word -> Float/Double solution found at the following link
 -- http://stackoverflow.com/questions/6976684/converting-ieee-754-floating-point-in-haskell-word32-64-to-and-from-haskell-floa

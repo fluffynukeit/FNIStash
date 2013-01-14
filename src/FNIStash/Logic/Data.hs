@@ -20,9 +20,9 @@ module FNIStash.Logic.Data (
 
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
-import Numeric
 import Data.Word (Word16, Word32, Word64)
 import Data.Int (Int64)
+import FNIStash.File.General
 
 data Item = Item {
     guid :: Word64,
@@ -76,14 +76,8 @@ instance Show Mod where
 modShow i = unlines
     ["","","Type: " ++ (show $ modType i),
      "Name: " ++ (show . T.unpack . modName $ i),
-     "Data: " ++ (streamToHex $ modData i),
+     "Data: " ++ (T.unpack . streamToHex $ modData i),
      "",""]
 
-streamToHex :: BS.ByteString -> String
-streamToHex = ("0x" ++) . concatMap ((" "++) . showHexPadded) . BS.unpack
-
-showHexPadded word = case length $ showHex word "" of
-    1 -> "0" ++ showHex word ""
-    2 -> showHex word ""
 
 
