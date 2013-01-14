@@ -7,37 +7,41 @@ license-file: LICENSE
 copyright: 2013 Daniel Austin
 maintainer: dan@fluffynukeit.com
 stability: Development
+description:  
 author: Daniel Austin
 data-dir: ""
  
-executable FNIStash-Debug
-    build-depends: base -any, binary -any, binary-strict -any,
-                   bytestring -any, containers -any, errors -any, filepath -any,
-                   monad-loops -any, text -any, tuple -any, zlib -any
-    main-is: Main.hs
-    buildable: True
-    hs-source-dirs: src
-    other-modules: FNIStash.File.DAT FNIStash.File.DAT
-                   FNIStash.Logic.Data FNIStash.File.SharedStash FNIStash.File.PAK
-                   FNIStash.File.General FNIStash.File.DAT FNIStash.File.Crypto
-    ghc-options: -O2 -prof -auto-all
- 
 executable FNIStash
-    build-depends: base -any, binary -any, binary-strict -any,
-                   bytestring -any, containers -any, errors -any, filepath -any,
-                   monad-loops -any, text -any, tuple -any, zlib -any
+    build-depends: array -any, base -any, binary -any,
+                   binary-strict -any, bytestring -any, containers -any,
+                   data-endian -any, errors -any, filepath -any, monad-loops -any,
+                   text -any, tuple -any, zlib -any
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: FNIStash.File.DAT FNIStash.File.DAT
-                   FNIStash.Logic.Data FNIStash.File.SharedStash FNIStash.File.PAK
-                   FNIStash.File.General FNIStash.File.DAT FNIStash.File.Crypto
+    other-modules: FNIStash.Logic.Data FNIStash.File.VarIDs
+                   FNIStash.File.SharedStash FNIStash.File.PAK FNIStash.File.General
+                   FNIStash.File.DAT FNIStash.File.Crypto
     ghc-options: -O2
  
+executable FNIStash-Debug
+    build-depends: array -any, base -any, binary -any,
+                   binary-strict -any, bytestring -any, containers -any,
+                   data-endian -any, errors -any, filepath -any, monad-loops -any,
+                   text -any, tuple -any, zlib -any
+    main-is: Main.hs
+    buildable: True
+    hs-source-dirs: src
+    other-modules: FNIStash.Logic.Data FNIStash.File.VarIDs
+                   FNIStash.File.SharedStash FNIStash.File.PAK FNIStash.File.General
+                   FNIStash.File.DAT FNIStash.File.Crypto
+    ghc-options: -O2 -prof
+ 
 test-suite test-FNIStash
-    build-depends: base -any, binary -any, binary-strict -any,
-                   bytestring -any, containers -any, errors -any, filepath -any,
-                   monad-loops -any, text -any, tuple -any, zlib -any
+    build-depends: array -any, base -any, binary -any,
+                   binary-strict -any, bytestring -any, containers -any,
+                   data-endian -any, errors -any, filepath -any, monad-loops -any,
+                   text -any, tuple -any, zlib -any
     type: exitcode-stdio-1.0
     main-is: Main.hs
     buildable: True

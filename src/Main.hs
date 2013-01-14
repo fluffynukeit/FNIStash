@@ -27,6 +27,8 @@ import System.FilePath
 import qualified System.FilePath.Posix as P
 import Data.Map
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
+import FNIStash.File.DAT
 
 testDir = "C:\\Users\\Dan\\Desktop\\FNI Testing"
 ssFileOrig = testDir </> "sharedstash_v2.bin"
@@ -38,6 +40,7 @@ pakFileBinary = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Torchlight I
 pakManFileText = testDir </>  "pakMan.txt"
 --pakTestFile = "Media\\Shadows.png"
 pakTestFile = "Media\\Affixes.raw"
+effectListFile = "Media\\EffectsList.dat"
 
 main = do
     input <- BS.readFile ssFileOrig
@@ -45,7 +48,6 @@ main = do
     let (Right a, bs) = runGet (getScrambled >>= return . fileGameData . unDescrambled . descrambleGameFile) input
     BS.writeFile ssDescrambled a
     man <- readPAKMAN pakManFileBinary
-    writeFile pakManFileText $ (show man) ++ "\n\n All files: \n" ++ (T.unpack . T.unlines $ pakFileList man)
     let pakFiles = readPAKFiles man pakFileBinary
         posixName = (P.joinPath $ splitDirectories pakTestFile)
         maybeIOGetFile = lkupPAKFile pakFiles posixName
@@ -53,6 +55,11 @@ main = do
         Just testFileData -> testFileData
         _ -> return . BSLC.pack $ "Media file " ++ pakTestFile ++ " with Posix name " ++ posixName ++
                          " does not exist in PAKFile mapping:\n" ++ (T.unpack . T.unlines $ keys pakFiles)
+    let effectFilePosix = P.joinPath $ splitDirectories effectListFile
+        Just effectListDataAction = lkupPAKFile pakFiles effectFilePosix
+    effectBS <- effectListDataAction
+    let (Right dat, extra) = runGet getDAT (BSLC.toStrict effectBS)
+    T.writeFile (testDir </> effectListFile) (textDATNode $ datRoot dat)
 
 
     

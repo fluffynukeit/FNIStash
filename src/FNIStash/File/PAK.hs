@@ -19,8 +19,7 @@
 module FNIStash.File.PAK (
     readPAKMAN,
     readPAKFiles,
-    lkupPAKFile,
-    pakFileList
+    lkupPAKFile
 ) where
 
 
