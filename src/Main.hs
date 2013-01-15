@@ -59,7 +59,7 @@ main = do
         Just effectListDataAction = lkupPAKFile pakFiles effectFilePosix
     effectBS <- effectListDataAction
     let (Right dat, extra) = runGet getDAT (BSLC.toStrict effectBS)
-    T.writeFile (testDir </> effectListFile) (textDATNode 0 $ datRoot dat)
+    T.writeFile (testDir </> effectListFile) (textDAT dat)
 
 
     
