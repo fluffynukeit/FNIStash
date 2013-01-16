@@ -14,7 +14,10 @@
 
 module FNIStash.File.DAT (
     getDAT,
-    textDAT
+    textDAT,
+    findSection,
+    findVar,
+    DATVar(..)
 ) where
 
 
@@ -30,6 +33,22 @@ import Data.Int
 import Control.Monad
 import Control.Applicative
 import Data.Monoid
+import Data.Maybe (isJust)
+
+-- Functions for searching DAT records
+
+findSection :: VarID -> DATNode -> Maybe DATNode
+findSection v d = searchNodeList [d] v
+
+searchNodeList :: [DATNode] -> VarID -> Maybe DATNode
+searchNodeList [] _ = Nothing
+searchNodeList (x:xs) v
+    | datNodeID x == v = Just x
+    | isJust (searchNodeList xs v) = searchNodeList xs v
+    | otherwise = searchNodeList (datSubNodes x) v
+
+findVar :: VarID -> DATNode -> Maybe DATVar
+findVar v d = snd <$> (find (\(id, var) -> id == v) $ datNodeVars d)
 
 
 -- Data declarations
@@ -39,18 +58,12 @@ type TextID = Word32
 type DATDict = [(TextID, T.Text)]
 type DATVars = [(VarID, DATVar)]
 
-data DAT = DAT {
-    datVersion :: Word32,
-    datDict :: DATDict,
-    datRoot :: DATNode
-    }
 
 data DATNode = DATNode {
     datNodeID :: VarID,
     datNodeVars :: DATVars,
     datSubNodes :: [DATNode]
     }
-
 
 data DATVar =
     DATInt Int |
@@ -65,12 +78,12 @@ data DATVar =
 
 -- Get functions
 
-getDAT :: Get DAT
+getDAT :: Get DATNode
 getDAT = do
     vers <- getWord32le
     dict <- getDATDict
     root <- getDATNode dict
-    return $ DAT vers dict root
+    return root
 
 getDATNode :: DATDict -> Get DATNode
 getDATNode dict = DATNode <$> getWord32le <*> getDATVars dict <*>
@@ -104,8 +117,8 @@ getDATVar dict = do
 
 -- Show instance for DATs
 
-textDAT :: DAT -> T.Text
-textDAT d = textDATNodeIndexed 0 (datRoot d) where
+textDAT :: DATNode -> T.Text
+textDAT d = textDATNodeIndexed 0 d where
     textDATNodeIndexed i dn =
         let nodeStart = T.pack "[" <> (lkupVarDes $ datNodeID dn) <> T.pack "] " <> intToHex i
                 <> T.pack "\n"

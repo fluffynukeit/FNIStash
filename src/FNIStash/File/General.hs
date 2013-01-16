@@ -43,9 +43,9 @@ getTorchTextL :: L.Get T.Text
 getTorchTextL = fromIntegral . (*2) <$> L.getWord16le >>= L.getByteString >>= \x -> return (decodeUtf16LE x)
 
 streamToHex :: BS.ByteString -> T.Text
-streamToHex = T.pack . ("0x" ++) . concatMap ((" "++) . showHexWord) . BS.unpack
+streamToHex = T.pack . ("0x" ++) . concatMap ((" "++) . wordToHex) . BS.unpack
 
-showHexWord word = case length $ showHex word "" of
+wordToHex word = case length $ showHex word "" of
     1 -> "0" ++ showHex word ""
     2 -> showHex word ""
 

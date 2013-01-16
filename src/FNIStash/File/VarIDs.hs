@@ -27,12 +27,19 @@ import Data.Endian
 type VarIDMap = M.Map VarID T.Text
 type VarID = Word32
 
+lkupVarDes :: VarID -> T.Text
+lkupVarDes varID = M.findWithDefault (T.pack "FNI UNKNOWN") (swapEndian varID) varIDMap
+
+-- Variables that are particularly useful.
+unitGUID = 0x06aad3ed
+
+
+-- Below here are background functions/data
+
 varIDMap = (M.fromList varIDs) `seq` (M.fromList varIDs)
 
-lkupVarDes :: VarID -> T.Text
-lkupVarDes varID = maybe (T.pack "FNI UNKNOWN") id $
-    flip M.lookup varIDMap (swapEndian varID)
-
+-- This list maps varID to a text description of the variable.  Yes, it contains many
+-- duplicates, but they will be ignored in map creation.
 varIDs = [
     (0x05000000, T.pack "%"),
     (0x05944f4c, T.pack "__GDF_XML"),
