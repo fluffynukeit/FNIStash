@@ -17,7 +17,8 @@ module FNIStash.File.DAT (
     textDAT,
     findSection,
     findVar,
-    DATVar(..)
+    sectionAt,
+    intVar, floatVar, doubleVar, word32Var, textVar, boolVar, int64Var, translateVar
 ) where
 
 
@@ -50,6 +51,34 @@ searchNodeList (x:xs) v
 findVar :: VarID -> DATNode -> Maybe DATVar
 findVar v d = snd <$> (find (\(id, var) -> id == v) $ datNodeVars d)
 
+sectionAt :: Word32 -> DATNode -> Maybe DATNode
+sectionAt i d =
+    if i < fromIntegral (length $ datSubNodes d)
+    then Just $ datSubNodes d !! fromIntegral i else Nothing
+
+intVar (DATInt i) = Just i
+intVar _ = Nothing
+
+floatVar (DATFloat i) = Just i
+floatVar _ = Nothing
+
+doubleVar (DATDouble i) = Just i
+doubleVar _ = Nothing
+
+word32Var (DATWord i) = Just i
+word32Var _ = Nothing
+
+textVar (DATText i) = Just i
+textVar _ = Nothing
+
+boolVar (DATBool i) = Just i
+boolVar _ = Nothing
+
+int64Var (DATInt64 i) = Just i
+int64Var _ = Nothing
+
+translateVar (DATTranslate i) = Just i
+translateVar _ = Nothing
 
 -- Data declarations
 

@@ -29,6 +29,7 @@ import Data.Map
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import FNIStash.File.DAT
+import FNIStash.Logic.Variables
 
 testDir = "C:\\Users\\Dan\\Desktop\\FNI Testing"
 ssFileOrig = testDir </> "sharedstash_v2.bin"
@@ -60,6 +61,12 @@ main = do
     effectBS <- effectListDataAction
     let (Right dat, extra) = runGet getDAT (BSLC.toStrict effectBS)
     T.writeFile (testDir </> effectListFile) (textDAT dat)
+    T.writeFile (testDir </> "testOutput.txt") $
+        (let k = return dat >>= sectionAt 130 >>= findVar vEFFECT >>= textVar
+         in case k of
+            Just a -> a
+            Nothing -> T.pack "Couldn't find variable!!"
+            )
 
 
     

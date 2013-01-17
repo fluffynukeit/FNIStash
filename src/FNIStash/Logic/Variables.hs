@@ -1,0 +1,23 @@
+-----------------------------------------------------------------------------
+--
+-- Module      :  FNIStash.Logic.Variables
+-- Copyright   :  2013 Daniel Austin
+-- License     :  AllRightsReserved
+--
+-- Maintainer  :  dan@fluffynukeit.com
+-- Stability   :  Development
+-- Portability :
+--
+-- |
+--
+-----------------------------------------------------------------------------
+
+module FNIStash.Logic.Variables where
+
+import FNIStash.File.VarIDs (VarID)
+import Data.Endian
+
+-- Variables that are particularly useful.
+vUNIT_GUID = swapEndian 0x06aad3ed::VarID
+vEFFECTLIST = swapEndian 0x15ca47c3::VarID
+vEFFECT = swapEndian 0x351c420e::VarID

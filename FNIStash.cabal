@@ -7,7 +7,6 @@ license-file: LICENSE
 copyright: 2013 Daniel Austin
 maintainer: dan@fluffynukeit.com
 stability: Development
-description:  
 author: Daniel Austin
 data-dir: ""
  
@@ -19,9 +18,9 @@ executable FNIStash
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: FNIStash.Logic.Data FNIStash.File.VarIDs
-                   FNIStash.File.SharedStash FNIStash.File.PAK FNIStash.File.General
-                   FNIStash.File.DAT FNIStash.File.Crypto
+    other-modules: FNIStash.Logic.Variables FNIStash.Logic.Data
+                   FNIStash.File.VarIDs FNIStash.File.SharedStash FNIStash.File.PAK
+                   FNIStash.File.General FNIStash.File.DAT FNIStash.File.Crypto
     ghc-options: -O2
  
 executable FNIStash-Debug
@@ -32,9 +31,9 @@ executable FNIStash-Debug
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: FNIStash.Logic.Data FNIStash.File.VarIDs
-                   FNIStash.File.SharedStash FNIStash.File.PAK FNIStash.File.General
-                   FNIStash.File.DAT FNIStash.File.Crypto
+    other-modules: FNIStash.Logic.Variables FNIStash.Logic.Data
+                   FNIStash.File.VarIDs FNIStash.File.SharedStash FNIStash.File.PAK
+                   FNIStash.File.General FNIStash.File.DAT FNIStash.File.Crypto
     ghc-options: -O2 -prof
  
 test-suite test-FNIStash

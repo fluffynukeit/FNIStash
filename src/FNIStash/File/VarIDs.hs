@@ -30,9 +30,6 @@ type VarID = Word32
 lkupVarDes :: VarID -> T.Text
 lkupVarDes varID = M.findWithDefault (T.pack "FNI UNKNOWN") (swapEndian varID) varIDMap
 
--- Variables that are particularly useful.
-unitGUID = 0x06aad3ed
-
 
 -- Below here are background functions/data
 
