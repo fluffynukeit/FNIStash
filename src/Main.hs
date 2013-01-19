@@ -11,7 +11,7 @@
 -- |
 --
 -----------------------------------------------------------------------------
-
+{-# LANGUAGE OverloadedStrings #-}
 
 module Main (
     main
@@ -33,7 +33,7 @@ main = do
     man <- readPAKMAN pakMANFileBinary
     let pak = pakFiles man pakFileBinary
     findItem <- itemSearcher pak
-    T.writeFile (testDir </> "testOutputDAT.txt") $ (textDAT . fromJust . findItem) (T.pack "-1053906477868677616")
+    T.writeFile (testDir </> "testOutputDAT.txt") $ (textDAT . fromJust . findItem) "-1053906477868677616"
 
 
 

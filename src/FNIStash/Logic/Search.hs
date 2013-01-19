@@ -11,6 +11,7 @@
 -- |
 --
 -----------------------------------------------------------------------------
+{-# LANGUAGE OverloadedStrings #-}
 
 module FNIStash.Logic.Search (
     itemSearcher
@@ -27,6 +28,6 @@ import Data.Maybe
 -- the PAK and DAT maps instead of re-reading them each time I search
 itemSearcher p = do
     let guidFinder = (\x -> fromJust (findVar vUNIT_GUID x >>= textVar))
-    d <- readDATFiles p (T.pack "MEDIA/UNITS/ITEMS") guidFinder
+    d <- readDATFiles p "MEDIA/UNITS/ITEMS" guidFinder
     return (\idText -> lkupDATFile d idText)
 

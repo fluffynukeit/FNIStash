@@ -11,6 +11,7 @@
 -- |
 --
 -----------------------------------------------------------------------------
+{-# LANGUAGE OverloadedStrings #-}
 
 module FNIStash.File.DAT (
     getDAT,
@@ -154,10 +155,10 @@ getDATVar dict = do
 textDAT :: DATNode -> T.Text
 textDAT d = textDATNodeIndexed 0 d where
     textDATNodeIndexed i dn =
-        let nodeStart = T.pack "[" <> (lkupVarDes $ datNodeID dn) <> T.pack "] " <> intToHex i
-                <> T.pack "\n"
-            nodeEnd = T.pack "[/" <> (lkupVarDes $ datNodeID dn) <> T.pack "] " <> intToHex i
-                <> T.pack "\n"
+        let nodeStart = "[" <> (lkupVarDes $ datNodeID dn) <> "] " <> intToHex i
+                <> "\n"
+            nodeEnd = "[/" <> (lkupVarDes $ datNodeID dn) <> "] " <> intToHex i
+                <> "\n"
             nodeVars = textVarList $ datNodeVars dn
             indexedSubNodes = zip [0..] $ datSubNodes dn
             nodeMid = mconcat $ map (\(i,n) -> textDATNodeIndexed i n) indexedSubNodes
