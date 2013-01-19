@@ -18,7 +18,9 @@ module FNIStash.File.DAT (
     findSection,
     findVar,
     sectionAt,
-    intVar, floatVar, doubleVar, word32Var, textVar, boolVar, int64Var, translateVar
+    intVar, floatVar, doubleVar, word32Var, textVar, boolVar, int64Var, translateVar,
+    readDATFiles,
+    lkupDATFile
 ) where
 
 
@@ -35,6 +37,9 @@ import Control.Monad
 import Control.Applicative
 import Data.Monoid
 import Data.Maybe (isJust)
+import qualified Data.Map as M
+import FNIStash.File.PAK
+import qualified Data.ByteString.Lazy as BS
 
 -- Functions for searching DAT records
 
@@ -144,7 +149,7 @@ getDATVar dict = do
         8 -> DATTranslate <$> (getWord32le >>= return . (\x -> maybe T.empty id (lookup x dict)))
     return (varID, varVal)
 
--- Show instance for DATs
+-- "Show" functions for DATs
 
 textDAT :: DATNode -> T.Text
 textDAT d = textDATNodeIndexed 0 d where
@@ -176,11 +181,24 @@ textVarPair (v,d) =
         )))
 
 
+-- functions for building DAT maps
+type DATFiles a = M.Map a  DATNode
 
+readDATFiles :: Ord a => PAKFiles -> T.Text -> (DATNode -> a) -> IO (DATFiles a)
+readDATFiles pak prefix keyFxn =
+    let prefixMap = M.filterWithKey (\k _ -> T.isPrefixOf prefix k) pak
+        pairList = M.toList prefixMap
+        newPair (k1,v1) = do
+            entry <- v1
+            let (Right newVal, remaining) = runGet getDAT (BS.toStrict $ entryData entry)
+                (newKey) = keyFxn newVal
+            return (newKey, newVal)
+    in do
+        newPairList <- mapM newPair pairList
+        return $ M.fromList newPairList
 
-
-
-
+lkupDATFile :: Ord a => DATFiles a -> a -> Maybe DATNode
+lkupDATFile d k = M.lookup k d
 
 
 

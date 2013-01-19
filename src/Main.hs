@@ -30,6 +30,7 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import FNIStash.File.DAT
 import FNIStash.Logic.Variables
+import Data.Maybe
 
 testDir = "C:\\Users\\Dan\\Desktop\\FNI Testing"
 ssFileOrig = testDir </> "sharedstash_v2.bin"
@@ -67,6 +68,12 @@ main = do
             Just a -> a
             Nothing -> T.pack "Couldn't find variable!!"
             )
+    let guidFinder = (\x -> fromJust (findVar vUNIT_GUID x >>= textVar))
+    datLkup <- readDATFiles pakFiles (T.pack "MEDIA/UNITS/ITEMS") guidFinder
+    let showFxn k n = show (k, guidFinder n)
+    T.writeFile (testDir </> "testOutputDatLkup.txt") $ T.pack (showTreeWith showFxn True False datLkup)
+    let testDATFile = lkupDATFile datLkup (T.pack "-1198998648965632797")
+    T.writeFile (testDir </> "outputFoundDat.txt") (textDAT $ fromJust testDATFile)
 
 
     

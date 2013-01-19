@@ -19,7 +19,9 @@
 module FNIStash.File.PAK (
     readPAKMAN,
     readPAKFiles,
-    lkupPAKFile
+    lkupPAKFile,
+    entryData,
+    PAKFiles
 ) where
 
 
@@ -76,8 +78,9 @@ readPAKFiles man pakFile =
 lkupPAKFile :: PAKFiles -> FilePath -> Maybe (IO BS.ByteString)
 lkupPAKFile pakFiles filePath = do
     entry <- flip M.lookup pakFiles $ (T.toUpper . T.pack) filePath
-    return $ fmap (decompress . pakEncodedData) entry
+    return $ fmap entryData entry
 
+entryData = (decompress . pakEncodedData)
 
 fileEntriesOnly entries = L.filter ((Folder /=) . entryType) entries
 
