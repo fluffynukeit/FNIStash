@@ -18,7 +18,7 @@
 
 module FNIStash.File.PAK (
     readPAKMAN,
-    readPAKFiles,
+    pakFiles,
     lkupPAKFile,
     entryData,
     PAKFiles
@@ -62,8 +62,8 @@ folderAndEntryToList f hdr =
         flip L.map (fileEntriesOnly $ folderEntries fol) (f fol))
 
 
-readPAKFiles :: MANHeader -> FilePath -> PAKFiles
-readPAKFiles man pakFile = 
+pakFiles :: MANHeader -> FilePath -> PAKFiles
+pakFiles man pakFile = 
     let fileList = pakFileList man
         offsetList = pakFileOffsets man
         f offset =  do
