@@ -13,12 +13,6 @@
 -----------------------------------------------------------------------------
 
 module FNIStash.File.SharedStash (
-    getScrambled,
-    descrambleGameFile,
-    scrambleGameFile,
-    fileGameData,
-    unScrambled,
-    unDescrambled,
     bsToItems
 ) where
 
@@ -43,47 +37,7 @@ import Debug.Trace (trace)
 import Control.Monad.Loops
 import Control.Monad
 
-data GameFile = GameFile {
-    fileVersion   :: Word32,
-    fileDummy     :: Word8,
-    fileChecksum  :: Word32,
-    fileGameData  :: BS.ByteString,
-    fileSize      :: Word32
-    }
 
-newtype Scrambled = Scrambled GameFile
-newtype Descrambled = Descrambled GameFile
-
-
-unScrambled (Scrambled gf) = gf
-unDescrambled (Descrambled gf) = gf
-
-getScrambled :: Get Scrambled
-getScrambled = do
-    version <- getWord32le
-    dummy   <- getWord8
-    checkSumVal <- case version of
-        _ -> getWord32le
-    remainingBytes <- remaining
-    gameBS  <- getByteString $ remainingBytes - 4
-    fsize   <- getWord32le
-    return $ Scrambled $ GameFile version dummy checkSumVal gameBS fsize
-
-descrambleGameFile :: Scrambled -> Descrambled
-descrambleGameFile (Scrambled scrFile) = Descrambled $ GameFile
-    (fileVersion scrFile)
-    (fileDummy scrFile)
-    (0x00::Word32)
-    (descramble $ fileGameData scrFile)
-    (fileSize scrFile)
-
-scrambleGameFile :: Descrambled -> Scrambled
-scrambleGameFile (Descrambled desFile) = Scrambled $ GameFile
-    (fileVersion desFile)
-    (fileDummy desFile)
-    (checksum $ fileGameData desFile)
-    (scramble $ fileGameData desFile)
-    (4 + 1 + 4 + 4 + fromIntegral (BS.length $ fileGameData desFile))
 
 
 getBSPiece :: Get BS.ByteString

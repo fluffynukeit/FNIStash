@@ -20,6 +20,7 @@ module Main (
 import FNIStash.File.PAK
 import FNIStash.File.DAT
 import FNIStash.Logic.Search
+import FNIStash.File.SharedStash
 import System.FilePath
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -34,7 +35,5 @@ main = do
     let pak = pakFiles man pakFileBinary
     findItem <- itemSearcher pak
     T.writeFile (testDir </> "testOutputDAT.txt") $ (textDAT . fromJust . findItem) "-1053906477868677616"
-
-
 
 

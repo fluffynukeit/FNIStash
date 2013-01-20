@@ -13,15 +13,55 @@
 -----------------------------------------------------------------------------
 
 module FNIStash.File.Crypto (
-    descramble,
-    scramble,
-    checksum,
+    CryptoFile,
+    readCryptoFile,
+    writeCryptoFile
 ) where
 
-import qualified Data.ByteString as BS
+-- This module is for reading and writing the scrambled save game files
+
+import qualified Data.ByteString.Lazy as BS
 import Data.Tuple.Curry
 import Data.Bits (Bits(..))
-import Data.Word (Word32)
+import Data.Word
+import Data.Binary.Get
+import Data.Binary.Put
+import Control.Applicative
+
+-- CryptoFile with a b phantom types.  where a is the kind of save file.
+data CryptoFile a = CryptoFile {
+    fileVersion   :: Word32,
+    fileDummy     :: Word8,
+    fileChecksum  :: Word32,
+    fileGameData  :: BS.ByteString,
+    fileSize      :: Word32
+    }
+
+getCryptoFile :: Get (CryptoFile a)
+getCryptoFile = 
+    CryptoFile <$>
+    getWord32le <*> -- version
+    getWord8 <*> -- dummy byte
+    (getWord32le >> return (0x00::Word32)) <*> -- read checksum, throw it away, then use zeros
+    (remaining >>= \x -> getLazyByteString (x-4) >>= return . descramble) <*> -- actual file data (descrambled)
+    getWord32le -- data size
+
+putCryptoFile :: CryptoFile a -> Put
+putCryptoFile desFile = do
+    putWord32le (fileVersion desFile)
+    putWord8 (fileDummy desFile)
+    putWord32le (checksum $ fileGameData desFile)
+    putLazyByteString (scramble $ fileGameData desFile)
+    putWord32le (4 + 1 + 4 + 4 + fromIntegral (BS.length $ fileGameData desFile))
+
+readCryptoFile filePath =
+    BS.readFile filePath >>= return . (runGet getCryptoFile)
+
+writeCryptoFile filePath cryptoFile =
+    let fileData = runPut (putCryptoFile cryptoFile)
+    in BS.writeFile filePath fileData
+
+-- Low level (de)scrambling functions
 
 descramble = processScrambler desByteMerger
 scramble = processScrambler scrByteMerger
