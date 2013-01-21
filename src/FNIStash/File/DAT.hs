@@ -28,19 +28,19 @@ module FNIStash.File.DAT (
 -- Based on the DAT2TXT Python program by cienislaw.
 import FNIStash.File.General
 import FNIStash.File.VarIDs
-
-import Data.Binary.Strict.Get
-import qualified Data.Text as T
-import Data.List
-import Data.Word
-import Data.Int
-import Control.Monad
-import Control.Applicative
-import Data.Monoid
-import Data.Maybe (isJust)
-import qualified Data.Map as M
 import FNIStash.File.PAK
+
+import Data.Binary.Get
+import qualified Data.Text as T
 import qualified Data.ByteString.Lazy as BS
+import qualified Data.Map as M
+import Data.List
+import Control.Applicative
+import Control.Monad
+import Data.Maybe
+import Data.Word
+import Data.Monoid
+import Data.Int
 
 -- Functions for searching DAT records
 
@@ -187,12 +187,12 @@ type DATFiles a = M.Map a  DATNode
 
 readDATFiles :: Ord a => PAKFiles -> T.Text -> (DATNode -> a) -> IO (DATFiles a)
 readDATFiles pak prefix keyFxn =
-    let prefixMap = M.filterWithKey (\k _ -> T.isPrefixOf prefix k) pak
+    let prefixMap = M.filterWithKey (\key _ -> T.isPrefixOf prefix key) pak
         pairList = M.toList prefixMap
         newPair (k1,v1) = do
             entry <- v1
-            let (Right newVal, remaining) = runGet getDAT (BS.toStrict $ entryData entry)
-                (newKey) = keyFxn newVal
+            let Right newVal = runGetWithFail ("Problem reading DAT file " <> k1) getDAT (entryData entry)
+                newKey = keyFxn newVal
             return (newKey, newVal)
     in do
         newPairList <- mapM newPair pairList

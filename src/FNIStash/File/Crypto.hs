@@ -11,6 +11,7 @@
 -- |
 --
 -----------------------------------------------------------------------------
+{-# LANGUAGE OverloadedStrings #-}
 
 module FNIStash.File.Crypto (
     CryptoFile,
@@ -20,13 +21,16 @@ module FNIStash.File.Crypto (
 
 -- This module is for reading and writing the scrambled save game files
 
+import FNIStash.File.General
+
 import qualified Data.ByteString.Lazy as BS
-import Data.Tuple.Curry
-import Data.Bits (Bits(..))
-import Data.Word
 import Data.Binary.Get
 import Data.Binary.Put
-import Control.Applicative
+import Data.Word
+import Data.Bits
+import Data.Monoid
+import Data.Tuple.All
+import qualified Data.Text as T
 
 -- CryptoFile with a b phantom types.  where a is the kind of save file.
 data CryptoFile a = CryptoFile {
@@ -38,13 +42,14 @@ data CryptoFile a = CryptoFile {
     }
 
 getCryptoFile :: Get (CryptoFile a)
-getCryptoFile = 
-    CryptoFile <$>
-    getWord32le <*> -- version
-    getWord8 <*> -- dummy byte
-    (getWord32le >> return (0x00::Word32)) <*> -- read checksum, throw it away, then use zeros
-    (remaining >>= \x -> getLazyByteString (x-4) >>= return . descramble) <*> -- actual file data (descrambled)
-    getWord32le -- data size
+getCryptoFile = do
+    vers <- getWord32le -- version
+    dummy <- getWord8  -- dummy byte
+    getWord32le -- read checksum, throw it away, then use zeros later
+    rem <- getRemainingLazyByteString -- get rest of the file
+    let (scrambledData, fileSizeBS) = BS.splitAt (BS.length rem - 4) rem
+        fileSize = runGet getWord32le fileSizeBS
+    return $ CryptoFile vers dummy (0x00::Word32) (descramble scrambledData) fileSize
 
 putCryptoFile :: CryptoFile a -> Put
 putCryptoFile desFile = do
@@ -54,8 +59,8 @@ putCryptoFile desFile = do
     putLazyByteString (scramble $ fileGameData desFile)
     putWord32le (4 + 1 + 4 + 4 + fromIntegral (BS.length $ fileGameData desFile))
 
-readCryptoFile filePath =
-    BS.readFile filePath >>= return . (runGet getCryptoFile)
+readCryptoFile filePath = BS.readFile filePath >>=
+    return . (runGetWithFail ("Problem reading scrambled file " <> (T.pack filePath)) getCryptoFile)
 
 writeCryptoFile filePath cryptoFile =
     let fileData = runPut (putCryptoFile cryptoFile)

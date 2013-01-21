@@ -20,7 +20,7 @@ module FNIStash.File.VarIDs (
 
 -- Based on the DAT2TXT Python program by cienislaw.
 
-import qualified Data.Map.Strict as M
+import qualified Data.Map as M
 import qualified Data.Text as T
 import Data.Word
 import Data.Endian

@@ -21,19 +21,31 @@ import FNIStash.File.PAK
 import FNIStash.File.DAT
 import FNIStash.Logic.Search
 import FNIStash.File.SharedStash
+import FNIStash.File.General
+
 import System.FilePath
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
+import qualified Data.ByteString.Lazy as BS
 import Data.Maybe
+
 
 testDir = "C:\\Users\\Dan\\Desktop\\FNI Testing"
 pakMANFileBinary = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Torchlight II\\PAKS\\DATA.PAK.MAN"
 pakFileBinary = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Torchlight II\\PAKS\\DATA.PAK"
+sharedStashBinary = testDir </> "sharedstash_haskell.bin"
+sharedStashTxt = testDir </> "sharedStashTxt.txt"
     
 main = do
     man <- readPAKMAN pakMANFileBinary
     let pak = pakFiles man pakFileBinary
     findItem <- itemSearcher pak
     T.writeFile (testDir </> "testOutputDAT.txt") $ (textDAT . fromJust . findItem) "-1053906477868677616"
+    ssData <- BS.readFile sharedStashBinary
+    let sharedStashResult = runGetWithFail "Problem reading shared stash" getSharedStash ssData
+    T.writeFile sharedStashTxt $
+        case sharedStashResult of
+            Left error -> error
+            Right sharedStash -> (textSharedStash sharedStash)
 
 

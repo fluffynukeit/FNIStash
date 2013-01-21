@@ -1,6 +1,6 @@
 -----------------------------------------------------------------------------
 --
--- Module      :  FNIStash.Logic.Data
+-- Module      :  FNIStash.Logic.Item
 -- Copyright   :  2013 Daniel Austin
 -- License     :  AllRightsReserved
 --
@@ -11,18 +11,22 @@
 -- |
 --
 -----------------------------------------------------------------------------
+{-# LANGUAGE OverloadedStrings #-}
 
-module FNIStash.Logic.Data (
-    Item(..),
-    Mod(..),
-    streamToHex
+
+module FNIStash.Logic.Item (
+    Item (Item),
+    Mod (Mod),
+    textItem
 ) where
 
-import qualified Data.ByteString as BS
-import qualified Data.Text as T
-import Data.Word (Word16, Word32, Word64)
-import Data.Int (Int64)
 import FNIStash.File.General
+
+import qualified Data.ByteString.Lazy as BS
+import qualified Data.Text as T
+import Data.Word
+import Data.Int
+import Data.Monoid
 
 data Item = Item {
     guid :: Word64,
@@ -47,7 +51,7 @@ data Item = Item {
     bytes8 :: BS.ByteString, -- FFx12
     nElements :: Word16,
     elements :: [BS.ByteString],
-    mods :: Either String [[Mod]]
+    mods :: [[Mod]]
     }
 
 data Mod = Mod {
@@ -56,28 +60,21 @@ data Mod = Mod {
     modData :: BS.ByteString
 }
 
-instance Show Item where
-    show = itemShow
-
-itemShow i = unlines
-    ["GUID: " ++ show (fromIntegral $ guid i::Int64),
-     "Full name: " ++ (T.unpack $ T.unwords [prefix i, name i, suffix i]),
-     "Num Enchants: " ++ (show $ nEnchants i),
-     "Item level: " ++ (show $ level i),
-     "Used Sockets: " ++ (show $ nSocketsUsed i) ++ "/" ++ (show $ nSockets i),
-     "Dmg/Armor: " ++ (show $ maxDmg i) ++ "/" ++ (show $ armor i),
-     "Num elements: " ++ (show $ nElements i),
-     "Mods: " ++ (show $ mods i),
+textItem i = T.unlines
+    ["GUID: " <> (T.pack . show $ (fromIntegral $ guid i::Int64)),
+     "Full name: " <> (T.unwords [prefix i, name i, suffix i]),
+     "Num Enchants: " <> T.pack (show $ nEnchants i),
+     "Item level: " <> T.pack (show $ level i),
+     "Used Sockets: " <> T.pack (show $ nSocketsUsed i) <> "/" <> T.pack (show $ nSockets i),
+     "Dmg/Armor: " <> T.pack (show $ maxDmg i) <> "/" <> T.pack (show $ armor i),
+     "Num elements: " <> T.pack (show $ nElements i),
+     "Mods: " <> T.pack (show $ mods i),
      "", ""]
 
 instance Show Mod where
-    show = modShow
-
-modShow i = unlines
-    ["","","Type: " ++ (show $ modType i),
-     "Name: " ++ (show . T.unpack . modName $ i),
-     "Data: " ++ (T.unpack . streamToHex $ modData i),
-     "",""]
-
-
+    show i = unlines
+        ["","","Type: " ++ (show $ modType i),
+         "Name: " ++ T.unpack (modName i),
+         "Data: " ++ (T.unpack . streamToHex $ modData i),
+         "",""]
 

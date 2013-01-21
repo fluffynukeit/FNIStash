@@ -22,21 +22,21 @@ module FNIStash.File.PAK (
     PAKFiles
 ) where
 
-
 import FNIStash.File.General
 
-import Data.ByteString.Lazy as BS hiding (length)
-import Data.Binary.Get
-import qualified Data.Map.Lazy as M
+import qualified Data.ByteString.Lazy as BS
+import qualified Data.Map as M
 import qualified Data.List as L
+import Data.Binary.Get
+
 import Data.Word
 import qualified Data.Text as T
 import Control.Applicative
-import Control.Monad (replicateM)
+import Control.Monad
 import System.FilePath
 import Codec.Compression.Zlib
-import Data.Char (toUpper)
-import System.IO 
+
+import System.IO -- needed for handle functions
 
 ----- Worker functions
 
@@ -125,18 +125,18 @@ data PAKEntry = PAKEntry {
 
 getMANEntry :: Get MANEntry
 getMANEntry =
-    MANEntry <$> getWord32le <*> getFileType <*> getTorchTextL
+    MANEntry <$> getWord32le <*> getFileType <*> getTorchText
              <*> getWord32le <*> getWord32le <*> getWord32le <*> getWord32le
 
 getMANFolder :: Get MANFolder
 getMANFolder =
-    MANFolder <$> getTorchTextL
+    MANFolder <$> getTorchText
               <*> (getWord32le >>= (flip replicateM getMANEntry) . fromIntegral)
 
 getMANHeader :: Get MANHeader
 getMANHeader =
     MANHeader <$> getWord16le
-              <*> getTorchTextL
+              <*> getTorchText
               <*> getWord32le
               <*> (getWord32le >>= (flip replicateM getMANFolder) . fromIntegral)
  
@@ -181,7 +181,7 @@ instance Show MANEntry where
 
 instance Show MANFolder where
     show mf = "-- Contents folder " ++ (show . folderName) mf ++
-              "(" ++ (show . length . folderEntries) mf ++ " entries)\n" ++
+              "(" ++ (show . L.length . folderEntries) mf ++ " entries)\n" ++
               (show . folderEntries) mf
 
 

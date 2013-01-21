@@ -11,36 +11,33 @@
 -- |
 --
 -----------------------------------------------------------------------------
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, OverloadedStrings #-}
 
 module FNIStash.File.General 
     (getTorchText,
-     getTorchTextL,
      wordToFloat,
      wordToDouble,
      streamToHex,
-     intToHex)
+     intToHex,
+     runGetWithFail)
 where
 
-import qualified Data.Binary.Strict.Get as S
-import qualified Data.Binary.Get as L
+import qualified Data.ByteString.Lazy as BS
 import qualified Data.Text as T
-import Control.Applicative
 import Data.Text.Encoding (decodeUtf16LE)
+import Data.Binary.Get
 import Numeric
-import qualified Data.ByteString as BS
+import Control.Applicative
+import Data.Word
+import Data.Monoid
 
-import Data.Word (Word32, Word64)
 import Data.Array.ST (newArray, readArray, MArray, STUArray)
 import Data.Array.Unsafe (castSTUArray)
 import GHC.ST (runST, ST)
 
 
-getTorchText :: S.Get T.Text
-getTorchText = fromIntegral . (*2) <$> S.getWord16le >>= S.getByteString >>= \x -> return (decodeUtf16LE x)
-
-getTorchTextL :: L.Get T.Text
-getTorchTextL = fromIntegral . (*2) <$> L.getWord16le >>= L.getByteString >>= \x -> return (decodeUtf16LE x)
+getTorchText :: Get T.Text
+getTorchText = fromIntegral . (*2) <$> getWord16le >>= getByteString >>= \x -> return (decodeUtf16LE x)
 
 streamToHex :: BS.ByteString -> T.Text
 streamToHex = T.pack . ("0x" ++) . concatMap ((" "++) . wordToHex) . BS.unpack
@@ -51,6 +48,16 @@ wordToHex word = case length $ showHex word "" of
 
 intToHex i = T.pack ("0x" ++ padding ++ (showHex i ""))
         where padding = replicate (8 - (length $ showHex i "")) '0'
+
+-- Utilities for handling file Get errors
+
+runGetWithFail :: T.Text -> Get a -> BS.ByteString -> Either T.Text a
+runGetWithFail msg action dataBS =
+    let result = runGetOrFail action dataBS
+    in case result of
+        Left (remainingBS, offset, errorStr) ->
+            Left  (msg <> " (at byte " <> T.pack (show offset) <> ") <- " <> (T.pack errorStr))
+        Right (remainingBS, offset, record) -> Right record
 
 -- Here I copied the Word -> Float/Double solution found at the following link
 -- http://stackoverflow.com/questions/6976684/converting-ieee-754-floating-point-in-haskell-word32-64-to-and-from-haskell-floa
