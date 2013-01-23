@@ -19,7 +19,9 @@ module FNIStash.File.General
      wordToDouble,
      streamToHex,
      intToHex,
-     runGetWithFail)
+     textList,
+     runGetWithFail,
+     getFloat)
 where
 
 import qualified Data.ByteString.Lazy as BS
@@ -36,8 +38,14 @@ import Data.Array.Unsafe (castSTUArray)
 import GHC.ST (runST, ST)
 
 
+textList f = foldl (\a b -> a <> f b) T.empty
+
 getTorchText :: Get T.Text
 getTorchText = fromIntegral . (*2) <$> getWord16le >>= getByteString >>= \x -> return (decodeUtf16LE x)
+
+getFloat :: Get Float
+getFloat = (getWord32le >>= (return . wordToFloat))
+
 
 streamToHex :: BS.ByteString -> T.Text
 streamToHex = T.pack . ("0x" ++) . concatMap ((" "++) . wordToHex) . BS.unpack

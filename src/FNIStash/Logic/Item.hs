@@ -27,8 +27,10 @@ import qualified Data.Text as T
 import Data.Word
 import Data.Int
 import Data.Monoid
+import Numeric
 
 data Item = Item {
+    leadByte :: Word8,
     guid :: Word64,
     name :: T.Text,
     prefix :: T.Text,
@@ -51,13 +53,23 @@ data Item = Item {
     bytes8 :: BS.ByteString, -- FFx12
     nElements :: Word16,
     elements :: [BS.ByteString],
-    mods :: [[Mod]]
+    mods :: [[Mod]],
+    gems :: [Item]
     }
 
 data Mod = Mod {
     modType :: Word32,
     modName :: T.Text,
-    modData :: BS.ByteString
+    modValueList :: [Float],
+    modUnknown1 :: T.Text,
+    modEffectIndex :: Word32,
+    modDamageType :: Word32,
+    modUnknown2 :: Word32,
+    modItemLevel :: Word32,
+    modDuration :: Float,
+    modUnknown3 :: Word32,
+    modValue :: Float,
+    modUnknown4 :: Word32
 }
 
 textItem i = T.unlines
@@ -68,13 +80,24 @@ textItem i = T.unlines
      "Used Sockets: " <> T.pack (show $ nSocketsUsed i) <> "/" <> T.pack (show $ nSockets i),
      "Dmg/Armor: " <> T.pack (show $ maxDmg i) <> "/" <> T.pack (show $ armor i),
      "Num elements: " <> T.pack (show $ nElements i),
-     "Mods: " <> T.pack (show $ mods i),
+     "Mods: " <> textList (textList textMod) (mods i),
+     "Gems: " <> textList textItem (gems i),
      "", ""]
 
-instance Show Mod where
-    show i = unlines
-        ["","","Type: " ++ (show $ modType i),
-         "Name: " ++ T.unpack (modName i),
-         "Data: " ++ (T.unpack . streamToHex $ modData i),
+textMod i =
+    let k f = T.pack . show $ f i
+    in T.unlines
+        ["","","Type: " <> (intToHex . fromIntegral $ modType i),
+         "Name: " <> (modName i),
+         "Values: " <> (textList (\x -> (T.pack $ show x) <> ", ") $ modValueList i),
+         "Unknown1: " <> k modUnknown1,
+         "EffectIndex: " <> k modEffectIndex,
+         "DmgType: " <> k modDamageType,
+         "Unknown2: " <> k modUnknown2 ,
+         "ItemLevel: " <> k modItemLevel,
+         "Duration: " <> k modDuration,
+         "Unknown3: " <> k modUnknown3,
+         "Value: " <> k modValue,
+         "Unknown4: " <> k modUnknown4,
          "",""]
 

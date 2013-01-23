@@ -14,7 +14,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module FNIStash.File.Crypto (
-    CryptoFile,
+    CryptoFile(..),
     readCryptoFile,
     writeCryptoFile
 ) where

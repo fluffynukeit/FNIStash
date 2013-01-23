@@ -9,21 +9,7 @@ maintainer: dan@fluffynukeit.com
 stability: Development
 author: Daniel Austin
 data-dir: ""
-
-executable FNIStash
-    build-depends: array -any, base -any, binary -any,
-                   binary-strict -any, bytestring -any, containers -any,
-                   data-endian -any, errors -any, filepath -any, monad-loops -any,
-                   text -any, tuple -any, zlib -any
-    main-is: Main.hs
-    buildable: True
-    hs-source-dirs: src
-    other-modules: FNIStash.Logic.Item FNIStash.File.Item
-                   FNIStash.Logic.Search FNIStash.Logic.Variables
-                   FNIStash.File.VarIDs FNIStash.File.SharedStash FNIStash.File.PAK
-                   FNIStash.File.General FNIStash.File.DAT FNIStash.File.Crypto
-    ghc-options: -O2
-
+ 
 executable FNIStash-Debug
     build-depends: array -any, base -any, binary -any,
                    binary-strict -any, bytestring -any, containers -any,
@@ -32,12 +18,26 @@ executable FNIStash-Debug
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: FNIStash.Logic.Item FNIStash.File.Item
-                   FNIStash.Logic.Search FNIStash.Logic.Variables
+    other-modules: FNIStash.Logic.Translate FNIStash.Logic.Item
+                   FNIStash.File.Item FNIStash.Logic.Search FNIStash.Logic.Variables
                    FNIStash.File.VarIDs FNIStash.File.SharedStash FNIStash.File.PAK
                    FNIStash.File.General FNIStash.File.DAT FNIStash.File.Crypto
     ghc-options: -O2 -prof -rtsopts
-
+ 
+executable FNIStash
+    build-depends: array -any, base -any, binary -any,
+                   binary-strict -any, bytestring -any, containers -any,
+                   data-endian -any, errors -any, filepath -any, monad-loops -any,
+                   text -any, tuple -any, zlib -any
+    main-is: Main.hs
+    buildable: True
+    hs-source-dirs: src
+    other-modules: FNIStash.Logic.Translate FNIStash.Logic.Item
+                   FNIStash.File.Item FNIStash.Logic.Search FNIStash.Logic.Variables
+                   FNIStash.File.VarIDs FNIStash.File.SharedStash FNIStash.File.PAK
+                   FNIStash.File.General FNIStash.File.DAT FNIStash.File.Crypto
+    ghc-options: -O2
+ 
 test-suite test-FNIStash
     build-depends: array -any, base -any, binary -any,
                    binary-strict -any, bytestring -any, containers -any,
@@ -47,6 +47,6 @@ test-suite test-FNIStash
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: FNIStash.File.SharedStash
-                   FNIStash.File.PAK FNIStash.File.General FNIStash.File.Crypto
+    other-modules: FNIStash.File.SharedStash FNIStash.File.PAK
+                   FNIStash.File.General FNIStash.File.Crypto
     ghc-options: -O2

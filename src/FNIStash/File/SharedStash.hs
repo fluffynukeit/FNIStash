@@ -43,9 +43,8 @@ getSharedStashPartitions = do
 
 getIndividualPartition :: Get BS.ByteString
 getIndividualPartition = do
-    size <- getWord16le
-    skip 3 -- 3 bytes are used for nothing, always 0
-    getLazyByteString (fromIntegral size - 1)
+    size <- getWord32le
+    getLazyByteString $ fromIntegral size
 
 getSharedStash :: Get SharedStash
 getSharedStash = do
