@@ -25,6 +25,7 @@ import qualified Data.Map as M
 import Data.Binary.Get
 import Control.Applicative
 import Control.Monad
+import Control.Monad.Loops
 import Data.Word
 import Data.Monoid
 
@@ -64,7 +65,8 @@ getMod :: Get Mod
 getMod = do
     mType <- getWord32le
     mName <- getTorchText
-    mValueList <- getWord8 >>= \x -> replicateM (fromIntegral x) getFloat
+    numVals <- iterateUntil (/= 0) getWord8
+    mValueList <- replicateM (fromIntegral numVals) getFloat
     mUnknown1 <- getTorchText
     mEffectIndex <- getWord32le
     mDmgType <- getWord32le

@@ -87,7 +87,7 @@ textItem i = T.unlines
 textMod i =
     let k f = T.pack . show $ f i
     in T.unlines
-        ["","","Type: " <> (intToHex . fromIntegral $ modType i),
+        ["","Type: " <> (intToHex . fromIntegral $ modType i),
          "Name: " <> (modName i),
          "Values: " <> (textList (\x -> (T.pack $ show x) <> ", ") $ modValueList i),
          "Unknown1: " <> k modUnknown1,
@@ -99,5 +99,5 @@ textMod i =
          "Unknown3: " <> k modUnknown3,
          "Value: " <> k modValue,
          "Unknown4: " <> k modUnknown4,
-         "",""]
+         ""]
 

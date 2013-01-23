@@ -21,3 +21,4 @@ import Data.Endian
 vUNIT_GUID = swapEndian 0x06aad3ed::VarID
 vEFFECTLIST = swapEndian 0x15ca47c3::VarID
 vEFFECT = swapEndian 0x351c420e::VarID
+vGOODDES = swapEndian 0xda18d35a::VarID

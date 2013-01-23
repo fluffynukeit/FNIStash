@@ -19,4 +19,3 @@ module FNIStash.Logic.Translate (
 
 import Data.Map as M
 
-
