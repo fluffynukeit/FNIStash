@@ -41,8 +41,9 @@ fromRight (Right a) = a
     
 main = do
     man <- readPAKMAN pakMANFileBinary
-    let pak = pakFiles man pakFileBinary
-    findItem <- itemSearcher pak
+    let subMan = filterManByPrefix man ["MEDIA/UNITS/ITEMS", "MEDIA/EFFECTLIST.DAT"]
+    pak <- pakFiles subMan pakFileBinary
+    let findItem = itemLookup pak
     T.writeFile (testDir </> "testOutputDAT.txt") $ (textDAT . fromJust . findItem) "-1053906477868677616"
     s <- readCryptoFile sharedStashCrypted >>= (return . fileGameData . fromRight) >>= BS.writeFile sharedStashBinary
     ssData <- BS.readFile sharedStashBinary

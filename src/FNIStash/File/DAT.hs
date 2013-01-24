@@ -185,18 +185,18 @@ textVarPair (v,d) =
 -- functions for building DAT maps
 type DATFiles a = M.Map a  DATNode
 
-readDATFiles :: Ord a => PAKFiles -> T.Text -> (DATNode -> a) -> IO (DATFiles a)
+readDATFiles :: Ord a => PAKFiles -> T.Text -> (DATNode -> a) -> DATFiles a
 readDATFiles pak prefix keyFxn =
     let prefixMap = M.filterWithKey (\key _ -> T.isPrefixOf prefix key) pak
         pairList = M.toList prefixMap
-        newPair (k1,v1) = do
-            entry <- v1
+        newPair (k1,entry) =
             let Right newVal = runGetWithFail ("Problem reading DAT file " <> k1) getDAT (entryData entry)
                 newKey = keyFxn newVal
-            return (newKey, newVal)
-    in do
-        newPairList <- mapM newPair pairList
-        return $ M.fromList newPairList
+            in (newKey, newVal)
+        newPairList = map newPair pairList
+    in M.fromList newPairList
+
+
 
 lkupDATFile :: Ord a => DATFiles a -> a -> Maybe DATNode
 lkupDATFile d k = M.lookup k d

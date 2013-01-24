@@ -19,6 +19,7 @@ module FNIStash.File.PAK (
     pakFiles,
     lkupPAKFile,
     entryData,
+    filterManByPrefix,
     PAKFiles
 ) where
 
@@ -60,8 +61,8 @@ folderAndEntryToList f hdr =
         flip L.map (fileEntriesOnly $ folderEntries fol) (f fol))
 
 
-pakFiles :: MANHeader -> FilePath -> PAKFiles
-pakFiles man pakFile = 
+pakFiles :: MANHeader -> FilePath -> IO (PAKFiles)
+pakFiles man pakFile = do
     let fileList = pakFileList man
         offsetList = pakFileOffsets man
         f offset =  do
@@ -69,22 +70,28 @@ pakFiles man pakFile =
                 hSeek h AbsoluteSeek (fromIntegral offset - 4)
                 pak <- BS.hGetContents h
                 return $! (flip runGet pak getPAKEntry))
-        mapList = L.zip fileList (L.map f offsetList) :: [(T.Text, IO PAKEntry)]
-    in (M.fromList mapList)
+    pakEntries <- mapM f offsetList
+    let mapList = L.zip fileList pakEntries :: [(T.Text, PAKEntry)]
+    return (M.fromList mapList)
 
 
-lkupPAKFile :: PAKFiles -> FilePath -> Maybe (IO BS.ByteString)
-lkupPAKFile pakFiles filePath = do
-    entry <- flip M.lookup pakFiles $ (T.toUpper . T.pack) filePath
-    return $ fmap entryData entry
+lkupPAKFile :: PAKFiles -> FilePath -> Maybe BS.ByteString
+lkupPAKFile pakFiles filePath = 
+    let entry = flip M.lookup pakFiles $ (T.toUpper . T.pack) filePath
+    in fmap entryData entry -- on lookup, decompress the data
 
 entryData = (decompress . pakEncodedData)
 
 fileEntriesOnly entries = L.filter ((Folder /=) . entryType) entries
 
+filterManByPrefix man prefList =
+    let prefFilter folder = any (flip T.isPrefixOf (folderName folder)) prefList
+        matchingFolders = filter prefFilter (headerFolders man)
+    in MANHeader (headerVersion man) (headerName man) (headerUnknown1W32 man) matchingFolders
+
 -----  Data Declarations ------
 
-type PAKFiles = M.Map T.Text (IO PAKEntry)
+type PAKFiles = M.Map T.Text PAKEntry
 
 data MANEntry = MANEntry {
     entryCrc32 :: Word32,
@@ -97,7 +104,7 @@ data MANEntry = MANEntry {
     } deriving Eq
 
 data MANFolder = MANFolder {
-    folderName :: !T.Text,
+    folderName :: T.Text,
     folderEntries :: [MANEntry]
     } deriving Eq
 

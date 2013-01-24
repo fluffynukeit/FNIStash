@@ -14,7 +14,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module FNIStash.Logic.Search (
-    itemSearcher
+    itemLookup,
+    effectLookup
 ) where
 
 import FNIStash.File.PAK
@@ -27,13 +28,13 @@ import Data.Maybe
 
 -- this function returns a searching function.  I think this is the only way I can keep
 -- the PAK and DAT maps instead of re-reading them each time I search
-itemSearcher pak = do
+itemLookup pak =
     let guidFinder = (\x -> fromJust (findVar vUNIT_GUID x >>= textVar))
-    dat <- readDATFiles pak "MEDIA/UNITS/ITEMS" guidFinder -- p is pak
-    return (\idText -> lkupDATFile dat idText)
+        dat = readDATFiles pak "MEDIA/UNITS/ITEMS" guidFinder -- p is pak
+    in (\idText -> lkupDATFile dat idText)
 
-effectLookup p = do
-    effListData <- fromJust $ lkupPAKFile p "MEDIA/EFFECTLIST.DAT"
-    let dat = runGet getDAT effListData
-    return (\effID -> sectionAt effID dat)
+effectLookup pak =
+    let effListData = fromJust $ lkupPAKFile pak "MEDIA/EFFECTLIST.DAT"
+        dat = runGet getDAT effListData
+    in (\effID -> sectionAt effID dat)
 
