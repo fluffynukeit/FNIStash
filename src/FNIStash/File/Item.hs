@@ -69,7 +69,7 @@ getMod = do
     mValueList <- replicateM (fromIntegral numVals) getFloat
     mUnknown1 <- getTorchText
     mEffectIndex <- getWord32le
-    mDmgType <- getWord32le
+    mDmgType <- getWord32le >>= return . damageTypeLookup
     mUnknown2 <- getWord32le
     mItemLevel <- getWord32le
     mDuration <- getFloat
@@ -78,6 +78,13 @@ getMod = do
     mUnknown4 <- getWord32le
     return $ Mod mType mName mValueList mUnknown1 mEffectIndex mDmgType
                  mUnknown2 mItemLevel mDuration mUnknown3 mValue mUnknown4
+
+damageTypeLookup 0x00 = Physical
+damageTypeLookup 0x02 = Fire
+damageTypeLookup 0x03 = Ice
+damageTypeLookup 0x04 = Electric
+damageTypeLookup 0x05 = Poison
+damageTypeLookup _ = Unknown
 
 getModList :: Word32 -> Get [Mod]
 getModList modCount = replicateM (fromIntegral modCount) getMod

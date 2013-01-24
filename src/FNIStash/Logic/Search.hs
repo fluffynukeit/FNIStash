@@ -34,7 +34,7 @@ itemLookup pak =
     in (\idText -> lkupDATFile dat idText)
 
 effectLookup pak =
-    let effListData = fromJust $ lkupPAKFile pak "MEDIA/EFFECTLIST.DAT"
+    let effListData = fromJust $ lkupPAKFile pak "MEDIA/EFFECTSLIST.DAT"
         dat = runGet getDAT effListData
     in (\effID -> sectionAt effID dat)
 

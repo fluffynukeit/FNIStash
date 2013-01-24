@@ -17,10 +17,14 @@
 module FNIStash.Logic.Item (
     Item (Item),
     Mod (Mod),
+    DamageType (..),
     textItem
 ) where
 
 import FNIStash.File.General
+import FNIStash.File.DAT
+import FNIStash.Logic.Translate
+import FNIStash.Logic.Variables
 
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.Text as T
@@ -28,6 +32,7 @@ import Data.Word
 import Data.Int
 import Data.Monoid
 import Numeric
+import Data.Maybe
 
 data Item = Item {
     leadByte :: Word8,
@@ -63,7 +68,7 @@ data Mod = Mod {
     modValueList :: [Float],
     modUnknown1 :: T.Text,
     modEffectIndex :: Word32,
-    modDamageType :: Word32,
+    modDamageType :: DamageType,
     modUnknown2 :: Word32,
     modItemLevel :: Word32,
     modDuration :: Float,
@@ -72,7 +77,24 @@ data Mod = Mod {
     modUnknown4 :: Word32
 }
 
-textItem i = T.unlines
+data DamageType = Physical | Fire | Electric | Ice | Poison | Unknown
+    deriving (Show, Eq)
+
+instance Translate Mod where
+    translateMarkup mod markup =
+        T.pack $ (case markup of
+            "VALUE" -> show . modValue
+            "DURATION" -> show . modDuration
+            "DMGTYPE" -> show . modDamageType
+            "VALUE1" -> show . (flip (!!) 1) . modValueList
+            "VALUE2" -> show . (flip (!!) 2) . modValueList
+            "VALUE3" -> show . (flip (!!) 3) . modValueList
+            "VALUE4" -> show . (flip (!!) 4) . modValueList
+            _ -> \mod -> "???"
+            ) mod
+
+
+textItem effSearch i = T.unlines
     ["GUID: " <> (T.pack . show $ (fromIntegral $ guid i::Int64)),
      "Full name: " <> (T.unwords [prefix i, name i, suffix i]),
      "Num Enchants: " <> T.pack (show $ nEnchants i),
@@ -80,11 +102,18 @@ textItem i = T.unlines
      "Used Sockets: " <> T.pack (show $ nSocketsUsed i) <> "/" <> T.pack (show $ nSockets i),
      "Dmg/Armor: " <> T.pack (show $ maxDmg i) <> "/" <> T.pack (show $ armor i),
      "Num elements: " <> T.pack (show $ nElements i),
-     "Mods: " <> textList (textList textMod) (mods i),
-     "Gems: " <> textList textItem (gems i),
+     "Mods: " ,"", textList (textList (textMod effSearch)) (mods i),
+     "Gems: " <> textList (textItem effSearch) (gems i),
      "", ""]
 
-textMod i =
+textMod effSearch i =
+    let effectNode = effSearch (modEffectIndex i)
+        maybeSentence = (effectNode >>= findVar vGOODDES >>= translateVar)
+    in case maybeSentence of
+        Just sentence -> T.unlines [translateSentence i sentence]
+        Nothing -> textModOld i
+
+textModOld i =
     let k f = T.pack . show $ f i
     in T.unlines
         ["","Type: " <> (intToHex . fromIntegral $ modType i),

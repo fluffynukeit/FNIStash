@@ -21,12 +21,14 @@ module FNIStash.File.SharedStash (
 import FNIStash.Logic.Item
 import FNIStash.File.Item
 import FNIStash.File.General
+import FNIStash.File.DAT
 
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.Text as T
 import Data.Binary.Get
 import Control.Monad
 import Data.Monoid
+import Data.Word
 
 -- NOTE: type and to text functions should be in Logic for consistency, similar to Item
 type SharedStash = [Either T.Text Item]
@@ -51,9 +53,9 @@ getSharedStash = do
     parts <- getSharedStashPartitions
     return $ map (runGetWithFail "Could not parse item!" getItem) parts
 
-textSharedStash :: SharedStash -> T.Text
-textSharedStash s =
-    foldl (\a b -> a <> textItemResult b) T.empty s
+textSharedStash :: (Word32 -> Maybe DATNode) -> SharedStash -> T.Text
+textSharedStash effSearch s =
+    foldl (\a b -> a <> textItemResult effSearch b) T.empty s
 
-textItemResult (Left error) = T.unlines ["", error, ""]
-textItemResult (Right item) = textItem item
+textItemResult effSearch (Left error) = T.unlines ["", error, ""]
+textItemResult effSearch (Right item) = textItem effSearch item

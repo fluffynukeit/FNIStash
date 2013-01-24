@@ -21,7 +21,8 @@ module FNIStash.File.DAT (
     sectionAt,
     intVar, floatVar, doubleVar, word32Var, textVar, boolVar, int64Var, translateVar,
     readDATFiles,
-    lkupDATFile
+    lkupDATFile,
+    DATNode
 ) where
 
 

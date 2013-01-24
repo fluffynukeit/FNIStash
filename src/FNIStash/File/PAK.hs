@@ -19,7 +19,7 @@ module FNIStash.File.PAK (
     pakFiles,
     lkupPAKFile,
     entryData,
-    filterManByPrefix,
+    filterMANByPrefix,
     PAKFiles
 ) where
 
@@ -36,6 +36,7 @@ import Control.Applicative
 import Control.Monad
 import System.FilePath
 import Codec.Compression.Zlib
+import Data.Monoid
 
 import System.IO -- needed for handle functions
 
@@ -44,35 +45,23 @@ import System.IO -- needed for handle functions
 
 readPAKMAN fileName = do
     content <- BS.readFile fileName
-    return $ runGet getMANHeader content
+    return . manHeaderToMAN $ runGet getMANHeader content
 
-pakFileList hdr =
-    let f folder entry = (folderName folder) `T.append` (entryName entry)
-    in folderAndEntryToList f hdr
-
-pakFileOffsets hdr =
-    let f folder entry = entryOffset entry
-    in folderAndEntryToList f hdr
-
-folderAndEntryToList :: (MANFolder -> MANEntry -> a) -> MANHeader -> [a]
-folderAndEntryToList f hdr =
-    let folders = headerFolders hdr
-    in L.concat $ flip L.map folders (\fol ->
-        flip L.map (fileEntriesOnly $ folderEntries fol) (f fol))
+filterMANByPrefix :: MAN -> [T.Text] -> MAN
+filterMANByPrefix man prefList =
+    let matchesPrefix (path,_) = any (flip T.isPrefixOf path) prefList
+    in L.filter matchesPrefix man
 
 
-pakFiles :: MANHeader -> FilePath -> IO (PAKFiles)
+pakFiles :: MAN -> FilePath -> IO (PAKFiles)
 pakFiles man pakFile = do
-    let fileList = pakFileList man
-        offsetList = pakFileOffsets man
-        f offset =  do
+    let f (file, offset) = do
             withBinaryFile pakFile ReadMode (\h -> do
                 hSeek h AbsoluteSeek (fromIntegral offset - 4)
                 pak <- BS.hGetContents h
-                return $! (flip runGet pak getPAKEntry))
-    pakEntries <- mapM f offsetList
-    let mapList = L.zip fileList pakEntries :: [(T.Text, PAKEntry)]
-    return (M.fromList mapList)
+                return $! ((,) file ) $! (flip runGet pak getPAKEntry))
+    pakEntries <- mapM f man
+    return (M.fromList pakEntries)
 
 
 lkupPAKFile :: PAKFiles -> FilePath -> Maybe BS.ByteString
@@ -84,14 +73,18 @@ entryData = (decompress . pakEncodedData)
 
 fileEntriesOnly entries = L.filter ((Folder /=) . entryType) entries
 
-filterManByPrefix man prefList =
-    let prefFilter folder = any (flip T.isPrefixOf (folderName folder)) prefList
-        matchingFolders = filter prefFilter (headerFolders man)
-    in MANHeader (headerVersion man) (headerName man) (headerUnknown1W32 man) matchingFolders
-
+manHeaderToMAN :: MANHeader -> MAN
+manHeaderToMAN hdr =
+    let fileName folder entry = (folderName folder <> entryName entry, entryOffset entry)
+        folders = headerFolders hdr
+        filesInFolder = fileEntriesOnly . folderEntries
+    in L.concat $ flip L.map folders (\fol ->
+        flip L.map (filesInFolder fol) (fileName fol))
+        
 -----  Data Declarations ------
 
 type PAKFiles = M.Map T.Text PAKEntry
+type MAN = [(T.Text, Word32)]
 
 data MANEntry = MANEntry {
     entryCrc32 :: Word32,
