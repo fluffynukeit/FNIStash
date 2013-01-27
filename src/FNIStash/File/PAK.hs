@@ -56,12 +56,14 @@ filterMANByPrefix man prefList =
 pakFiles :: MAN -> FilePath -> IO (PAKFiles)
 pakFiles man pakFile = do
     let f (file, offset) = do
-            withBinaryFile pakFile ReadMode (\h -> do
-                hSeek h AbsoluteSeek (fromIntegral offset - 4)
-                pak <- BS.hGetContents h
-                return $! ((,) file ) $! (flip runGet pak getPAKEntry))
+            withBinaryFile pakFile ReadMode (
+                (\h -> hSeek h AbsoluteSeek (fromIntegral offset - 4) >> return h) >=>
+                BS.hGetContents >=>
+                return . runGet getPAKEntry >=>
+                return . (,) file
+                )
     pakEntries <- mapM f man
-    return (M.fromList pakEntries)
+    return $ (M.fromList pakEntries)
 
 
 lkupPAKFile :: PAKFiles -> FilePath -> Maybe BS.ByteString
