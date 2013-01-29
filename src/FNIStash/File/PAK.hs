@@ -11,6 +11,7 @@
 -- |
 --
 -----------------------------------------------------------------------------
+{-# LANGUAGE OverloadedStrings #-}
 
 -- functions for exploring and extracting raw data from PAK files
 
@@ -20,7 +21,8 @@ module FNIStash.File.PAK (
     lkupPAKFile,
     entryData,
     filterMANByPrefix,
-    PAKFiles
+    PAKFiles,
+    textPAKFiles
 ) where
 
 import FNIStash.File.General
@@ -53,17 +55,18 @@ filterMANByPrefix man prefList =
     in L.filter matchesPrefix man
 
 
+pakSeek pakFile (file, offset) = do
+    withBinaryFile pakFile ReadMode (
+        \h -> hSeek h AbsoluteSeek (fromIntegral offset - 4) >>
+        return h >>=
+        BS.hGetContents >>=
+        (\c -> return $! runGet getPAKEntry c) >>=
+        return . (,) file
+        )
+        
 pakFiles :: MAN -> FilePath -> IO (PAKFiles)
-pakFiles man pakFile = do
-    let f (file, offset) = do
-            withBinaryFile pakFile ReadMode (
-                (\h -> hSeek h AbsoluteSeek (fromIntegral offset - 4) >> return h) >=>
-                BS.hGetContents >=>
-                return . runGet getPAKEntry >=>
-                return . (,) file
-                )
-    pakEntries <- mapM f man
-    return $ (M.fromList pakEntries)
+pakFiles man pakFile =
+    mapM (pakSeek pakFile) man >>= return . M.fromList 
 
 
 lkupPAKFile :: PAKFiles -> FilePath -> Maybe BS.ByteString
@@ -82,7 +85,12 @@ manHeaderToMAN hdr =
         filesInFolder = fileEntriesOnly . folderEntries
     in L.concat $ flip L.map folders (\fol ->
         flip L.map (filesInFolder fol) (fileName fol))
-        
+
+textPAKFiles pakFiles =
+        let f (k,entry) = k <> ", " <> ((T.pack . show . BS.length . pakEncodedData) entry) <> "\n"
+        in textList f $ M.toList pakFiles
+
+
 -----  Data Declarations ------
 
 type PAKFiles = M.Map T.Text PAKEntry
@@ -168,28 +176,12 @@ getFileType = do
 
 getPAKEntry :: Get PAKEntry
 getPAKEntry = do
-    --(skip . fromIntegral) (offset-4) -- commented out.  Using hSeek instead.
     hdr <- getWord32le
     decSize <- getWord32le
     encSize <- getWord32le
-    encData <- getLazyByteString $ fromIntegral encSize
-    return $ PAKEntry hdr decSize encSize encData
+    encData <- getLazyByteString (fromIntegral encSize) >>= return . BS.copy
+    return $ PAKEntry hdr decSize encSize $! encData
 
------ Show Instances ----
-
-instance Show MANEntry where
-    show me = (show . entryType) me ++ " named " ++ (show . entryName) me ++ "\n"
-
-
-instance Show MANFolder where
-    show mf = "-- Contents folder " ++ (show . folderName) mf ++
-              "(" ++ (show . L.length . folderEntries) mf ++ " entries)\n" ++
-              (show . folderEntries) mf
-
-
-instance Show MANHeader where
-    show mh = "Hierarchy for " ++ (show . headerName) mh ++ "\n" ++
-              (show . headerFolders) mh
 
 
 
