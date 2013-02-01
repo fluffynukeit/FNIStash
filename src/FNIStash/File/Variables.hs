@@ -1,6 +1,6 @@
 -----------------------------------------------------------------------------
 --
--- Module      :  FNIStash.Logic.Variables
+-- Module      :  FNIStash.File.Variables
 -- Copyright   :  2013 Daniel Austin
 -- License     :  AllRightsReserved
 --
@@ -12,7 +12,7 @@
 --
 -----------------------------------------------------------------------------
 
-module FNIStash.Logic.Variables where
+module FNIStash.File.Variables where
 
 import FNIStash.File.VarIDs (VarID)
 import Data.Endian
@@ -23,3 +23,4 @@ vEFFECTLIST = swapEndian 0x15ca47c3::VarID
 vEFFECT = swapEndian 0x351c420e::VarID
 vGOODDES = swapEndian 0xda18d35a::VarID
 vNAME = swapEndian 0xe50d6600::VarID
+

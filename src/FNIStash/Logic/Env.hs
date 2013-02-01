@@ -27,7 +27,7 @@ module FNIStash.Logic.Env (
 
 import FNIStash.File.PAK
 import FNIStash.File.DAT
-import FNIStash.Logic.Variables
+import FNIStash.File.Variables
 
 import qualified Data.Text as T
 import Data.Maybe

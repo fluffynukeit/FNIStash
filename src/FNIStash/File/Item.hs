@@ -11,23 +11,128 @@
 -- |
 --
 -----------------------------------------------------------------------------
+{-# LANGUAGE OverloadedStrings #-}
 
 module FNIStash.File.Item (
     getItem,
+    textItem,
     Item -- re-export
 ) where
 
 import FNIStash.File.General
-import FNIStash.Logic.Item
+import FNIStash.Logic.Translate
+import FNIStash.File.Variables
+import FNIStash.File.DAT
 
 import qualified Data.ByteString.Lazy as BS
-import qualified Data.Map as M
+import qualified Data.Text as T
 import Data.Binary.Get
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Loops
 import Data.Word
+import Data.Int
 import Data.Monoid hiding (All)
+
+
+
+data Item = Item {
+    leadByte :: Word8,
+    guid :: Word64,
+    name :: T.Text,
+    prefix :: T.Text,
+    suffix :: T.Text,
+    serial :: BS.ByteString,
+    bytes1 :: BS.ByteString, -- 00 FFx24 00 4x
+    nEnchants :: Word32,
+    location :: Word16,
+    bytes2 :: BS.ByteString, -- 18 00 00 01 01 01 01 00 01
+    bytes3 :: BS.ByteString,
+    bytes4 :: [BS.ByteString],
+    level :: Word32,
+    bytes5 :: BS.ByteString, -- 01 00 00 00 always?
+    nSockets :: Word32,
+    nSocketsUsed :: Word32,
+    bytes6 :: BS.ByteString,
+    maxDmg :: Word32,
+    armor :: Word32,
+    bytes7 :: BS.ByteString,
+    bytes8 :: BS.ByteString, -- FFx12
+    nElements :: Word16,
+    elements :: [BS.ByteString],
+    mods :: [[Mod]],
+    gems :: [Item]
+    }
+
+data Mod = Mod {
+    modType :: Word32,
+    modName :: T.Text,
+    modValueList :: [Float],
+    modUnknown1 :: T.Text,
+    modEffectIndex :: Word32,
+    modDamageType :: DamageType,
+    modUnknown2 :: Word32,
+    modItemLevel :: Word32,
+    modDuration :: Float,
+    modUnknown3 :: Word32,
+    modValue :: Float,
+    modUnknown4 :: Word32
+}
+
+data DamageType = Physical | Fire | Electric | Ice | Poison | All | Unknown
+    deriving (Show, Eq)
+
+instance Translate Mod where
+    translateMarkup mod markup =
+        T.pack $ (case markup of
+            "VALUE" -> show . modValue
+            "DURATION" -> show . modDuration
+            "DMGTYPE" -> show . modDamageType
+            "VALUE1" -> show . (flip (!!) 1) . modValueList
+            "VALUE2" -> show . (flip (!!) 2) . modValueList
+            "VALUE3" -> show . (flip (!!) 3) . modValueList
+            "VALUE4" -> show . (flip (!!) 4) . modValueList
+            "VALUE3AND4" -> show . (flip (!!) 3) . modValueList
+            _ -> \mod -> "???"
+            ) mod
+
+
+textItem effSearch i = T.unlines
+    ["GUID: " <> (T.pack . show $ (fromIntegral $ guid i::Int64)),
+     "Full name: " <> (T.unwords [prefix i, name i, suffix i]),
+     "Num Enchants: " <> T.pack (show $ nEnchants i),
+     "Item level: " <> T.pack (show $ level i),
+     "Used Sockets: " <> T.pack (show $ nSocketsUsed i) <> "/" <> T.pack (show $ nSockets i),
+     "Dmg/Armor: " <> T.pack (show $ maxDmg i) <> "/" <> T.pack (show $ armor i),
+     "Num elements: " <> T.pack (show $ nElements i),
+     "Mods: " ,"", textList (textList (textMod effSearch)) (mods i),
+     "Gems: " <> textList (textItem effSearch) (gems i),
+     "", ""]
+
+textMod effSearch i =
+    let effectNode = effSearch (modEffectIndex i)
+        maybeSentence = (effectNode >>= findVar vGOODDES >>= translateVar)
+    in case maybeSentence of
+        Just sentence -> T.unlines [translateSentence i sentence]
+        Nothing -> textModOld i
+
+textModOld i =
+    let k f = T.pack . show $ f i
+    in T.unlines
+        ["","Type: " <> (intToHex . fromIntegral $ modType i),
+         "Name: " <> (modName i),
+         "Values: " <> (textList (\x -> (T.pack $ show x) <> ", ") $ modValueList i),
+         "Unknown1: " <> k modUnknown1,
+         "EffectIndex: " <> k modEffectIndex,
+         "DmgType: " <> k modDamageType,
+         "Unknown2: " <> k modUnknown2 ,
+         "ItemLevel: " <> k modItemLevel,
+         "Duration: " <> k modDuration,
+         "Unknown3: " <> k modUnknown3,
+         "Value: " <> k modValue,
+         "Unknown4: " <> k modUnknown4,
+         ""]
+
 
 getItem :: Get Item
 getItem = do
@@ -99,36 +204,4 @@ getModLists = do
             remainingLists <- getModLists
             return (thisList:remainingLists)
 
-m804A = getLazyByteString 39
-m8149 = getLazyByteString 45
-m8041 = do
-    count <- getWord8
-    mainBS <- getLazyByteString (30 + 4* fromIntegral count + 4)
-    return (BS.singleton count <> mainBS)
-m108041 = getLazyByteString 47
-m8441 = m8041
-m8141 = getLazyByteString 45
-m8050 = m8041
-m8058 = getLazyByteString 39 -- 35?
-mA141 = getLazyByteString 53
-mA041 = getLazyByteString 51
-m8048 = getLazyByteString 39
-m8042 = getLazyByteString 33
-m9041 = getLazyByteString 59
-m8051 = getLazyByteString 67
-m282141 = getLazyByteString 57
-m088141 = getLazyByteString 45
-m088140 = m088141
-m300041 = getLazyByteString 43
-m300141 = getLazyByteString 45
-mDefault = getLazyByteString 45
 
-modTypeSizeMap :: M.Map Word32 (Get BS.ByteString)
-modTypeSizeMap = M.fromList [(0x804A, m804A), (0x8041, m8041), (0x8441, m8441), (0x8149, m8149),
-                             (0x8050, m8050), (0x8141, m8141), (0x8058, m8058), (0xA141, mA141),
-                             (0xA041, mA041), (0x8048, m8048), (0x8042, m8042), (0x9041, m9041),
-                             (0x8051, m8051), (0x108041, m108041), (0x282141, m282141), (0x088141, m088141),
-                             (0x300041, m300041), (0x300141, m300141), (0x088140, m088140)]
-
-
-lkModReader modType = M.findWithDefault mDefault modType modTypeSizeMap

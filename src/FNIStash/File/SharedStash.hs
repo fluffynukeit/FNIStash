@@ -18,7 +18,6 @@ module FNIStash.File.SharedStash (
     textSharedStash
 ) where
 
-import FNIStash.Logic.Item
 import FNIStash.File.Item
 import FNIStash.File.General
 import FNIStash.Logic.Env
