@@ -77,7 +77,7 @@ data Mod = Mod {
     modUnknown4 :: Word32
 }
 
-data DamageType = Physical | Fire | Electric | Ice | Poison | Unknown
+data DamageType = Physical | Fire | Electric | Ice | Poison | All | Unknown
     deriving (Show, Eq)
 
 instance Translate Mod where
@@ -90,6 +90,7 @@ instance Translate Mod where
             "VALUE2" -> show . (flip (!!) 2) . modValueList
             "VALUE3" -> show . (flip (!!) 3) . modValueList
             "VALUE4" -> show . (flip (!!) 4) . modValueList
+            "VALUE3AND4" -> show . (flip (!!) 3) . modValueList
             _ -> \mod -> "???"
             ) mod
 

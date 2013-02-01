@@ -17,41 +17,55 @@ module Main (
     main
 ) where
 
-import FNIStash.File.PAK
-import FNIStash.File.DAT
-import FNIStash.Logic.Search
+import FNIStash.Logic.Config
+import FNIStash.Logic.Env
 import FNIStash.File.SharedStash
 import FNIStash.File.General
-import FNIStash.File.Crypto
 
-import System.FilePath
+import Prelude hiding (readFile)
+
+import Filesystem
+import Filesystem.Path
+import Filesystem.Path.CurrentOS
+
 import qualified Data.Text as T
-import qualified Data.Text.IO as T
 import qualified Data.ByteString.Lazy as BS
+import Data.Binary.Get
 import Data.Maybe
+import Data.Configurator
+import Control.Monad.Reader
 
 testDir = "C:\\Users\\Dan\\Desktop\\FNI Testing"
-pakMANFileBinary = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Torchlight II\\PAKS\\DATA.PAK.MAN"
-pakFileBinary = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Torchlight II\\PAKS\\DATA.PAK"
 sharedStashBinary = testDir </> "sharedstash_haskell.bin"
 sharedStashCrypted = testDir </> "sharedstash_v2.bin"
 sharedStashTxt = testDir </> "sharedStashTxt.txt"
 
-fromRight (Right a) = a
     
 main = do
-    man <- readPAKMAN pakMANFileBinary
-    let subMan = filterMANByPrefix man ["MEDIA/UNITS/ITEMS", "MEDIA/EFFECTSLIST.DAT"]
-    pak <- pakFiles subMan pakFileBinary
-    let findItem = itemLookup pak
-    T.writeFile (testDir </> "testOutputDAT.txt") $ (textDAT . fromJust . findItem) "-1053906477868677616"
-    s <- readCryptoFile sharedStashCrypted >>= (return . fileGameData . fromRight) >>= BS.writeFile sharedStashBinary
-    ssData <- BS.readFile sharedStashBinary
-    let sharedStashResult = runGetWithFail "Problem reading shared stash" getSharedStash ssData
-        effSearch = effectLookup pak
-    T.writeFile sharedStashTxt $
+    cfg <- processPathsAndConfig
+    env <- buildEnv cfg
+    ssData <- readFile sharedStashBinary
+    let sharedStashResult = runGetWithFail "Can't read shared stash file!" getSharedStash (fromStrict ssData)
+    writeTextFile sharedStashTxt $
         case sharedStashResult of
             Left error -> error
-            Right sharedStash -> (textSharedStash effSearch sharedStash)
+            Right sharedStash -> (runReader (ssTextOutput sharedStash) env)
 
 
+ssTextOutput = textSharedStash
+
+
+
+processPathsAndConfig = do
+    -- first create the program directory if it doesn't exist
+    appPath <- getAppDataDirectory "FNIStash"
+    docPath <- getDocumentsDirectory
+    createTree appPath
+    -- now write out a config file if one does not exist
+    let confPath = appPath </> "Backend.conf"
+    confExists <- isFile confPath
+    if confExists then
+        return ()
+        else
+            writeConfigOut confPath $ defaultConfigOut docPath
+    load [Required (encodeString confPath)]

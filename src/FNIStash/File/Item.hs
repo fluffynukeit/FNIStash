@@ -27,7 +27,7 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.Loops
 import Data.Word
-import Data.Monoid
+import Data.Monoid hiding (All)
 
 getItem :: Get Item
 getItem = do
@@ -84,6 +84,7 @@ damageTypeLookup 0x02 = Fire
 damageTypeLookup 0x03 = Ice
 damageTypeLookup 0x04 = Electric
 damageTypeLookup 0x05 = Poison
+damageTypeLookup 0x06 = All
 damageTypeLookup _ = Unknown
 
 getModList :: Word32 -> Get [Mod]

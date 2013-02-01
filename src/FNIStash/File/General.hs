@@ -17,9 +17,12 @@ module FNIStash.File.General
     (getTorchText,
      wordToFloat,
      wordToDouble,
+     fromStrict,
+     toStrict,
      streamToHex,
      intToHex,
      textList,
+     slashTextPath,
      runGetWithFail,
      getFloat)
 where
@@ -37,6 +40,7 @@ import Data.Array.ST (newArray, readArray, MArray, STUArray)
 import Data.Array.Unsafe (castSTUArray)
 import GHC.ST (runST, ST)
 
+import Filesystem.Path.CurrentOS
 
 textList f = foldl (\a b -> a <> f b) T.empty
 
@@ -47,6 +51,9 @@ getFloat :: Get Float
 getFloat = (getWord32le >>= (return . wordToFloat))
 
 
+fromStrict bs = BS.fromChunks [bs]
+toStrict bs = (mconcat . BS.toChunks) bs
+
 streamToHex :: BS.ByteString -> T.Text
 streamToHex = T.pack . ("0x" ++) . concatMap ((" "++) . wordToHex) . BS.unpack
 
@@ -56,6 +63,9 @@ wordToHex word = case length $ showHex word "" of
 
 intToHex i = T.pack ("0x" ++ padding ++ (showHex i ""))
         where padding = replicate (8 - (length $ showHex i "")) '0'
+
+slashTextPath :: T.Text -> T.Text
+slashTextPath t = T.replace "\\" "\\\\" t
 
 -- Utilities for handling file Get errors
 

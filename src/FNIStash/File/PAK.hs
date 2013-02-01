@@ -36,7 +36,7 @@ import Data.Word
 import qualified Data.Text as T
 import Control.Applicative
 import Control.Monad
-import System.FilePath
+
 import Codec.Compression.Zlib
 import Data.Monoid
 
