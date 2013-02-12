@@ -26,6 +26,7 @@ import qualified Data.ByteString.Lazy as BS
 import qualified Data.Text as T
 import Data.Binary.Get
 import Control.Monad
+import Control.Applicative
 import Data.Monoid
 import Data.Word
 
@@ -47,10 +48,10 @@ getIndividualPartition = do
     size <- getWord32le
     getLazyByteString $ fromIntegral size
 
-getSharedStash :: Get SharedStash
-getSharedStash = do
+getSharedStash :: Env -> Get SharedStash
+getSharedStash env = do
     parts <- getSharedStashPartitions
-    return $ map (runGetWithFail "Could not parse item!" getItem) parts
+    return (map (\bs -> ((runGetWithFail "Could not parse item!" $ getItem env) bs) <*> return bs) parts)
 
 textSharedStash :: SharedStash -> Environment T.Text
 textSharedStash s = do
@@ -58,4 +59,4 @@ textSharedStash s = do
     return $ foldl (\a b -> a <> textItemResult effSearch b) T.empty s
 
 textItemResult effSearch (Left error) = T.unlines ["", error, ""]
-textItemResult effSearch (Right item) = textItem effSearch item
+textItemResult effSearch (Right item) = textItem item

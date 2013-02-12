@@ -45,7 +45,7 @@ main = do
     cfg <- processPathsAndConfig
     env <- buildEnv cfg
     ssData <- readFile sharedStashBinary
-    let sharedStashResult = runGetWithFail "Can't read shared stash file!" getSharedStash (fromStrict ssData)
+    let sharedStashResult = runGetWithFail "Can't read shared stash file!" (getSharedStash env) (fromStrict ssData)
     writeTextFile sharedStashTxt $
         case sharedStashResult of
             Left error -> error

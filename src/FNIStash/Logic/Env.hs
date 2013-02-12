@@ -17,9 +17,8 @@
 module FNIStash.Logic.Env (
     buildEnv,
     Environment,
-    effects,
-    skills,
-    module Control.Monad.Reader
+    module Control.Monad.Reader,
+    Env (..)
 ) where
 
 -- An ENV is the data environment that is passed around by the reader monad.  It has all the reference
