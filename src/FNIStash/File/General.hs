@@ -15,22 +15,26 @@
 
 module FNIStash.File.General 
     (getTorchText,
+     getTorchTextL,
      wordToFloat,
      wordToDouble,
-     fromStrict,
-     toStrict,
      streamToHex,
      intToHex,
      textList,
      slashTextPath,
      runGetWithFail,
-     getFloat)
+     runGetSuppress,
+     getFloat,
+     fromStrict,
+     toStrict)
 where
 
-import qualified Data.ByteString.Lazy as BS
+import qualified Data.ByteString as SBS
+import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text as T
 import Data.Text.Encoding (decodeUtf16LE)
-import Data.Binary.Get
+import qualified Data.Binary.Strict.Get as SG
+import qualified Data.Binary.Get as LG
 import Numeric
 import Control.Applicative
 import Data.Word
@@ -44,18 +48,17 @@ import Filesystem.Path.CurrentOS
 
 textList f = foldl (\a b -> a <> f b) T.empty
 
-getTorchText :: Get T.Text
-getTorchText = fromIntegral . (*2) <$> getWord16le >>= getByteString >>= \x -> return (decodeUtf16LE x)
+getTorchText :: SG.Get T.Text
+getTorchText = fromIntegral . (*2) <$> SG.getWord16le >>= SG.getByteString >>= \x -> return (decodeUtf16LE x)
 
-getFloat :: Get Float
-getFloat = (getWord32le >>= (return . wordToFloat))
+getTorchTextL :: LG.Get T.Text
+getTorchTextL = fromIntegral . (*2) <$> LG.getWord16le >>= LG.getByteString >>= \x -> return (decodeUtf16LE x)
 
+getFloat :: SG.Get Float
+getFloat = (SG.getWord32le >>= (return . wordToFloat))
 
-fromStrict bs = BS.fromChunks [bs]
-toStrict bs = (mconcat . BS.toChunks) bs
-
-streamToHex :: BS.ByteString -> T.Text
-streamToHex = T.pack . ("0x" ++) . concatMap ((" "++) . wordToHex) . BS.unpack
+streamToHex :: SBS.ByteString -> T.Text
+streamToHex = T.pack . ("0x" ++) . concatMap ((" "++) . wordToHex) . SBS.unpack
 
 wordToHex word = case length $ showHex word "" of
     1 -> "0" ++ showHex word ""
@@ -67,15 +70,22 @@ intToHex i = T.pack ("0x" ++ padding ++ (showHex i ""))
 slashTextPath :: T.Text -> T.Text
 slashTextPath t = T.replace "\\" "\\\\" t
 
+fromStrict bs = LBS.fromChunks [bs]
+toStrict = (mconcat . LBS.toChunks)
+
 -- Utilities for handling file Get errors
 
-runGetWithFail :: T.Text -> Get a -> BS.ByteString -> Either T.Text a
+runGetWithFail :: T.Text -> SG.Get a -> SBS.ByteString -> Either T.Text a
 runGetWithFail msg action dataBS =
-    let result = runGetOrFail action dataBS
+    let result = SG.runGet action dataBS
     in case result of
-        Left (remainingBS, offset, errorStr) ->
-            Left  (msg <> " (at byte " <> T.pack (show offset) <> ") <- " <> (T.pack errorStr))
-        Right (remainingBS, offset, record) -> Right record
+        (Left errorStr, _) -> Left  (msg <> " <- " <> (T.pack errorStr))
+        (Right record, _)  -> Right record
+
+runGetSuppress :: SG.Get a -> SBS.ByteString -> a
+runGetSuppress action dataBS =
+    case SG.runGet action dataBS of
+        (Right a, rem) -> a
 
 -- Here I copied the Word -> Float/Double solution found at the following link
 -- http://stackoverflow.com/questions/6976684/converting-ieee-754-floating-point-in-haskell-word32-64-to-and-from-haskell-floa

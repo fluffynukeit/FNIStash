@@ -31,9 +31,9 @@ import FNIStash.File.General
 import FNIStash.File.VarIDs
 import FNIStash.File.PAK
 
-import Data.Binary.Get
+import qualified Data.Binary.Strict.Get as SG
 import qualified Data.Text as T
-import qualified Data.ByteString.Lazy as BS
+import qualified Data.ByteString as SBS
 import qualified Data.Map as M
 import Data.List
 import Control.Applicative
@@ -114,41 +114,41 @@ data DATVar =
 
 -- Get functions
 
-getDAT :: Get DATNode
+getDAT :: SG.Get DATNode
 getDAT = do
-    vers <- getWord32le
+    vers <- SG.getWord32le
     dict <- getDATDict
     root <- getDATNode dict
     return root
 
-getDATNode :: DATDict -> Get DATNode
-getDATNode dict = DATNode <$> getWord32le <*> getDATVars dict <*>
-    (getWord32le >>= (\x -> replicateM (fromIntegral x) (getDATNode dict)))
+getDATNode :: DATDict -> SG.Get DATNode
+getDATNode dict = DATNode <$> SG.getWord32le <*> getDATVars dict <*>
+    (SG.getWord32le >>= (\x -> replicateM (fromIntegral x) (getDATNode dict)))
 
-getDATDict :: Get DATDict
+getDATDict :: SG.Get DATDict
 getDATDict = do
-    numEntries <- getWord32le
-    tuplesList <- replicateM (fromIntegral numEntries) $ (,) <$> getWord32le <*> getTorchText
+    numEntries <- SG.getWord32le
+    tuplesList <- replicateM (fromIntegral numEntries) $ (,) <$> SG.getWord32le <*> getTorchText
     return tuplesList
 
-getDATVars :: DATDict -> Get DATVars
+getDATVars :: DATDict -> SG.Get DATVars
 getDATVars dict = do
-    numEntries <- getWord32le
+    numEntries <- SG.getWord32le
     replicateM (fromIntegral numEntries) (getDATVar dict)
 
-getDATVar :: DATDict -> Get (VarID, DATVar)
+getDATVar :: DATDict -> SG.Get (VarID, DATVar)
 getDATVar dict = do
-    varID <- getWord32le
-    varType <- getWord32le
+    varID <- SG.getWord32le
+    varType <- SG.getWord32le
     varVal <- case varType of
-        1 -> DATInt <$> (getWord32le >>= return . fromIntegral)
-        2 -> DATFloat <$> (getWord32le >>= return . wordToFloat)
-        3 -> DATDouble <$> (getWord64le >>= return. wordToDouble)
-        4 -> DATWord <$> getWord32le
-        5 -> DATText <$> (getWord32le >>= return . (\x -> maybe T.empty id (lookup x dict)))
-        6 -> DATBool <$> (getWord32le >>= return . (\x -> if x /= 0 then True else False))
-        7 -> DATInt64 <$> (getWord64le >>= return . fromIntegral)
-        8 -> DATTranslate <$> (getWord32le >>= return . (\x -> maybe T.empty id (lookup x dict)))
+        1 -> DATInt <$> (SG.getWord32le >>= return . fromIntegral)
+        2 -> DATFloat <$> (SG.getWord32le >>= return . wordToFloat)
+        3 -> DATDouble <$> (SG.getWord64le >>= return. wordToDouble)
+        4 -> DATWord <$> SG.getWord32le
+        5 -> DATText <$> (SG.getWord32le >>= return . (\x -> maybe T.empty id (lookup x dict)))
+        6 -> DATBool <$> (SG.getWord32le >>= return . (\x -> if x /= 0 then True else False))
+        7 -> DATInt64 <$> (SG.getWord64le >>= return . fromIntegral)
+        8 -> DATTranslate <$> (SG.getWord32le >>= return . (\x -> maybe T.empty id (lookup x dict)))
     return (varID, varVal)
 
 -- "Show" functions for DATs
@@ -191,7 +191,7 @@ readDATFiles pak prefix keyFxn =
     let prefixMap = M.filterWithKey (\key _ -> T.isPrefixOf prefix key) pak
         pairList = M.toList prefixMap
         newPair (k1,entry) =
-            let Right newVal = runGetWithFail ("Problem reading DAT file " <> k1) getDAT (entryData entry)
+            let newVal = runGetSuppress getDAT (entryData entry)
                 newKey = keyFxn newVal
             in (newKey, newVal)
         newPairList = map newPair pairList

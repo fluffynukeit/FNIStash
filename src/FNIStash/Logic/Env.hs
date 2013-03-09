@@ -27,6 +27,7 @@ module FNIStash.Logic.Env (
 import FNIStash.File.PAK
 import FNIStash.File.DAT
 import FNIStash.File.Variables
+import FNIStash.File.General
 
 import qualified Data.Text as T
 import Data.Maybe
@@ -65,7 +66,7 @@ itemLookup pak =
 
 effectLookup pak =
     let effListData = fromJust $ lkupPAKFile pak "MEDIA/EFFECTSLIST.DAT"
-        dat = runGet getDAT effListData
+        dat = runGetSuppress getDAT effListData
     in (\effID -> sectionAt effID dat)
 
 skillLookup pak =

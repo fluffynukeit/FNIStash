@@ -29,8 +29,8 @@ import Filesystem.Path
 import Filesystem.Path.CurrentOS
 
 import qualified Data.Text as T
-import qualified Data.ByteString.Lazy as BS
-import Data.Binary.Get
+import qualified Data.ByteString as BS
+import Data.Binary.Strict.Get
 import Data.Maybe
 import Data.Configurator
 import Control.Monad.Reader
@@ -45,7 +45,7 @@ main = do
     cfg <- processPathsAndConfig
     env <- buildEnv cfg
     ssData <- readFile sharedStashBinary
-    let sharedStashResult = runGetWithFail "Can't read shared stash file!" (getSharedStash env) (fromStrict ssData)
+    let sharedStashResult = runGetWithFail "Can't read shared stash file!" (getSharedStash env) ssData
     writeTextFile sharedStashTxt $
         case sharedStashResult of
             Left error -> error

@@ -11,24 +11,11 @@ description:
 author: Daniel Austin
 data-dir: ""
  
-executable FNIStash
-    build-depends: array -any, base -any, binary -any, bytestring -any,
-                   configurator -any, containers -any, data-endian -any, errors -any,
-                   filepath -any, monad-loops -any, mtl -any, system-fileio -any,
-                   system-filepath -any, text -any, tuple -any, zlib -any
-    main-is: Main.hs
-    buildable: True
-    hs-source-dirs: src
-    other-modules: FNIStash.Logic.Translate FNIStash.Logic.Env
-                   FNIStash.Logic.Config FNIStash.File.VarIDs FNIStash.File.Variables
-                   FNIStash.File.SharedStash FNIStash.File.PAK FNIStash.File.Item
-                   FNIStash.File.General FNIStash.File.DAT FNIStash.File.Crypto
-    ghc-options: -O2
- 
 executable FNIStash-Debug
-    build-depends: array -any, base -any, binary -any, bytestring -any,
-                   configurator -any, containers -any, data-endian -any, errors -any,
-                   filepath -any, monad-loops -any, mtl -any, system-fileio -any,
+    build-depends: array -any, base -any, binary -any,
+                   binary-strict -any, bytestring -any, configurator -any,
+                   containers -any, data-endian -any, errors -any, filepath -any,
+                   monad-loops -any, mtl -any, system-fileio -any,
                    system-filepath -any, text -any, tuple -any, zlib -any
     main-is: Main.hs
     buildable: True
@@ -39,10 +26,26 @@ executable FNIStash-Debug
                    FNIStash.File.General FNIStash.File.DAT FNIStash.File.Crypto
     ghc-options: -O2 -prof -rtsopts
  
+executable FNIStash
+    build-depends: array -any, base -any, binary -any,
+                   binary-strict -any, bytestring -any, configurator -any,
+                   containers -any, data-endian -any, errors -any, filepath -any,
+                   monad-loops -any, mtl -any, system-fileio -any,
+                   system-filepath -any, text -any, tuple -any, zlib -any
+    main-is: Main.hs
+    buildable: True
+    hs-source-dirs: src
+    other-modules: FNIStash.Logic.Translate FNIStash.Logic.Env
+                   FNIStash.Logic.Config FNIStash.File.VarIDs FNIStash.File.Variables
+                   FNIStash.File.SharedStash FNIStash.File.PAK FNIStash.File.Item
+                   FNIStash.File.General FNIStash.File.DAT FNIStash.File.Crypto
+    ghc-options: -O2
+ 
 test-suite test-FNIStash
-    build-depends: array -any, base -any, binary -any, bytestring -any,
-                   configurator -any, containers -any, data-endian -any, errors -any,
-                   filepath -any, monad-loops -any, mtl -any, system-fileio -any,
+    build-depends: array -any, base -any, binary -any,
+                   binary-strict -any, bytestring -any, configurator -any,
+                   containers -any, data-endian -any, errors -any, filepath -any,
+                   monad-loops -any, mtl -any, system-fileio -any,
                    system-filepath -any, text -any, tuple -any, zlib -any
     type: exitcode-stdio-1.0
     main-is: Main.hs

@@ -27,10 +27,12 @@ module FNIStash.File.PAK (
 
 import FNIStash.File.General
 
-import qualified Data.ByteString.Lazy as BS
+import qualified Data.ByteString.Lazy as LBS
+import qualified Data.ByteString as SBS
 import qualified Data.Map as M
 import qualified Data.List as L
-import Data.Binary.Get
+import qualified Data.Binary.Get as LG
+import qualified Data.Binary.Strict.Get as SG
 
 import Data.Word
 import qualified Data.Text as T
@@ -46,8 +48,8 @@ import System.IO -- needed for handle functions
 
 
 readPAKMAN fileName = do
-    content <- BS.readFile fileName
-    return . manHeaderToMAN $ runGet getMANHeader content
+    content <- SBS.readFile fileName
+    return . manHeaderToMAN $ runGetSuppress getMANHeader content
 
 filterMANByPrefix :: MAN -> [T.Text] -> MAN
 filterMANByPrefix man prefList =
@@ -59,8 +61,8 @@ pakSeek pakFile (file, offset) = do
     withBinaryFile pakFile ReadMode (
         \h -> hSeek h AbsoluteSeek (fromIntegral offset - 4) >>
         return h >>=
-        BS.hGetContents >>=
-        (\c -> return $! runGet getPAKEntry c) >>=
+        LBS.hGetContents >>=
+        (\c -> return $! LG.runGet getPAKEntry c) >>=
         return . (,) file
         )
         
@@ -69,12 +71,12 @@ pakFiles man pakFile =
     mapM (pakSeek pakFile) man >>= return . M.fromList 
 
 
-lkupPAKFile :: PAKFiles -> FilePath -> Maybe BS.ByteString
+lkupPAKFile :: PAKFiles -> FilePath -> Maybe SBS.ByteString
 lkupPAKFile pakFiles filePath = 
     let entry = flip M.lookup pakFiles $ (T.toUpper . T.pack) filePath
     in fmap entryData entry -- on lookup, decompress the data
 
-entryData = (decompress . pakEncodedData)
+entryData = (toStrict . decompress . fromStrict . pakEncodedData)
 
 fileEntriesOnly entries = L.filter ((Folder /=) . entryType) entries
 
@@ -87,7 +89,7 @@ manHeaderToMAN hdr =
         flip L.map (filesInFolder fol) (fileName fol))
 
 textPAKFiles pakFiles =
-        let f (k,entry) = k <> ", " <> ((T.pack . show . BS.length . pakEncodedData) entry) <> "\n"
+        let f (k,entry) = k <> ", " <> ((T.pack . show . SBS.length . pakEncodedData) entry) <> "\n"
         in textList f $ M.toList pakFiles
 
 
@@ -128,31 +130,31 @@ data PAKEntry = PAKEntry {
     pakHeader :: Word32,
     pakDecodedSize :: Word32,
     pakEncodedSize :: Word32,
-    pakEncodedData :: BS.ByteString
+    pakEncodedData :: SBS.ByteString
     } deriving Eq
 
 ---- Gets -------
 
-getMANEntry :: Get MANEntry
+getMANEntry :: SG.Get MANEntry
 getMANEntry =
-    MANEntry <$> getWord32le <*> getFileType <*> getTorchText
-             <*> getWord32le <*> getWord32le <*> getWord32le <*> getWord32le
+    MANEntry <$> SG.getWord32le <*> getFileType <*> getTorchText
+             <*> SG.getWord32le <*> SG.getWord32le <*> SG.getWord32le <*> SG.getWord32le
 
-getMANFolder :: Get MANFolder
+getMANFolder :: SG.Get MANFolder
 getMANFolder =
     MANFolder <$> getTorchText
-              <*> (getWord32le >>= (flip replicateM getMANEntry) . fromIntegral)
+              <*> (SG.getWord32le >>= (flip replicateM getMANEntry) . fromIntegral)
 
-getMANHeader :: Get MANHeader
+getMANHeader :: SG.Get MANHeader
 getMANHeader =
-    MANHeader <$> getWord16le
+    MANHeader <$> SG.getWord16le
               <*> getTorchText
-              <*> getWord32le
-              <*> (getWord32le >>= (flip replicateM getMANFolder) . fromIntegral)
+              <*> SG.getWord32le
+              <*> (SG.getWord32le >>= (flip replicateM getMANFolder) . fromIntegral)
  
-getFileType :: Get PAKFileType
+getFileType :: SG.Get PAKFileType
 getFileType = do
-    typeID <- getWord8
+    typeID <- SG.getWord8
     return $ case typeID of
         0x00 -> DatTemplate
         0x01 -> Layout
@@ -174,12 +176,12 @@ getFileType = do
         0x15 -> Mpp
         _    -> Unrecognized
 
-getPAKEntry :: Get PAKEntry
+getPAKEntry :: LG.Get PAKEntry
 getPAKEntry = do
-    hdr <- getWord32le
-    decSize <- getWord32le
-    encSize <- getWord32le
-    encData <- getLazyByteString (fromIntegral encSize) >>= return . BS.copy
+    hdr <- LG.getWord32le
+    decSize <- LG.getWord32le
+    encSize <- LG.getWord32le
+    encData <- LG.getByteString (fromIntegral encSize) >>= return . SBS.copy
     return $ PAKEntry hdr decSize encSize $! encData
 
 

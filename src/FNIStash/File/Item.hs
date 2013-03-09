@@ -25,9 +25,9 @@ import FNIStash.Logic.Env
 import FNIStash.File.Variables
 import FNIStash.File.DAT
 
-import qualified Data.ByteString.Lazy as BS
+import qualified Data.ByteString as BS
 import qualified Data.Text as T
-import Data.Binary.Get
+import Data.Binary.Strict.Get
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Loops
@@ -113,23 +113,23 @@ getItem env = do
     name <- getTorchText
     prefix <- getTorchText
     suffix <- getTorchText
-    serial <- getLazyByteString 24
-    bytes1 <- getLazyByteString 29
+    serial <- getByteString 24
+    bytes1 <- getByteString 29
     nEnchants <- getWord32le
     location <- getWord16le
-    bytes2 <- getLazyByteString 9
-    bytes3 <- getLazyByteString 8
-    bytes4 <- replicateM 4 $ getLazyByteString 20
+    bytes2 <- getByteString 9
+    bytes3 <- getByteString 8
+    bytes4 <- replicateM 4 $ getByteString 20
     level <- fromIntegral <$> getWord32le
-    bytes5 <- getLazyByteString 4 -- always 01 00 00 00?
+    bytes5 <- getByteString 4 -- always 01 00 00 00?
     nSockets <- getWord32le
     nUsedSockets <-  getWord32le
     gems <- replicateM (fromIntegral nUsedSockets) $ (getItem env >>= \x -> (return . x) BS.empty)
-    bytes6 <- getLazyByteString 4
+    bytes6 <- getByteString 4
     maxDmg <- getWord32le
     armor <- getWord32le
-    bytes7 <- getLazyByteString 4
-    bytes8 <- getLazyByteString 12
+    bytes7 <- getByteString 4
+    bytes8 <- getByteString 12
     nElements <- getWord16le
     elements <- replicateM (fromIntegral nElements) getDamageType
     modLists <- getModLists env >>= return . concat
@@ -140,7 +140,7 @@ getItem env = do
 
 
 getDamageType = do
-    getLazyByteString 8     -- 8 leading bytes are always 0?
+    getByteString 8     -- 8 leading bytes are always 0?
     dmgType <- getWord32le
     return $ damageTypeLookup dmgType
 

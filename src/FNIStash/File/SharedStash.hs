@@ -22,9 +22,9 @@ import FNIStash.File.Item
 import FNIStash.File.General
 import FNIStash.Logic.Env
 
-import qualified Data.ByteString.Lazy as BS
+import qualified Data.ByteString as BS
 import qualified Data.Text as T
-import Data.Binary.Get
+import Data.Binary.Strict.Get
 import Control.Monad
 import Control.Applicative
 import Data.Monoid
@@ -46,7 +46,7 @@ getSharedStashPartitions = do
 getIndividualPartition :: Get BS.ByteString
 getIndividualPartition = do
     size <- getWord32le
-    getLazyByteString $ fromIntegral size
+    getByteString $ fromIntegral size
 
 getSharedStash :: Env -> Get SharedStash
 getSharedStash env = do
