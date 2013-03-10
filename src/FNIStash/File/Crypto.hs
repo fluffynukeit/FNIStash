@@ -60,7 +60,7 @@ putCryptoFile desFile = do
     putWord32le (4 + 1 + 4 + 4 + fromIntegral (BS.length $ fileGameData desFile))
 
 readCryptoFile filePath = BS.readFile filePath >>=
-    return . (runGetWithFail ("Problem reading scrambled file " <> (T.pack filePath)) getCryptoFile)
+    return . (runGet getCryptoFile)
 
 writeCryptoFile filePath cryptoFile =
     let fileData = runPut (putCryptoFile cryptoFile)
