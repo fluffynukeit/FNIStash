@@ -44,15 +44,7 @@ data Env = Env {
 }
 
 -- build the lookup environment needed for app operations
-buildEnv cfg = do
-    pakMANFileBinary <- require cfg "MANFILE"
-    man <- readPAKMAN pakMANFileBinary
-    let subMan = filterMANByPrefix man ["MEDIA/EFFECTSLIST.DAT","MEDIA/UNITS/ITEMS", "MEDIA/SKILLS"]
-    pakFileBinary <- require cfg "PAKFILE"
-    pak <- pakFiles subMan pakFileBinary
-    return $ populateEnv pak
-
-populateEnv pak =
+buildEnv pak =
     let effects = effectLookup pak
         skills = skillLookup pak
     in Env effects skills
@@ -65,7 +57,7 @@ itemLookup pak =
     in (\idText -> lkupDATFile dat idText)
 
 effectLookup pak =
-    let effListData = fromJust $ lkupPAKFile pak "MEDIA/EFFECTSLIST.DAT"
+    let effListData = fromJust $ lkupPAKFile "MEDIA/EFFECTSLIST.DAT" pak
         dat = runGetSuppress getDAT effListData
     in (\effID -> sectionAt effID dat)
 
