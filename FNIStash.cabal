@@ -7,7 +7,6 @@ license-file: LICENSE
 copyright: 2013 Daniel Austin
 maintainer: dan@fluffynukeit.com
 stability: Development
-description:  
 author: Daniel Austin
 data-dir: ""
  
@@ -21,11 +20,11 @@ executable FNIStash
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: FNIStash.Logic.Translate FNIStash.Logic.Initialize
-                   FNIStash.Logic.Env FNIStash.Logic.Config FNIStash.File.VarIDs
-                   FNIStash.File.Variables FNIStash.File.SharedStash FNIStash.File.PAK
-                   FNIStash.File.Item FNIStash.File.General FNIStash.File.DAT
-                   FNIStash.File.Crypto
+    other-modules: FNIStash.Comm.Messages FNIStash.Logic.Translate
+                   FNIStash.Logic.Initialize FNIStash.Logic.Env FNIStash.Logic.Config
+                   FNIStash.File.VarIDs FNIStash.File.Variables
+                   FNIStash.File.SharedStash FNIStash.File.PAK FNIStash.File.Item
+                   FNIStash.File.General FNIStash.File.DAT FNIStash.File.Crypto
     ghc-options: -O2
  
 executable FNIStash-Debug
@@ -40,11 +39,11 @@ executable FNIStash-Debug
     extra-libraries: libIL
     extra-lib-dirs: "C:\\Users\\Dan\\My Code\\DevIL-SDK-x86-1.7.8\\lib"
     hs-source-dirs: src
-    other-modules: FNIStash.Logic.Translate FNIStash.Logic.Initialize
-                   FNIStash.Logic.Env FNIStash.Logic.Config FNIStash.File.VarIDs
-                   FNIStash.File.Variables FNIStash.File.SharedStash FNIStash.File.PAK
-                   FNIStash.File.Item FNIStash.File.General FNIStash.File.DAT
-                   FNIStash.File.Crypto
+    other-modules: FNIStash.Comm.Messages FNIStash.Logic.Translate
+                   FNIStash.Logic.Initialize FNIStash.Logic.Env FNIStash.Logic.Config
+                   FNIStash.File.VarIDs FNIStash.File.Variables
+                   FNIStash.File.SharedStash FNIStash.File.PAK FNIStash.File.Item
+                   FNIStash.File.General FNIStash.File.DAT FNIStash.File.Crypto
     ghc-options: -O2 -prof -rtsopts
  
 test-suite test-FNIStash

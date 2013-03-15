@@ -16,7 +16,7 @@
 
 module FNIStash.Logic.Initialize (
 
-    stashText
+    initialize
 
 ) where
 
@@ -26,6 +26,7 @@ import FNIStash.File.SharedStash
 import FNIStash.File.General
 import FNIStash.File.Crypto
 import FNIStash.File.PAK
+import FNIStash.Comm.Messages
 import Filesystem
 import Filesystem.Path
 import Filesystem.Path.CurrentOS
@@ -50,12 +51,13 @@ import GHC.Exts
 import Data.Word
 import Debug.Trace
 
+
 testDir = "C:\\Users\\Dan\\Desktop\\FNI Testing"
 sharedStashCrypted = testDir </> "sharedstash_v2.bin"
 
 envPrefixes = ["MEDIA/EFFECTSLIST.DAT", "MEDIA/UNITS/ITEMS", "MEDIA/SKILLS"]
 
-stashText = do
+initialize = do
     appRoot <- ensureAppRoot
     cfg <- ensureConfig appRoot
     ensureGUIAssets appRoot cfg
@@ -64,8 +66,8 @@ stashText = do
     ssData <- readCryptoFile (encodeString sharedStashCrypted) >>= return . fileGameData
     let sharedStashResult = runGetWithFail "Can't read shared stash file!" (getSharedStash env) (toStrict ssData)
     return $ case sharedStashResult of
-        Left error -> error
-        Right sharedStash -> (runReader (textSharedStash sharedStash) env)
+        Left error -> Message Error
+        Right sharedStash -> Message Initialized --(runReader (textSharedStash sharedStash) env)
 
 readPAKPrefixes cfg prefs = do
     pakMANFileBinary <- require cfg "MANFILE"
@@ -91,8 +93,9 @@ ensureConfig appRoot = do
             writeConfigOut confPath $ defaultConfigOut docPath
     load [Required (encodeString confPath)]
 
-guiAssets = fmap ("MEDIA/UI/ICONS/" <>) ["ARMOR", "FISH", "GEMS", "JEWELRY", "MISC",
-                                         "POTIONS", "QUESTITEMS", "WEAPONS"]
+guiAssets = (fmap ("MEDIA/UI/ICONS/" <>) ["ARMOR", "FISH", "GEMS", "JEWELRY", "MISC",
+                                          "POTIONS", "QUESTITEMS", "WEAPONS"])
+            <> ["MEDIA/UI/HUD/INGAMETEXTURESHEETS2"]
 
 ensureGUIAssets appRoot cfg = do
     let assetPath = appRoot </> "GUIAssets"

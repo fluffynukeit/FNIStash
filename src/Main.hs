@@ -19,29 +19,40 @@ module Main (
 
 
 import FNIStash.Logic.Initialize
+import FNIStash.Comm.Messages
 
 import qualified Data.Text as T
+import Control.Concurrent
+import Control.Monad.Trans
+import Control.Monad
 
 import Graphics.UI.Ji
 import Graphics.UI.Ji.JQuery
 
 main = do
-    items <- stashText
-    print items
---    serve Config
---        { jiPort = 10001
---        , jiRun = runJi
---        , jiWorker = worker items
---        , jiInitHTML = "GUI.html"
---        , jiStatic = "C:\\Users\\Dan\\My Code\\FNIStash\\wwwroot"
---        }
+    messages <- newChan
+    forkIO $ do writeChan messages (Message Initializing)
+                result <- initialize
+                writeChan messages result
+    serve Config
+        { jiPort = 10001
+        , jiRun = runJi
+        , jiWorker = worker messages
+        , jiInitHTML = "GUI.html"
+        , jiStatic = "C:\\Users\\Dan\\My Code\\FNIStash\\wwwroot"
+        }
 
-worker :: MonadJi m => T.Text -> m ()
-worker items = do
+worker :: MonadJi m => Chan (Message Response) -> m ()
+worker messages = do
     setTitle "FNIStash"
     body <- getBody
     element <- newElement "div"
-    setText (T.unpack items) element
     appendTo body element
-    animate element [("opacity","0")] 3000 Linear $ return ()
+    msgList <- liftIO $ getChanContents messages
+    forM_ msgList $ \(Message x) -> do
+        flip setText element $ case x of
+            Initializing -> "Initializing..."
+            Initialized -> "Finally initialized!"
+            Error -> "Something went wrong..."
+
     
