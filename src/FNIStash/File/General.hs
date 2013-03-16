@@ -18,6 +18,7 @@ module FNIStash.File.General
      getTorchTextL,
      wordToFloat,
      wordToDouble,
+     showHex,
      streamToHex,
      intToHex,
      textList,

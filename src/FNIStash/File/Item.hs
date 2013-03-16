@@ -37,34 +37,6 @@ import Data.Monoid hiding (All)
 
 
 
---data ItemBytes = ItemBytes {
---    leadByte :: Word8,
---    guid :: Word64,
---    name :: T.Text,
---    prefix :: T.Text,
---    suffix :: T.Text,
---    serial :: BS.ByteString,
---    bytes1 :: BS.ByteString, -- 00 FFx24 00 4x
---    nEnchants :: Word32,
---    location :: Word16,
---    bytes2 :: BS.ByteString, -- 18 00 00 01 01 01 01 00 01
---    bytes3 :: BS.ByteString,
---    bytes4 :: [BS.ByteString],
---    level :: Word32,
---    bytes5 :: BS.ByteString, -- 01 00 00 00 always?
---    nSockets :: Word32,
---    nSocketsUsed :: Word32,
---    bytes6 :: BS.ByteString,
---    maxDmg :: Word32,
---    armor :: Word32,
---    bytes7 :: BS.ByteString,
---    bytes8 :: BS.ByteString, -- FFx12
---    nElements :: Word16,
---    elements :: [BS.ByteString],
---    mods :: [[Mod]],
---    gems :: [Item]
---    }
-
 data Item = Item {
     itemGUID :: Word64,
     itemFullName :: T.Text,
@@ -75,9 +47,8 @@ data Item = Item {
     itemPoints :: Int,
     itemDamageTypes :: [DamageType],
     itemMods :: [Mod],
-    itemBytes :: BS.ByteString,
-    moveItem :: ItemLocation -> Item,
-    itemLocation :: ItemLocation
+    itemLocation :: ItemLocation,
+    itemDataPieces :: (BS.ByteString, BS.ByteString)    -- Item data before and after location.
 }
 
 
@@ -106,16 +77,17 @@ data DamageType = Physical | Fire | Electric | Ice | Poison | All | Unknown
 data ModClass = Normal | Innate | Augment
 type ItemLocation = Word16
 
-getItem :: Env -> Get (BS.ByteString -> Item)
-getItem env = do
+getItem :: Env -> BS.ByteString -> Get Item
+getItem env itemBinaryData = do
     lead <- getWord8
     model <- getWord64le
     name <- getTorchText
     prefix <- getTorchText
     suffix <- getTorchText
     serial <- getByteString 24
-    bytes1 <- getByteString 29
+    bytes1 <- getByteString 29  -- not sure what these do
     nEnchants <- getWord32le
+    nBytesBeforeLocation <- bytesRead
     location <- getWord16le
     bytes2 <- getByteString 9
     bytes3 <- getByteString 8
@@ -124,7 +96,7 @@ getItem env = do
     bytes5 <- getByteString 4 -- always 01 00 00 00?
     nSockets <- getWord32le
     nUsedSockets <-  getWord32le
-    gems <- replicateM (fromIntegral nUsedSockets) $ (getItem env >>= \x -> (return . x) BS.empty)
+    gems <- replicateM (fromIntegral nUsedSockets) $ getItem env itemBinaryData
     bytes6 <- getByteString 4
     maxDmg <- getWord32le
     armor <- getWord32le
@@ -133,10 +105,14 @@ getItem env = do
     nElements <- getWord16le
     elements <- replicateM (fromIntegral nElements) getDamageType
     modLists <- getModLists env >>= return . concat
-    let partialItem itemBinary = Item model (T.unwords [name, prefix, suffix]) (fromIntegral nEnchants) level
+    return $ Item model (T.unwords [name, prefix, suffix]) (fromIntegral nEnchants) level
                       (fromIntegral nSockets) gems (fromIntegral (if maxDmg == 0xFFFFFFFF then armor else maxDmg))
-                      elements modLists itemBinary (partialItem itemBinary)
-    return $ flip partialItem location
+                      elements modLists location
+                      (BS.take nBytesBeforeLocation itemBinaryData,
+                       BS.drop (nBytesBeforeLocation+2) itemBinaryData)
+
+--getLocation :: Get Location
+--getLocation = do
 
 
 getDamageType = do
@@ -206,6 +182,7 @@ instance Translate Mod where
 textItem i = T.unlines
     ["GUID: " <> (T.pack . show $ (fromIntegral $ itemGUID i::Int64)),
      "Full name: " <> itemFullName i,
+     "Location: " <> (T.pack $ showHex  (itemLocation i) ""),
      "Num Enchants: " <> T.pack (show $ itemNumEnchants i),
      "Item level: " <> T.pack (show $ itemLevel i),
      "Used Sockets: " <> T.pack (show $ (length . itemGems) i) <> "/" <> T.pack (show $ itemNumSockets i),

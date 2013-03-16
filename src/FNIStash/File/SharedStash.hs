@@ -53,7 +53,7 @@ getIndividualPartition = do
 getSharedStash :: Env -> Get SharedStash
 getSharedStash env = do
     parts <- getSharedStashPartitions
-    return (map (\bs -> ((runGetWithFail "Could not parse item!" $ getItem env) bs) <*> return bs) parts)
+    return $ map (\bs -> runGetWithFail "Could not parse item!" (getItem env bs) bs) parts
 
 textSharedStash :: SharedStash -> Environment T.Text
 textSharedStash s = do

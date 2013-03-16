@@ -35,6 +35,7 @@ import Filesystem.Path.CurrentOS
 
 -- General stuff
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Configurator
@@ -58,6 +59,7 @@ import Data.Word
 -- These are paths to test assets, so I don't mess up my real ones.  Delete later.
 testDir = "C:\\Users\\Dan\\Desktop\\FNI Testing"
 sharedStashCrypted = testDir </> "sharedstash_v2.bin"
+textOutputPath = testDir </> "sharedStashTxt.txt"
 
 -- Sets up paths, generates files, and builds the text environment
 initialize = do
@@ -73,9 +75,11 @@ initialize = do
     ssData <- readCryptoFile (encodeString sharedStashCrypted) >>= return . fileGameData
     -- Parse the items as text (for now)
     let sharedStashResult = parseSharedStash env ssData
-    return $ case sharedStashResult of
-        Left error -> Message Error
-        Right sharedStash -> Message Initialized --(runReader (textSharedStash sharedStash) env)
+    case sharedStashResult of
+        Left error -> return $ Message Error
+        Right sharedStash -> do
+            T.writeFile (encodeString textOutputPath) $ runReader (textSharedStash sharedStash) env
+            return $ Message Initialized
 
 {-
     The stuff here usually only does work the first time the program is run.

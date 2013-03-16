@@ -32,14 +32,14 @@ import Control.Concurrent
 
 main = do
     messages <- newChan
-    forkIO $ backend messages
-    serve Config
-        { jiPort = 10001
-        , jiRun = runJi
-        , jiWorker = worker messages
-        , jiInitHTML = "GUI.html"
-        , jiStatic = "C:\\Users\\Dan\\My Code\\FNIStash\\wwwroot"
-        }
+    backend messages
+--    serve Config
+--        { jiPort = 10001
+--        , jiRun = runJi
+--        , jiWorker = worker messages
+--        , jiInitHTML = "GUI.html"
+--        , jiStatic = "C:\\Users\\Dan\\My Code\\FNIStash\\wwwroot"
+--        }
 
 -- Start up the backend
 backend messages = do
