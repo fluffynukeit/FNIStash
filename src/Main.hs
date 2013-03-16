@@ -22,18 +22,17 @@ import FNIStash.Logic.Initialize
 import FNIStash.Comm.Messages
 
 import qualified Data.Text as T
-import Control.Concurrent
+
 import Control.Monad.Trans
 import Control.Monad
 
 import Graphics.UI.Ji
 import Graphics.UI.Ji.JQuery
+import Control.Concurrent
 
 main = do
     messages <- newChan
-    forkIO $ do writeChan messages (Message Initializing)
-                result <- initialize
-                writeChan messages result
+    forkIO $ backend messages
     serve Config
         { jiPort = 10001
         , jiRun = runJi
@@ -41,6 +40,13 @@ main = do
         , jiInitHTML = "GUI.html"
         , jiStatic = "C:\\Users\\Dan\\My Code\\FNIStash\\wwwroot"
         }
+
+-- Start up the backend
+backend messages = do
+    writeChan messages (Message Initializing)
+    result <- initialize
+    writeChan messages result
+
 
 worker :: MonadJi m => Chan (Message Response) -> m ()
 worker messages = do

@@ -17,6 +17,8 @@ module FNIStash.File.Variables where
 import FNIStash.File.VarIDs (VarID)
 import Data.Endian
 
+-- This file defines values for different VariableID's that are useful
+
 -- Variables that are particularly useful.
 vUNIT_GUID = swapEndian 0x06aad3ed::VarID
 vEFFECTLIST = swapEndian 0x15ca47c3::VarID

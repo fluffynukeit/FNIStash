@@ -25,6 +25,8 @@ module FNIStash.File.DAT (
     DATNode
 ) where
 
+-- This file defines parsing functions for reading TL2's DAT file format
+
 
 -- Based on the DAT2TXT Python program by cienislaw.
 import FNIStash.File.General
@@ -45,9 +47,11 @@ import Data.Int
 
 -- Functions for searching DAT records
 
+-- Finds a top level element in DAT record
 findSection :: VarID -> DATNode -> Maybe DATNode
 findSection v d = searchNodeList [d] v
 
+-- Searches a list of nodes for a VarID
 searchNodeList :: [DATNode] -> VarID -> Maybe DATNode
 searchNodeList [] _ = Nothing
 searchNodeList (x:xs) v
@@ -55,13 +59,18 @@ searchNodeList (x:xs) v
     | isJust (searchNodeList xs v) = searchNodeList xs v
     | otherwise = searchNodeList (datSubNodes x) v
 
+-- Recursively search a single DATNode
 findVar :: VarID -> DATNode -> Maybe DATVar
 findVar v d = snd <$> (find (\(id, var) -> id == v) $ datNodeVars d)
 
+-- Return a section based on location in DAT file and not by VarID
 sectionAt :: Word32 -> DATNode -> Maybe DATNode
 sectionAt i d =
     if i < fromIntegral (length $ datSubNodes d)
     then Just $ datSubNodes d !! fromIntegral i else Nothing
+
+
+-- Conversion of DAT types to normal types
 
 intVar (DATInt i) = Just i
 intVar _ = Nothing

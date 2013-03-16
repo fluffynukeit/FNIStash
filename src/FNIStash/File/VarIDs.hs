@@ -18,6 +18,8 @@ module FNIStash.File.VarIDs (
     VarID
 ) where
 
+-- This file defines the mapping from variable ID to text describing the variable.
+
 -- Based on the DAT2TXT Python program by cienislaw.
 
 import qualified Data.Map as M
@@ -28,12 +30,14 @@ import Data.Endian
 type VarIDMap = M.Map VarID T.Text
 type VarID = Word32
 
+-- Given a VarID, returns the text describing the variable
 lkupVarDes :: VarID -> T.Text
 lkupVarDes varID = M.findWithDefault "FNI UNKNOWN" (swapEndian varID) varIDMap
 
 
 -- Below here are background functions/data
 
+-- Constructs the mapping from variable IDs to descriptions from the list below.
 varIDMap = (M.fromList varIDs) `seq` (M.fromList varIDs)
 
 -- This list maps varID to a text description of the variable.  Yes, it contains many

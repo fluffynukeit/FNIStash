@@ -32,7 +32,7 @@ import Data.Monoid
 import Data.Tuple.All
 import qualified Data.Text as T
 
--- CryptoFile with a b phantom types.  where a is the kind of save file.
+-- CryptoFile with a phantom types.  where a is the kind of save file.
 data CryptoFile a = CryptoFile {
     fileVersion   :: Word32,
     fileDummy     :: Word8,
@@ -41,6 +41,7 @@ data CryptoFile a = CryptoFile {
     fileSize      :: Word32
     }
 
+-- Binary Get action for parsing a Cryptofile from a bytestring
 getCryptoFile :: Get (CryptoFile a)
 getCryptoFile = do
     vers <- getWord32le -- version
@@ -51,6 +52,7 @@ getCryptoFile = do
         fileSize = runGet getWord32le fileSizeBS
     return $ CryptoFile vers dummy (0x00::Word32) (descramble scrambledData) fileSize
 
+-- Binary Put action for reconstructing a bytestring from a cryptofile
 putCryptoFile :: CryptoFile a -> Put
 putCryptoFile desFile = do
     putWord32le (fileVersion desFile)
@@ -59,25 +61,30 @@ putCryptoFile desFile = do
     putLazyByteString (scramble $ fileGameData desFile)
     putWord32le (4 + 1 + 4 + 4 + fromIntegral (BS.length $ fileGameData desFile))
 
+-- Reads a file in IO and parses as a cryptofile
 readCryptoFile filePath = BS.readFile filePath >>=
     return . (runGet getCryptoFile)
 
+-- Writes a file in IO as a cryptofile bytestring
 writeCryptoFile filePath cryptoFile =
     let fileData = runPut (putCryptoFile cryptoFile)
     in BS.writeFile filePath fileData
 
 -- Low level (de)scrambling functions
-
 descramble = processScrambler desByteMerger
 scramble = processScrambler scrByteMerger
 
 
 -- modeled after Jonathan Gevaryahu AKA Lord Nightmare's scramlbe/descramble c code, then
--- cleaned up a bit so the logic is more obvious to me
+-- cleaned up a bit so the logic is more obvious to me.
+--
+-- This function performs a particular action (merger) across a bytestring of length n that combines
+-- bytes at positions k and n+1-k (in other words, a forward index and its mirrored reverse index)
 processScrambler merger dataString =  let
     bytePairs = BS.zip dataString $ BS.reverse dataString
     in BS.pack $ map (uncurryN merger) bytePairs
 
+-- This is the function that processes forward and reverse bytes for descrambling a file
 desByteMerger forByte revByte = let
     forLeft = leftNyb forByte
     revRight = rightNyb revByte
@@ -86,6 +93,7 @@ desByteMerger forByte revByte = let
         then constructedByte
         else complement constructedByte
 
+-- This one is for scrambling the file
 scrByteMerger forByte revByte = let
     forRight = rightNyb forByte
     revLeft = leftNyb revByte
@@ -103,6 +111,7 @@ invertNyb n = (.&.) 0x0F $ xor n 0x0F
 -- checksum stuff
 csSeed = 0x14D3::Word32
 
+-- Calculates the TL2 checksum of the bytest
 checksum :: BS.ByteString -> Word32
 checksum bs = BS.foldl'
     (\acc byte -> (shiftL acc 0x5 + acc + fromIntegral byte) .&. 0xFFFFFFFF)

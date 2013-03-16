@@ -22,13 +22,15 @@ module FNIStash.Logic.Env (
 ) where
 
 -- An ENV is the data environment that is passed around by the reader monad.  It has all the reference
--- data we need to do computations.
+-- data we need to do computations like lookups.
 
+-- FNIStash stuff
 import FNIStash.File.PAK
 import FNIStash.File.DAT
 import FNIStash.File.Variables
 import FNIStash.File.General
 
+-- General stuff
 import qualified Data.Text as T
 import Data.Maybe
 import Data.Configurator
@@ -38,6 +40,7 @@ import Control.Monad.Reader
 
 type Environment a = Reader Env a
 
+-- Env is the lookup environment we pass around using Environment a
 data Env = Env {
     effects :: Word32 -> Maybe DATNode,
     skills :: T.Text -> Maybe DATNode
@@ -49,8 +52,8 @@ buildEnv pak =
         skills = skillLookup pak
     in Env effects skills
 
--- this function returns a searching function.  I think this is the only way I can keep
--- the PAK and DAT maps instead of re-reading them each time I search
+-- Each of hte function below returns a lookup function.  This is how we can keep the loaded PAK
+-- handy for repeated lookups since we cannot have a global.  The PAK stays on the stack.
 itemLookup pak =
     let guidFinder = (\x -> fromJust (findVar vUNIT_GUID x >>= textVar))
         dat = readDATFiles pak "MEDIA/UNITS/ITEMS" guidFinder -- p is pak
@@ -63,5 +66,5 @@ effectLookup pak =
 
 skillLookup pak =
     let nameFinder = (\x -> fromJust (findVar vNAME x >>= textVar))
-        dat = readDATFiles pak "MEDIA/SKILLS" nameFinder -- p is pak
+        dat = readDATFiles pak "MEDIA/SKILLS" nameFinder
     in (\skillName -> lkupDATFile dat skillName)

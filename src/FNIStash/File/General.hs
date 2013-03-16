@@ -21,13 +21,14 @@ module FNIStash.File.General
      streamToHex,
      intToHex,
      textList,
-     slashTextPath,
      runGetWithFail,
      runGetSuppress,
      getFloat,
      fromStrict,
      toStrict)
 where
+
+-- General helper functions for file operations
 
 import qualified Data.ByteString as SBS
 import qualified Data.ByteString.Lazy as LBS
@@ -67,8 +68,6 @@ wordToHex word = case length $ showHex word "" of
 intToHex i = T.pack ("0x" ++ padding ++ (showHex i ""))
         where padding = replicate (8 - (length $ showHex i "")) '0'
 
-slashTextPath :: T.Text -> T.Text
-slashTextPath t = T.replace "\\" "\\\\" t
 
 fromStrict bs = LBS.fromChunks [bs]
 toStrict = (mconcat . LBS.toChunks)

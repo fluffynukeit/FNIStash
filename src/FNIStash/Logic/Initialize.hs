@@ -15,73 +15,81 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module FNIStash.Logic.Initialize (
-
     initialize
-
 ) where
 
+-- This file contains stuff for initialization before normal processing.
+
+-- FNIStash stuff
 import FNIStash.Logic.Config
 import FNIStash.Logic.Env
 import FNIStash.File.SharedStash
-import FNIStash.File.General
 import FNIStash.File.Crypto
 import FNIStash.File.PAK
 import FNIStash.Comm.Messages
+
+-- Filesystem stuff
 import Filesystem
 import Filesystem.Path
 import Filesystem.Path.CurrentOS
 
+-- General stuff
 import qualified Data.Text as T
-import qualified Data.ByteString as BS
 import qualified Data.Map as M
-import Data.Binary.Strict.Get
 import Data.Maybe
 import Data.Configurator
-import Control.Monad.Reader
 import Data.Monoid
 import Prelude hiding (readFile, writeFile)
+
+-- Stuff for XML parsing
 import Text.XML.Light.Input
 import Text.XML.Light.Proc
 import Text.XML.Light.Types
 import Text.XML.Light
+
+-- Suff for image processing
 import qualified Codec.Image.DevIL as I
 import Data.Array.Unboxed
 import Data.Array.IArray
 import GHC.Exts
 import Data.Word
-import Debug.Trace
 
 
+-- These are paths to test assets, so I don't mess up my real ones.  Delete later.
 testDir = "C:\\Users\\Dan\\Desktop\\FNI Testing"
 sharedStashCrypted = testDir </> "sharedstash_v2.bin"
 
-envPrefixes = ["MEDIA/EFFECTSLIST.DAT", "MEDIA/UNITS/ITEMS", "MEDIA/SKILLS"]
-
+-- Sets up paths, generates files, and builds the text environment
 initialize = do
+    -- First do one time initialization stuff
     appRoot <- ensureAppRoot
     cfg <- ensureConfig appRoot
     ensureGUIAssets appRoot cfg
     pak <- readPAKPrefixes cfg envPrefixes
+    -- Build the data lookup environment
     let env = buildEnv pak
+    -- Descramble the scrambled shared stash file.  Just reads the test file for now. Needs to
+    -- eventually read the file defined by cfg
     ssData <- readCryptoFile (encodeString sharedStashCrypted) >>= return . fileGameData
-    let sharedStashResult = runGetWithFail "Can't read shared stash file!" (getSharedStash env) (toStrict ssData)
+    -- Parse the items as text (for now)
+    let sharedStashResult = parseSharedStash env ssData
     return $ case sharedStashResult of
         Left error -> Message Error
         Right sharedStash -> Message Initialized --(runReader (textSharedStash sharedStash) env)
 
-readPAKPrefixes cfg prefs = do
-    pakMANFileBinary <- require cfg "MANFILE"
-    man <- readPAKMAN pakMANFileBinary
-    let subMan = filterMANByPrefix man prefs
-    pakFileBinary <- require cfg "PAKFILE"
-    pakFiles subMan pakFileBinary
+{-
+    The stuff here usually only does work the first time the program is run.
+-}
 
+-- Create the program directory if it doesn't exist, location at AppData/Roaming/FNIStash
 ensureAppRoot = do
-    -- create the program directory if it doesn't exist
     appRoot <- getAppDataDirectory "FNIStash"
     createTree appRoot
     return appRoot
 
+
+-- If the Backend.conf configuration file does not exist, write out a default one.  Load
+-- whatever cfg is available at the end.
 ensureConfig appRoot = do
     docPath <- getDocumentsDirectory
     -- write out a config file if one does not exist
@@ -93,24 +101,37 @@ ensureConfig appRoot = do
             writeConfigOut confPath $ defaultConfigOut docPath
     load [Required (encodeString confPath)]
 
-guiAssets = (fmap ("MEDIA/UI/ICONS/" <>) ["ARMOR", "FISH", "GEMS", "JEWELRY", "MISC",
-                                          "POTIONS", "QUESTITEMS", "WEAPONS"])
-            <> ["MEDIA/UI/HUD/INGAMETEXTURESHEETS2"]
 
+-- If the necessary GUI files do not exist, then generate them.
 ensureGUIAssets appRoot cfg = do
     let assetPath = appRoot </> "GUIAssets"
     assetsExist <- isDirectory assetPath
-    when (not assetsExist) $ writeAssets assetPath cfg
+    when (not assetsExist) $ do
+        createTree assetPath
+        -- writeHTML will go here to write out HTML page
+        writeIcons assetPath cfg
 
-writeAssets assetPath cfg = do
-    createTree assetPath
+-- Reads the PAK file described in cfg, extracts lots of icons from the PAK file,
+-- converts to PNG and writes to disk.
+writeIcons assetPath cfg = do
     guiPAK <- readPAKPrefixes cfg guiAssets
     let imageSets = map entryData (M.elems $ pakKeysContaining ".IMAGESET" guiPAK)
     mapM_ (processImageSet assetPath guiPAK) imageSets
 
+-- The list of prefix paths at which the desired icons are found.
+guiAssets = (fmap ("MEDIA/UI/ICONS/" <>) ["ARMOR", "FISH", "GEMS", "JEWELRY", "MISC",
+                                          "POTIONS", "QUESTITEMS", "WEAPONS"])
+            <> ["MEDIA/UI/HUD/INGAMETEXTURESHEETS2"]
+
+-- Given a desired destination path for images, a pak archive from which to extract
+-- the data, and a decoded/unzipped bytestring for a file conforming to the .IMAGESET
+-- XML format, will write image files to the destination path for each file listed in
+-- the .IMAGESET
 processImageSet assetPath pak iset = do
     let rootElement = flip (!!) 1 $ onlyElems $ parseXML iset
         Just imageFilePath = fmap (T.toUpper . T.pack) $ findAttr "Imagefile" rootElement
+        -- First we need to write the original DDS image to a temp file so we can use
+        -- DevIL library to read in and convert.
         tempFileName = assetPath </> (filename $ fromText imageFilePath)
         Just imageFile = lkupPAKFile imageFilePath pak
     writeFile tempFileName imageFile
@@ -118,20 +139,24 @@ processImageSet assetPath pak iset = do
     dds <- I.readImage $ encodeString tempFileName
     let subImagesXML = elChildren rootElement
         subImagesData = map subImageData subImagesXML
-    mapM (writeSubImage dds assetPath) subImagesData
+    mapM_ (writeSubImage dds assetPath) subImagesData -- map over list of all sub images
+    -- clean up temp file
     fileExists <- isFile tempFileName
     (when fileExists $ removeFile tempFileName) :: IO ()
 
-
-writeSubImage dds assetPath (n,x,y,w,h) = do
-    let newImg = ulSubImage x y w h dds
-    I.writeImage (encodeString (assetPath </> (fromText n) <.> "png")) newImg
-
+-- For an XML element el describing the location and size of an icon in a larger imageset file,
+-- parse the XML into a 5 tuple containing name, x, y, width, and height
 subImageData el =
     let k = ( T.pack . fromJust $ findAttr "Name" el, read . fromJust $ findAttr "XPos" el
             , read . fromJust $ findAttr "YPos" el, read . fromJust $ findAttr "Width" el
             , read . fromJust $ findAttr "Height" el)
     in k
+
+-- Given a DDS image read using DevIL, a destination path, and a 5 tuple describing the sub image,
+-- extract and write the sub image as a png file to the destination path.
+writeSubImage dds assetPath (n,x,y,w,h) = do
+    let newImg = ulSubImage x y w h dds
+    I.writeImage (encodeString (assetPath </> (fromText n) <.> "png")) newImg
 
 
 -- In XML imageset files, icons are described with origin in top left.  In DevIL library
@@ -151,7 +176,25 @@ subImage x y w h imageArray =
         newArray = array ((0,0,0), (h-1,w-1,3)) $ map translate $ (filter inWindow) indValues
     in newArray
 
-
+-- Utility instance for defining XML attributes as string literals.
 instance IsString QName where
     fromString = unqual
+
+{-
+    The stuff below here is stuff that must be initialized/used each time the program is run.
+-}
+
+-- Reads a PAK file, but restricts the data read in to only those files matching as
+-- specific file path prefix, such as MEDIA/UI/ICONS
+readPAKPrefixes cfg prefs = do
+    pakMANFileBinary <- require cfg "MANFILE"
+    man <- readPAKMAN pakMANFileBinary
+    let subMan = filterMANByPrefix man prefs
+    pakFileBinary <- require cfg "PAKFILE"
+    pakFiles subMan pakFileBinary
+
+-- PAK file path prefixes that contain game data needed to build the data lookup environment
+envPrefixes = ["MEDIA/EFFECTSLIST.DAT", "MEDIA/UNITS/ITEMS", "MEDIA/SKILLS"]
+
+
 
