@@ -21,7 +21,7 @@ module FNIStash.File.PAK (
     lkupPAKFile,
     entryData,
     filterMANByPrefix,
-    pakKeysContaining,
+    pakWithKeysContaining,
     PAKFiles,
     textPAKFiles
 ) where
@@ -77,7 +77,7 @@ lkupPAKFile filePath pakFiles =
     let entry = flip M.lookup pakFiles $ T.toUpper filePath
     in fmap entryData entry -- on lookup, decompress the data
 
-pakKeysContaining substr pak = M.filterWithKey (\k a -> T.isInfixOf substr k) pak
+pakWithKeysContaining substr pak = M.filterWithKey (\k a -> T.isInfixOf substr k) pak
 
 entryData = (toStrict . decompress . fromStrict . pakEncodedData)
 

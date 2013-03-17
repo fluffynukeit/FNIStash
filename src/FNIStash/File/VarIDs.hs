@@ -18,7 +18,9 @@ module FNIStash.File.VarIDs (
     VarID
 ) where
 
--- This file defines the mapping from variable ID to text describing the variable.
+-- This file defines the mapping from variable ID to text describing the variable.  This file
+-- doesn't do much, but its mapping can be used to decode .DAT files into a human readable format.
+---- I did this and compared to a reference to ensure I was decoding the DAT files correctly.
 
 -- Based on the DAT2TXT Python program by cienislaw.
 
@@ -5719,7 +5721,6 @@ varIDs = [
     (0x7e6feadc, "SKILLTEST"),
     (0x0f1feadc, "SKILLTYPE"),
     (0xb9819d22, "SKYBOX"),
-    (0xb4b96800, "SLOT"),
     (0xb4b96800, "SLOT"),
     (0x79910325, "PREFIX"),
     (0x6e07669b, "SLOTNAME"),

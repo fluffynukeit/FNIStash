@@ -16,16 +16,19 @@
 module FNIStash.File.DAT (
     getDAT,
     textDAT,
-    findSection,
-    findVar,
-    sectionAt,
+    searchNodeTree,
+    searchNodeTreeWith,
+    lkupVar,
+    subNodeAt,
     intVar, floatVar, doubleVar, word32Var, textVar, boolVar, int64Var, translateVar,
     readDATFiles,
     lkupDATFile,
-    DATNode
+    DATNode(..)
 ) where
 
--- This file defines parsing functions for reading TL2's DAT file format
+-- This file defines parsing functions for reading TL2's DAT file format.  One thing that might
+-- be confusing is that VarIDs are used to identify both individual variables and the nodes that
+-- contain them
 
 
 -- Based on the DAT2TXT Python program by cienislaw.
@@ -47,25 +50,28 @@ import Data.Int
 
 -- Functions for searching DAT records
 
--- Finds a top level element in DAT record
-findSection :: VarID -> DATNode -> Maybe DATNode
-findSection v d = searchNodeList [d] v
+-- Deep searches a node tree for a node matching VarID
+searchNodeTree :: VarID -> DATNode -> Maybe DATNode
+searchNodeTree v d = searchNodeTreeWith (\x -> datNodeID x == v) d
 
--- Searches a list of nodes for a VarID
-searchNodeList :: [DATNode] -> VarID -> Maybe DATNode
+searchNodeTreeWith :: (DATNode -> Bool) -> DATNode -> Maybe DATNode
+searchNodeTreeWith pred d = searchNodeList [d] pred
+
+-- Helper: Deep searches a list of nodes for a node satisfying the given predicate
+searchNodeList :: [DATNode] -> (DATNode -> Bool) -> Maybe DATNode
 searchNodeList [] _ = Nothing
-searchNodeList (x:xs) v
-    | datNodeID x == v = Just x
-    | isJust (searchNodeList xs v) = searchNodeList xs v
-    | otherwise = searchNodeList (datSubNodes x) v
+searchNodeList (x:xs) pred
+    | pred x = Just x
+    | isJust (searchNodeList xs pred) = searchNodeList xs pred
+    | otherwise = searchNodeList (datSubNodes x) pred
 
--- Recursively search a single DATNode
-findVar :: VarID -> DATNode -> Maybe DATVar
-findVar v d = snd <$> (find (\(id, var) -> id == v) $ datNodeVars d)
+-- Extract the variable with the given VarID from the given DATNode
+lkupVar :: VarID -> DATNode -> Maybe DATVar
+lkupVar v d = snd <$> (find (\(id, var) -> id == v) $ datNodeVars d)
 
--- Return a section based on location in DAT file and not by VarID
-sectionAt :: Word32 -> DATNode -> Maybe DATNode
-sectionAt i d =
+-- Return a node based on location in children of given DATNode
+subNodeAt :: Word32 -> DATNode -> Maybe DATNode
+subNodeAt i d =
     if i < fromIntegral (length $ datSubNodes d)
     then Just $ datSubNodes d !! fromIntegral i else Nothing
 
@@ -109,6 +115,7 @@ data DATNode = DATNode {
     datNodeVars :: DATVars,
     datSubNodes :: [DATNode]
     }
+    deriving Show
 
 data DATVar =
     DATInt Int |
@@ -119,7 +126,7 @@ data DATVar =
     DATBool Bool |
     DATInt64 Int64 |
     DATTranslate T.Text
-
+    deriving Show
 
 -- Get functions
 
@@ -195,18 +202,18 @@ textVarPair (v,d) =
 -- functions for building DAT maps
 type DATFiles a = M.Map a  DATNode
 
+-- Creates a new map (of type DATFiles a).  The new map is a mapping between some
+-- key of type a and it's associated DAT file.  So for instance, we can look the DAT
+-- file for an item based on the GUID contained in that DAT file.  The text parameter
+-- is used to restrict the path so that only DAT files are encountered.
 readDATFiles :: Ord a => PAKFiles -> T.Text -> (DATNode -> a) -> DATFiles a
-readDATFiles pak prefix keyFxn =
-    let prefixMap = M.filterWithKey (\key _ -> T.isPrefixOf prefix key) pak
-        pairList = M.toList prefixMap
-        newPair (k1,entry) =
-            let newVal = runGetSuppress getDAT (entryData entry)
+readDATFiles pak pathSubStr keyFxn =
+    let matchingKeyMap = pakWithKeysContaining pathSubStr pak
+        newPair (oldKey,_) =
+            let newVal = runGetSuppress getDAT $ maybe SBS.empty id $ lkupPAKFile oldKey pak
                 newKey = keyFxn newVal
             in (newKey, newVal)
-        newPairList = map newPair pairList
-    in M.fromList newPairList
-
-
+    in M.fromList $ map newPair $ M.toList matchingKeyMap
 
 lkupDATFile :: Ord a => DATFiles a -> a -> Maybe DATNode
 lkupDATFile d k = M.lookup k d

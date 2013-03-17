@@ -26,3 +26,7 @@ vEFFECT = swapEndian 0x351c420e::VarID
 vGOODDES = swapEndian 0xda18d35a::VarID
 vNAME = swapEndian 0xe50d6600::VarID
 vDISPLAYPRECISION = swapEndian 0xcceda5e5::VarID
+vSLOTNAME = swapEndian 0x6e07669b::VarID
+vSLOT = swapEndian 0xb4b96800::VarID
+vSLOTS = swapEndian 0xd336170f::VarID
+vUNIQUEID = swapEndian 0xdf973b17::VarID

@@ -119,7 +119,7 @@ ensureGUIAssets appRoot cfg = do
 -- converts to PNG and writes to disk.
 writeIcons assetPath cfg = do
     guiPAK <- readPAKPrefixes cfg guiAssets
-    let imageSets = map entryData (M.elems $ pakKeysContaining ".IMAGESET" guiPAK)
+    let imageSets = map entryData (M.elems $ pakWithKeysContaining ".IMAGESET" guiPAK)
     mapM_ (processImageSet assetPath guiPAK) imageSets
 
 -- The list of prefix paths at which the desired icons are found.
@@ -198,7 +198,7 @@ readPAKPrefixes cfg prefs = do
     pakFiles subMan pakFileBinary
 
 -- PAK file path prefixes that contain game data needed to build the data lookup environment
-envPrefixes = ["MEDIA/EFFECTSLIST.DAT", "MEDIA/UNITS/ITEMS", "MEDIA/SKILLS"]
+envPrefixes = ["MEDIA/EFFECTSLIST.DAT", "MEDIA/UNITS/ITEMS", "MEDIA/SKILLS", "MEDIA/INVENTORY"]
 
 
 

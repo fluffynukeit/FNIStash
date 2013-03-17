@@ -24,6 +24,7 @@ import FNIStash.Logic.Translate
 import FNIStash.Logic.Env
 import FNIStash.File.Variables
 import FNIStash.File.DAT
+import FNIStash.File.Location
 
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
@@ -47,7 +48,7 @@ data Item = Item {
     itemPoints :: Int,
     itemDamageTypes :: [DamageType],
     itemMods :: [Mod],
-    itemLocation :: ItemLocation,
+    itemLocation :: Location,
     itemDataPieces :: (BS.ByteString, BS.ByteString)    -- Item data before and after location.
 }
 
@@ -75,7 +76,6 @@ data DamageType = Physical | Fire | Electric | Ice | Poison | All | Unknown
     deriving (Show, Eq)
 
 data ModClass = Normal | Innate | Augment
-type ItemLocation = Word16
 
 getItem :: Env -> BS.ByteString -> Get Item
 getItem env itemBinaryData = do
@@ -88,8 +88,8 @@ getItem env itemBinaryData = do
     bytes1 <- getByteString 29  -- not sure what these do
     nEnchants <- getWord32le
     nBytesBeforeLocation <- bytesRead
-    location <- getWord16le
-    bytes2 <- getByteString 9
+    location <- getLocation env
+    bytes2 <- getByteString 7
     bytes3 <- getByteString 8
     bytes4 <- replicateM 4 $ getByteString 20
     level <- fromIntegral <$> getWord32le
@@ -110,10 +110,6 @@ getItem env itemBinaryData = do
                       elements modLists location
                       (BS.take nBytesBeforeLocation itemBinaryData,
                        BS.drop (nBytesBeforeLocation+2) itemBinaryData)
-
---getLocation :: Get Location
---getLocation = do
-
 
 getDamageType = do
     getByteString 8     -- 8 leading bytes are always 0?
@@ -182,7 +178,7 @@ instance Translate Mod where
 textItem i = T.unlines
     ["GUID: " <> (T.pack . show $ (fromIntegral $ itemGUID i::Int64)),
      "Full name: " <> itemFullName i,
-     "Location: " <> (T.pack $ showHex  (itemLocation i) ""),
+     "Location: " <> (T.pack $ show  (itemLocation i) ),
      "Num Enchants: " <> T.pack (show $ itemNumEnchants i),
      "Item level: " <> T.pack (show $ itemLevel i),
      "Used Sockets: " <> T.pack (show $ (length . itemGems) i) <> "/" <> T.pack (show $ itemNumSockets i),
@@ -195,8 +191,8 @@ textItem i = T.unlines
 textMod = modText
 
 modDescription env mod =
-    let effectNode = (effects env) (modEffectIndex mod)
-        maybeSentence = (effectNode >>= findVar vGOODDES >>= translateVar)
+    let effectNode = (lkupEffect env) (modEffectIndex mod)
+        maybeSentence = (effectNode >>= lkupVar vGOODDES >>= translateVar)
     in case maybeSentence of
         Just sentence -> T.unlines [translateSentence mod sentence]
         Nothing -> modDataDump mod
@@ -215,8 +211,8 @@ modDataDump i =
          ""]
 
 modPrecisionVal env mod =
-    let effectNode = (effects env) (modEffectIndex mod)
-        maybePrecision = (effectNode >>= findVar vDISPLAYPRECISION >>= intVar)
+    let effectNode = (lkupEffect env) (modEffectIndex mod)
+        maybePrecision = (effectNode >>= lkupVar vDISPLAYPRECISION >>= intVar)
     in maybe 1 id maybePrecision
 
 roundAt prec val = ((fromIntegral . ceiling) (val*10^prec)) / 10^prec

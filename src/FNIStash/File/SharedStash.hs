@@ -57,7 +57,7 @@ getSharedStash env = do
 
 textSharedStash :: SharedStash -> Environment T.Text
 textSharedStash s = do
-    effSearch <- asks (effects)
+    effSearch <- asks (lkupEffect)
     return $ foldl (\a b -> a <> textItemResult effSearch b) T.empty s
 
 textItemResult effSearch (Left error) = T.unlines ["", error, ""]
