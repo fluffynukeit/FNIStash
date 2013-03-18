@@ -35,21 +35,21 @@ import Control.Monad.Loops
 import Data.Word
 import Data.Int
 import Data.Monoid hiding (All)
+import Data.Maybe
 
-
-
-data Item = Item {
-    itemGUID :: Word64,
-    itemFullName :: T.Text,
-    itemNumEnchants :: Int,
-    itemLevel :: Int,
-    itemNumSockets :: Int,
-    itemGems :: [Item],
-    itemPoints :: Int,
-    itemDamageTypes :: [DamageType],
-    itemMods :: [Mod],
-    itemLocation :: Location,
-    itemDataPieces :: (BS.ByteString, BS.ByteString)    -- Item data before and after location.
+data Item = Item
+    { itemGUID :: Int64
+    , itemFullName :: T.Text
+    , itemNumEnchants :: Int
+    , itemLevel :: Int
+    , itemNumSockets :: Int
+    , itemGems :: [Item]
+    , itemPoints :: Int
+    , itemDamageTypes :: [DamageType]
+    , itemMods :: [Mod]
+    , itemLocation :: Location
+    , itemDataPieces :: (BS.ByteString, BS.ByteString)    -- Item data before and after location.
+    , itemIcon :: T.Text
 }
 
 
@@ -80,7 +80,7 @@ data ModClass = Normal | Innate | Augment
 getItem :: Env -> BS.ByteString -> Get Item
 getItem env itemBinaryData = do
     lead <- getWord8
-    model <- getWord64le
+    guid <- fromIntegral <$> getWord64le
     name <- getTorchText
     prefix <- getTorchText
     suffix <- getTorchText
@@ -105,11 +105,13 @@ getItem env itemBinaryData = do
     nElements <- getWord16le
     elements <- replicateM (fromIntegral nElements) getDamageType
     modLists <- getModLists env >>= return . concat
-    return $ Item model (T.unwords [name, prefix, suffix]) (fromIntegral nEnchants) level
+    let iconName = getIconName env guid
+    return $ Item guid (T.unwords [name, prefix, suffix]) (fromIntegral nEnchants) level
                       (fromIntegral nSockets) gems (fromIntegral (if maxDmg == 0xFFFFFFFF then armor else maxDmg))
                       elements modLists location
                       (BS.take nBytesBeforeLocation itemBinaryData,
                        BS.drop (nBytesBeforeLocation+2) itemBinaryData)
+                       iconName
 
 getDamageType = do
     getByteString 8     -- 8 leading bytes are always 0?
@@ -157,6 +159,22 @@ damageTypeLookup 0x05 = Poison
 damageTypeLookup 0x06 = All
 damageTypeLookup _ = Unknown
 
+
+getIconName env guid =
+    let lkupID = lkupItemGUID env -- looks up an item by Int64 GUID
+        lkupPath = lkupItemPath env
+        findIcon guid =
+            let item = lkupID guid
+                maybeIcon = item >>= lkupVar vICON >>= textVar
+                baseItemID = fromJust $ item >>=
+                                        lkupVar vBASEFILE >>=
+                                        textVar >>= lkupPath >>=
+                                        lkupVar vUNIT_GUID >>= textVar >>= return . read . T.unpack
+            in  case maybeIcon of
+                Nothing -> findIcon baseItemID
+                Just icon -> icon
+    in findIcon guid
+
 instance Translate Mod where
     translateMarkup mod markup =
         let prec = stringPrecision $ modPrecision mod
@@ -178,6 +196,7 @@ instance Translate Mod where
 textItem i = T.unlines
     ["GUID: " <> (T.pack . show $ (fromIntegral $ itemGUID i::Int64)),
      "Full name: " <> itemFullName i,
+     "Icon: " <> itemIcon i,
      "Location: " <> (T.pack $ show  (itemLocation i) ),
      "Num Enchants: " <> T.pack (show $ itemNumEnchants i),
      "Item level: " <> T.pack (show $ itemLevel i),

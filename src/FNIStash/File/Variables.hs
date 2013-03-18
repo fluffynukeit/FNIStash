@@ -30,3 +30,5 @@ vSLOTNAME = swapEndian 0x6e07669b::VarID
 vSLOT = swapEndian 0xb4b96800::VarID
 vSLOTS = swapEndian 0xd336170f::VarID
 vUNIQUEID = swapEndian 0xdf973b17::VarID
+vICON = swapEndian 0xae856500::VarID
+vBASEFILE = swapEndian 0xc52772e2::VarID

@@ -30,14 +30,13 @@ import FNIStash.File.DAT
 import FNIStash.File.Variables
 import FNIStash.File.General
 
-import Debug.Trace
-
 -- General stuff
 import qualified Data.Text as T
 import Data.Maybe
 import Data.Configurator
 import Data.Binary.Get
 import Data.Word
+import Data.Int
 import Control.Monad.Reader
 
 type Environment a = Reader Env a
@@ -48,6 +47,8 @@ data Env = Env
     { lkupEffect :: Word32 -> Maybe DATNode
     , lkupSkill :: T.Text -> Maybe DATNode
     , lkupLocNodes :: Word16 -> Word16 -> (Maybe DATNode, DATNode) -- location, containerID -> Container node, slot node
+    , lkupItemGUID :: Int64 -> Maybe DATNode
+    , lkupItemPath :: T.Text -> Maybe DATNode
     }
 
 -- build the lookup environment needed for app operations
@@ -55,19 +56,24 @@ buildEnv pak =
     let effects = effectLookup pak
         skills = skillLookup pak
         bytesToNodesFxn = locLookup pak
-    in Env effects skills bytesToNodesFxn
+        itemsGUID = itemLookupGUID pak
+        itemsPath = itemLookupPath pak
+    in Env effects skills bytesToNodesFxn itemsGUID itemsPath
 
 -- Each of the functions below returns a lookup function.  This is how we can keep the loaded PAK
 -- handy for repeated lookups since we cannot have a global.  The PAK stays on the stack.
-itemLookup pak =
-    let guidFinder = \x -> fromJust (lkupVar vUNIT_GUID x >>= textVar)
+itemLookupGUID pak =
+    let guidFinder = \x -> fromJust $ lkupVar vUNIT_GUID x >>= textVar >>= return . read . T.unpack
         dat = readDATFiles pak "MEDIA/UNITS/ITEMS" guidFinder -- p is pak
-    in (\idText -> lkupDATFile dat idText)
+    in (\idInt64 -> lkupDATFile dat idInt64)
+
+itemLookupPath pak =
+    let ffp p = T.replace "\\" "/" p -- fix file path
+    in \name -> lkupPAKFile (ffp name) pak >>= return . (runGetSuppress getDAT)
 
 effectLookup pak =
-    let effListData = fromJust $ lkupPAKFile "MEDIA/EFFECTSLIST.DAT" pak
-        dat = runGetSuppress getDAT effListData
-    in (\effID -> subNodeAt effID dat)
+    \effID -> lkupPAKFile "MEDIA/EFFECTSLIST.DAT" pak >>=
+        return . (runGetSuppress getDAT) >>= subNodeAt effID
 
 skillLookup pak =
     let nameFinder = \x -> fromJust (lkupVar vNAME x >>= textVar)

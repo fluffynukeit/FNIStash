@@ -15,10 +15,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module FNIStash.Logic.Initialize (
-    initialize
+    initialize,
+    ensureAppRoot,
+    ensureHtml
 ) where
 
 -- This file contains stuff for initialization before normal processing.
+
+import Debug.Trace
 
 -- FNIStash stuff
 import FNIStash.Logic.Config
@@ -62,11 +66,10 @@ sharedStashCrypted = testDir </> "sharedstash_v2.bin"
 textOutputPath = testDir </> "sharedStashTxt.txt"
 
 -- Sets up paths, generates files, and builds the text environment
-initialize = do
+initialize appRoot guiRoot = do
     -- First do one time initialization stuff
-    appRoot <- ensureAppRoot
     cfg <- ensureConfig appRoot
-    ensureGUIAssets appRoot cfg
+    ensureGUIAssets guiRoot cfg
     pak <- readPAKPrefixes cfg envPrefixes
     -- Build the data lookup environment
     let env = buildEnv pak
@@ -91,6 +94,32 @@ ensureAppRoot = do
     createTree appRoot
     return appRoot
 
+-- Copy the HTML assets if neceessary
+ensureHtml appRoot = do
+    let htmlRoot = (appRoot </> "GUI")
+    htmlExists <- isDirectory htmlRoot
+    if htmlExists then
+        return ()
+        else
+            copyDirContents "GUI" htmlRoot
+    return htmlRoot
+
+-- Do I really need to roll my own copy directory function? Ugh.
+copyDirContents curDir curDestDir = do
+    createTree curDestDir
+    curContents <- listDirectory curDir
+    let curLen = length $ encodeString curDir
+        curContentsNoParent = map (decodeString . (drop $ curLen + 1) . encodeString) curContents
+    mapM_ (copyContentItem curDir curDestDir) curContentsNoParent
+
+copyContentItem srcDir destDir itemName = do
+    let srcPath = srcDir </> itemName
+        destPath = destDir </> itemName
+    isDir <- isDirectory srcPath
+    if isDir then
+        copyDirContents srcPath destPath
+        else
+            copyFile srcPath destPath
 
 -- If the Backend.conf configuration file does not exist, write out a default one.  Load
 -- whatever cfg is available at the end.
@@ -107,8 +136,8 @@ ensureConfig appRoot = do
 
 
 -- If the necessary GUI files do not exist, then generate them.
-ensureGUIAssets appRoot cfg = do
-    let assetPath = appRoot </> "GUIAssets"
+ensureGUIAssets root cfg = do
+    let assetPath = root </> "GUIAssets"
     assetsExist <- isDirectory assetPath
     when (not assetsExist) $ do
         createTree assetPath
