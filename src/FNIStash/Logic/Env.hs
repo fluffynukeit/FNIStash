@@ -16,8 +16,6 @@
 
 module FNIStash.Logic.Env (
     buildEnv,
-    Environment,
-    module Control.Monad.Reader,
     Env (..)
 ) where
 
@@ -37,12 +35,10 @@ import Data.Configurator
 import Data.Binary.Get
 import Data.Word
 import Data.Int
-import Control.Monad.Reader
-
-type Environment a = Reader Env a
 
 
--- Env is the lookup environment we pass around using Environment a
+-- Env is the lookup environment we pass around manually.  (I suppose we could use a Reader monad
+-- but I tried it out and found it to be more complicated than simple argument passing)
 data Env = Env
     { lkupEffect :: Word32 -> Maybe DATNode
     , lkupSkill :: T.Text -> Maybe DATNode

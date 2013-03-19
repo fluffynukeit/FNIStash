@@ -44,6 +44,7 @@ import qualified Data.Map as M
 import Data.Maybe
 import Data.Configurator
 import Data.Monoid
+import Control.Monad
 import Prelude hiding (readFile, writeFile)
 
 -- Stuff for XML parsing
@@ -81,7 +82,7 @@ initialize appRoot guiRoot = do
     case sharedStashResult of
         Left error -> return $ Message Error
         Right sharedStash -> do
-            T.writeFile (encodeString textOutputPath) $ runReader (textSharedStash sharedStash) env
+            T.writeFile (encodeString textOutputPath) $ textSharedStash env sharedStash
             return $ Message Initialized
 
 {-

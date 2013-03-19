@@ -15,7 +15,7 @@
 
 module FNIStash.File.DAT (
     getDAT,
-    textDAT,
+    -- textDAT,
     searchNodeTree,
     searchNodeTreeWith,
     lkupVar,
@@ -33,7 +33,7 @@ module FNIStash.File.DAT (
 
 -- Based on the DAT2TXT Python program by cienislaw.
 import FNIStash.File.General
-import FNIStash.File.VarIDs
+import FNIStash.File.Variables
 import FNIStash.File.PAK
 
 import qualified Data.Binary.Strict.Get as SG
@@ -167,36 +167,36 @@ getDATVar dict = do
         8 -> DATTranslate <$> (SG.getWord32le >>= return . (\x -> maybe T.empty id (lookup x dict)))
     return (varID, varVal)
 
--- "Show" functions for DATs
+-- "Show" functions for DATs -- commented out because no longer needed after getting them working
 
-textDAT :: DATNode -> T.Text
-textDAT d = textDATNodeIndexed 0 d where
-    textDATNodeIndexed i dn =
-        let nodeStart = "[" <> (lkupVarDes $ datNodeID dn) <> "] " <> intToHex i
-                <> "\n"
-            nodeEnd = "[/" <> (lkupVarDes $ datNodeID dn) <> "] " <> intToHex i
-                <> "\n"
-            nodeVars = textVarList $ datNodeVars dn
-            indexedSubNodes = zip [0..] $ datSubNodes dn
-            nodeMid = mconcat $ map (\(i,n) -> textDATNodeIndexed i n) indexedSubNodes
-        in nodeStart <> nodeVars <> nodeMid <> nodeEnd
-
-textVarList :: DATVars -> T.Text
-textVarList vars = foldl' (\acc pair -> acc <> (textVarPair pair)) T.empty vars
-
-textVarPair :: (VarID, DATVar) -> T.Text
-textVarPair (v,d) =
-    let f n p = (show n) ++ " (" ++ p ++ ")\n"
-    in lkupVarDes v <> (T.pack (" : " ++ (case d of
-        DATInt i -> f i "Int"
-        DATFloat i -> f i "Float"
-        DATDouble i -> f i "Double"
-        DATWord i -> f i "Word"
-        DATText i -> f i "Text"
-        DATBool i -> f i "Bool"
-        DATInt64 i -> f i "Int64"
-        DATTranslate i -> f i "Translate"
-        )))
+--textDAT :: DATNode -> T.Text
+--textDAT d = textDATNodeIndexed 0 d where
+--    textDATNodeIndexed i dn =
+--        let nodeStart = "[" <> (lkupVarDes $ datNodeID dn) <> "] " <> intToHex i
+--                <> "\n"
+--            nodeEnd = "[/" <> (lkupVarDes $ datNodeID dn) <> "] " <> intToHex i
+--                <> "\n"
+--            nodeVars = textVarList $ datNodeVars dn
+--            indexedSubNodes = zip [0..] $ datSubNodes dn
+--            nodeMid = mconcat $ map (\(i,n) -> textDATNodeIndexed i n) indexedSubNodes
+--        in nodeStart <> nodeVars <> nodeMid <> nodeEnd
+--
+--textVarList :: DATVars -> T.Text
+--textVarList vars = foldl' (\acc pair -> acc <> (textVarPair pair)) T.empty vars
+--
+--textVarPair :: (VarID, DATVar) -> T.Text
+--textVarPair (v,d) =
+--    let f n p = (show n) ++ " (" ++ p ++ ")\n"
+--    in lkupVarDes v <> (T.pack (" : " ++ (case d of
+--        DATInt i -> f i "Int"
+--        DATFloat i -> f i "Float"
+--        DATDouble i -> f i "Double"
+--        DATWord i -> f i "Word"
+--        DATText i -> f i "Text"
+--        DATBool i -> f i "Bool"
+--        DATInt64 i -> f i "Int64"
+--        DATTranslate i -> f i "Translate"
+--        )))
 
 
 -- functions for building DAT maps

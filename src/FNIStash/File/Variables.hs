@@ -14,10 +14,12 @@
 
 module FNIStash.File.Variables where
 
-import FNIStash.File.VarIDs (VarID)
 import Data.Endian
+import Data.Word
 
 -- This file defines values for different VariableID's that are useful
+
+type VarID = Word32
 
 -- Variables that are particularly useful.
 vUNIT_GUID = swapEndian 0x06aad3ed::VarID

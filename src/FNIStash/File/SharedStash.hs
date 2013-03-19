@@ -55,10 +55,10 @@ getSharedStash env = do
     parts <- getSharedStashPartitions
     return $ map (\bs -> runGetWithFail "Could not parse item!" (getItem env bs) bs) parts
 
-textSharedStash :: SharedStash -> Environment T.Text
-textSharedStash s = do
-    effSearch <- asks (lkupEffect)
-    return $ foldl (\a b -> a <> textItemResult effSearch b) T.empty s
+textSharedStash :: Env -> SharedStash -> T.Text
+textSharedStash env s =
+    let effSearch = lkupEffect env
+    in foldl (\a b -> a <> textItemResult effSearch b) T.empty s
 
 textItemResult effSearch (Left error) = T.unlines ["", error, ""]
 textItemResult effSearch (Right item) = textItem item

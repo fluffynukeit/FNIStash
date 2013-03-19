@@ -15,7 +15,6 @@
 
 module FNIStash.File.VarIDs (
     lkupVarDes,
-    VarID
 ) where
 
 -- This file defines the mapping from variable ID to text describing the variable.  This file
@@ -24,13 +23,15 @@ module FNIStash.File.VarIDs (
 
 -- Based on the DAT2TXT Python program by cienislaw.
 
+import FNIStash.File.Variables
+
 import qualified Data.Map as M
 import qualified Data.Text as T
 import Data.Word
 import Data.Endian
 
 type VarIDMap = M.Map VarID T.Text
-type VarID = Word32
+
 
 -- Given a VarID, returns the text describing the variable
 lkupVarDes :: VarID -> T.Text
