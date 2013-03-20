@@ -39,7 +39,7 @@ import Data.Maybe
 
 data Item = Item
     { itemGUID :: Int64
-    , itemFullName :: String
+    , itemName :: String
     , itemNumEnchants :: Int
     , itemLevel :: Int
     , itemNumSockets :: Int
@@ -191,7 +191,7 @@ instance Translate Mod where
 
 showItem i = unlines
     ["GUID: " <> (show $ (fromIntegral $ itemGUID i::Int64)),
-     "Full name: " <> itemFullName i,
+     "Full name: " <> itemName i,
      "Icon: " <> itemIcon i,
      "Location: " <> show (itemLocation i),
      "Num Enchants: " <> show (itemNumEnchants i),

@@ -149,7 +149,7 @@ writeIcons assetPath cfg = do
 
 -- The list of prefix paths at which the desired icons are found.
 guiAssets = (fmap ("MEDIA/UI/ICONS/" <>) ["ARMOR", "FISH", "GEMS", "JEWELRY", "MISC",
-                                          "POTIONS", "QUESTITEMS", "WEAPONS"])
+                                          "POTIONS", "QUESTITEMS", "WEAPONS", "SPELLS"])
             <> ["MEDIA/UI/HUD/INGAMETEXTURESHEETS2"]
 
 -- Given a desired destination path for images, a pak archive from which to extract

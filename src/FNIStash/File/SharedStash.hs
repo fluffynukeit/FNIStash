@@ -17,7 +17,7 @@ module FNIStash.File.SharedStash (
     parseSharedStash,
     showSharedStash,
     SharedStash(..),
-    Item(..)
+    module FNIStash.File.Item
 ) where
 
 import FNIStash.File.Item

@@ -21,6 +21,7 @@ module Main (
 
 import FNIStash.Comm.Messages
 import FNIStash.Logic.Backend
+import FNIStash.File.SharedStash
 
 import Filesystem
 import Filesystem.Path
@@ -46,7 +47,6 @@ main = do
         , jiStatic = encodeString guiRoot
         }
 
-
 worker :: MonadJi m => Chan (Message BMessage) -> m ()
 worker messages = do
     setTitle "FNIStash"
@@ -59,6 +59,8 @@ worker messages = do
             Error msg -> setText ("Error: " ++ msg) div
             Initialized -> do
                 setText "Finally initialized!" div
-                newImg # set "src" "static/GUIAssets/bell.png" # set "alt" "Bell pict" #+ body
-
-    
+            LocationContents loc item -> do
+                newImg # set "src" (maybe "defaultIcon.png" iconPath item)
+                       # set "alt" (maybe "Unknown name" iconPath item)
+                       #+ body
+iconPath i = "static/GUIAssets/" ++ (itemIcon i) ++ ".png"
