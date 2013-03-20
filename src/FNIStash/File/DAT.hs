@@ -20,7 +20,7 @@ module FNIStash.File.DAT (
     searchNodeTreeWith,
     lkupVar,
     subNodeAt,
-    intVar, floatVar, doubleVar, word32Var, textVar, boolVar, int64Var, translateVar,
+    intVar, floatVar, doubleVar, word32Var, textVar, boolVar, int64Var, stringVar,
     readDATFiles,
     lkupDATFile,
     DATNode(..)
@@ -91,7 +91,12 @@ word32Var (DATWord i) = Just i
 word32Var _ = Nothing
 
 textVar (DATText i) = Just i
+textVar (DATTranslate i) = Just i
 textVar _ = Nothing
+
+stringVar (DATText i) = Just $ T.unpack i
+stringVar (DATTranslate i) = Just $ T.unpack i
+stringVar _ = Nothing
 
 boolVar (DATBool i) = Just i
 boolVar _ = Nothing
@@ -99,8 +104,6 @@ boolVar _ = Nothing
 int64Var (DATInt64 i) = Just i
 int64Var _ = Nothing
 
-translateVar (DATTranslate i) = Just i
-translateVar _ = Nothing
 
 -- Data declarations
 

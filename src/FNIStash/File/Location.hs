@@ -23,14 +23,13 @@ import FNIStash.Logic.Env
 import FNIStash.File.Variables
 import FNIStash.File.DAT
 
-import qualified Data.Text as T
 import qualified Data.ByteString as BS
 import Data.Binary.Strict.Get
 import Data.Word
 
 data Location = Location
-    { locContainer :: T.Text
-    , locSlot :: T.Text
+    { locContainer :: String
+    , locSlot :: String
     , locIndex :: Int
     }
     deriving (Eq, Ord, Show)
@@ -42,8 +41,8 @@ getLocation env = do
     let l = lkupLocNodes env
         (Just container, slotType) = l locBytes containerID
         -- get the Container name
-        Just containerName = lkupVar vNAME container >>= textVar
-        Just slotName = lkupVar vNAME slotType >>= textVar
+        Just containerName = lkupVar vNAME container >>= stringVar
+        Just slotName = lkupVar vNAME slotType >>= stringVar
         Just slotID = lkupVar vUNIQUEID slotType >>= word32Var
         index = fromIntegral locBytes - slotID
     return $ Location containerName slotName $ fromIntegral index

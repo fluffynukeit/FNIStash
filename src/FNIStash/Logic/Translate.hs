@@ -24,22 +24,22 @@ module FNIStash.Logic.Translate (
 -- Using a typeclass might be overkill.  I don't think translation happnens very often.
 
 
-import qualified Data.Text as T
 import Data.Monoid
 
 class Translate a where
     -- Takes a record to translate "a", and the markup (such as "VALUE"), and returns the translation.
-    translateMarkup :: a -> T.Text -> T.Text
+    translateMarkup :: a -> String -> String
 
 -- Given a Translate instance and a sentence full of markup (like This item gives [VALUE] to strength")
 -- returns a translated sentence with all markup elements replaced with their translations.
-translateSentence :: Translate a => a -> T.Text -> T.Text
+translateSentence :: Translate a => a -> String -> String
 translateSentence a sent =
-    let (pref, post1) = T.breakOn "[" sent
-        (markup, post2) = T.breakOn "]" (T.drop 1 post1)
-        suffix = T.drop 1 post2
+    let breakOn a = break (a ==)
+        (pref, post1) = breakOn '[' sent
+        (markup, post2) = breakOn ']' (drop 1 post1)
+        suffix = drop 1 post2
         translatedMarkup = translateMarkup a markup
         newSent = pref <> translatedMarkup <> suffix
-    in if T.null post1 then sent -- nothing left to translate
+    in if null post1 then sent -- nothing left to translate
        else translateSentence a newSent
 

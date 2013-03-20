@@ -15,7 +15,9 @@
 
 module FNIStash.File.SharedStash (
     parseSharedStash,
-    textSharedStash
+    showSharedStash,
+    SharedStash(..),
+    Item(..)
 ) where
 
 import FNIStash.File.Item
@@ -23,7 +25,6 @@ import FNIStash.File.General
 import FNIStash.Logic.Env
 
 import qualified Data.ByteString as BS
-import qualified Data.Text as T
 import Data.Binary.Strict.Get
 import Control.Monad
 import Control.Applicative
@@ -31,7 +32,7 @@ import Data.Monoid
 import Data.Word
 
 -- NOTE: type and to text functions should be in Logic for consistency, similar to Item
-type SharedStash = [Either T.Text Item]
+type SharedStash = [Either String Item]
 
 parseSharedStash env ssData = runGetWithFail "Can't read shared stash file!" (getSharedStash env) (toStrict ssData)
 
@@ -55,10 +56,10 @@ getSharedStash env = do
     parts <- getSharedStashPartitions
     return $ map (\bs -> runGetWithFail "Could not parse item!" (getItem env bs) bs) parts
 
-textSharedStash :: Env -> SharedStash -> T.Text
-textSharedStash env s =
+showSharedStash :: Env -> SharedStash -> String
+showSharedStash env s =
     let effSearch = lkupEffect env
-    in foldl (\a b -> a <> textItemResult effSearch b) T.empty s
+    in foldl (\a b -> a <> showItemResult effSearch b) "" s
 
-textItemResult effSearch (Left error) = T.unlines ["", error, ""]
-textItemResult effSearch (Right item) = textItem item
+showItemResult effSearch (Left error) = unlines ["", error, ""]
+showItemResult effSearch (Right item) = showItem item

@@ -23,7 +23,7 @@ module FNIStash.File.PAK (
     filterMANByPrefix,
     pakWithKeysContaining,
     PAKFiles,
-    textPAKFiles
+    showPAKFiles
 ) where
 
 import FNIStash.File.General
@@ -91,9 +91,9 @@ manHeaderToMAN hdr =
     in L.concat $ flip L.map folders (\fol ->
         flip L.map (filesInFolder fol) (fileName fol))
 
-textPAKFiles pakFiles =
-        let f (k,entry) = k <> ", " <> ((T.pack . show . SBS.length . pakEncodedData) entry) <> "\n"
-        in textList f $ M.toList pakFiles
+showPAKFiles pakFiles =
+        let f (k,entry) = (T.unpack k) <> ", " <> ((show . SBS.length . pakEncodedData) entry) <> "\n"
+        in showListString f $ M.toList pakFiles
 
 
 -----  Data Declarations ------

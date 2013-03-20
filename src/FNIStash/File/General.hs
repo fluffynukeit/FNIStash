@@ -16,12 +16,13 @@
 module FNIStash.File.General 
     (getTorchText,
      getTorchTextL,
+     getTorchString,
      wordToFloat,
      wordToDouble,
      showHex,
      streamToHex,
      intToHex,
-     textList,
+     showListString,
      runGetWithFail,
      runGetSuppress,
      getFloat,
@@ -45,16 +46,18 @@ import Data.Monoid
 import Data.Array.ST (newArray, readArray, MArray, STUArray)
 import Data.Array.Unsafe (castSTUArray)
 import GHC.ST (runST, ST)
-
 import Filesystem.Path.CurrentOS
 
-textList f = foldl (\a b -> a <> f b) T.empty
+showListString f = foldl (\a b -> a <> f b) (""::String)
 
 getTorchText :: SG.Get T.Text
 getTorchText = fromIntegral . (*2) <$> SG.getWord16le >>= SG.getByteString >>= \x -> return (decodeUtf16LE x)
 
 getTorchTextL :: LG.Get T.Text
 getTorchTextL = fromIntegral . (*2) <$> LG.getWord16le >>= LG.getByteString >>= \x -> return (decodeUtf16LE x)
+
+getTorchString :: SG.Get String
+getTorchString = getTorchText >>= return . T.unpack
 
 getFloat :: SG.Get Float
 getFloat = (SG.getWord32le >>= (return . wordToFloat))
@@ -66,7 +69,7 @@ wordToHex word = case length $ showHex word "" of
     1 -> "0" ++ showHex word ""
     2 -> showHex word ""
 
-intToHex i = T.pack ("0x" ++ padding ++ (showHex i ""))
+intToHex i = ("0x" ++ padding ++ (showHex i ""))
         where padding = replicate (8 - (length $ showHex i "")) '0'
 
 
@@ -75,11 +78,11 @@ toStrict = (mconcat . LBS.toChunks)
 
 -- Utilities for handling file Get errors
 
-runGetWithFail :: T.Text -> SG.Get a -> SBS.ByteString -> Either T.Text a
+runGetWithFail :: String -> SG.Get a -> SBS.ByteString -> Either String a
 runGetWithFail msg action dataBS =
     let result = SG.runGet action dataBS
     in case result of
-        (Left errorStr, _) -> Left  (msg <> " <- " <> (T.pack errorStr))
+        (Left errorStr, _) -> Left  (msg <> " <- " <> errorStr)
         (Right record, _)  -> Right record
 
 runGetSuppress :: SG.Get a -> SBS.ByteString -> a

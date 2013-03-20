@@ -15,8 +15,9 @@
 
 module FNIStash.File.Item (
     getItem,
-    textItem,
-    Item -- re-export
+    showItem,
+    Item(..),
+    Location(..)
 ) where
 
 import FNIStash.File.General
@@ -27,7 +28,6 @@ import FNIStash.File.DAT
 import FNIStash.File.Location
 
 import qualified Data.ByteString as BS
-import qualified Data.Text as T
 import Data.Binary.Strict.Get
 import Control.Applicative
 import Control.Monad
@@ -39,7 +39,7 @@ import Data.Maybe
 
 data Item = Item
     { itemGUID :: Int64
-    , itemFullName :: T.Text
+    , itemFullName :: String
     , itemNumEnchants :: Int
     , itemLevel :: Int
     , itemNumSockets :: Int
@@ -49,25 +49,21 @@ data Item = Item
     , itemMods :: [Mod]
     , itemLocation :: Location
     , itemDataPieces :: (BS.ByteString, BS.ByteString)    -- Item data before and after location.
-    , itemIcon :: T.Text
+    , itemIcon :: String
 }
 
 
 data Mod = Mod {
     modType :: Word32,
-    modName :: T.Text,
+    modName :: String,
     modValueList :: [Float],
---    modUnknown1 :: T.Text,
     modEffectIndex :: Word32,
     modDamageType :: DamageType,
---    modUnknown2 :: Word32,
     modItemLevel :: Word32,
     modDuration :: Float,
---    modUnknown3 :: Word32,
     modValue :: Float,
---    modUnknown4 :: Word32
     modClass :: ModClass,
-    modText :: T.Text,
+    modText :: String,
     modPrecision :: Int
 }
 
@@ -81,9 +77,9 @@ getItem :: Env -> BS.ByteString -> Get Item
 getItem env itemBinaryData = do
     lead <- getWord8
     guid <- fromIntegral <$> getWord64le
-    name <- getTorchText
-    prefix <- getTorchText
-    suffix <- getTorchText
+    name <- getTorchString
+    prefix <- getTorchString
+    suffix <- getTorchString
     serial <- getByteString 24
     bytes1 <- getByteString 29  -- not sure what these do
     nEnchants <- getWord32le
@@ -106,7 +102,7 @@ getItem env itemBinaryData = do
     elements <- replicateM (fromIntegral nElements) getDamageType
     modLists <- getModLists env >>= return . concat
     let iconName = getIconName env guid
-    return $ Item guid (T.unwords [name, prefix, suffix]) (fromIntegral nEnchants) level
+    return $ Item guid (unwords [name, prefix, suffix]) (fromIntegral nEnchants) level
                       (fromIntegral nSockets) gems (fromIntegral (if maxDmg == 0xFFFFFFFF then armor else maxDmg))
                       elements modLists location
                       (BS.take nBytesBeforeLocation itemBinaryData,
@@ -120,7 +116,7 @@ getDamageType = do
 
 getMod env = do
     mType <- getWord32le
-    mName <- getTorchText
+    mName <- getTorchString
     numVals <- iterateUntil (/= 0) getWord8
     mValueList <- replicateM (fromIntegral numVals) getFloat
     mUnknown1 <- getTorchText
@@ -165,11 +161,11 @@ getIconName env guid =
         lkupPath = lkupItemPath env
         findIcon guid =
             let item = lkupID guid
-                maybeIcon = item >>= lkupVar vICON >>= textVar
+                maybeIcon = item >>= lkupVar vICON >>= stringVar
                 baseItemID = fromJust $ item >>=
                                         lkupVar vBASEFILE >>=
                                         textVar >>= lkupPath >>=
-                                        lkupVar vUNIT_GUID >>= textVar >>= return . read . T.unpack
+                                        lkupVar vUNIT_GUID >>= stringVar >>= return . read
             in  case maybeIcon of
                 Nothing -> findIcon baseItemID
                 Just icon -> icon
@@ -180,7 +176,7 @@ instance Translate Mod where
         let prec = stringPrecision $ modPrecision mod
             r = roundAt $ modPrecision mod
             dispVal = prec . show . r
-        in T.pack $ (case markup of
+        in (case markup of
             "VALUE" -> dispVal . modValue
             "DURATION" -> dispVal . modDuration
             "DMGTYPE" -> show . modDamageType
@@ -193,35 +189,35 @@ instance Translate Mod where
             ) mod
 
 
-textItem i = T.unlines
-    ["GUID: " <> (T.pack . show $ (fromIntegral $ itemGUID i::Int64)),
+showItem i = unlines
+    ["GUID: " <> (show $ (fromIntegral $ itemGUID i::Int64)),
      "Full name: " <> itemFullName i,
      "Icon: " <> itemIcon i,
-     "Location: " <> (T.pack $ show  (itemLocation i) ),
-     "Num Enchants: " <> T.pack (show $ itemNumEnchants i),
-     "Item level: " <> T.pack (show $ itemLevel i),
-     "Used Sockets: " <> T.pack (show $ (length . itemGems) i) <> "/" <> T.pack (show $ itemNumSockets i),
-     "Dmg/Armor: " <> T.pack (show $ itemPoints i),
-     "Num elements: " <> T.pack (show $ (length . itemDamageTypes) i),
-     "Mods: " ,"", textList textMod $ itemMods i,
-     "Gems: " <> (textList textItem $ itemGems i),
+     "Location: " <> show (itemLocation i),
+     "Num Enchants: " <> show (itemNumEnchants i),
+     "Item level: " <> show (itemLevel i),
+     "Used Sockets: " <> (show $ (length . itemGems) i) <> "/" <> (show $ itemNumSockets i),
+     "Dmg/Armor: " <> (show $ itemPoints i),
+     "Num elements: " <> (show $ (length . itemDamageTypes) i),
+     "Mods: " ,"", showListString showMod $ itemMods i,
+     "Gems: " <> (showListString showItem $ itemGems i),
      "", ""]
 
-textMod = modText
+showMod = modText
 
 modDescription env mod =
     let effectNode = (lkupEffect env) (modEffectIndex mod)
-        maybeSentence = (effectNode >>= lkupVar vGOODDES >>= translateVar)
+        maybeSentence = (effectNode >>= lkupVar vGOODDES >>= stringVar)
     in case maybeSentence of
-        Just sentence -> T.unlines [translateSentence mod sentence]
+        Just sentence -> unlines [translateSentence mod sentence]
         Nothing -> modDataDump mod
 
 modDataDump i =
-    let k f = T.pack . show $ f i
-    in T.unlines
+    let k f = show $ f i
+    in   unlines
         ["","Type: " <> (intToHex . fromIntegral $ modType i),
          "Name: " <> (modName i),
-         "Values: " <> (textList (\x -> (T.pack $ show x) <> ", ") $ modValueList i),
+         "Values: " <> (showListString (\x -> (show x) <> ", ") $ modValueList i),
          "EffectIndex: " <> k modEffectIndex,
          "DmgType: " <> k modDamageType,
          "ItemLevel: " <> k modItemLevel,

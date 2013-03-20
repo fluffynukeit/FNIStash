@@ -22,7 +22,6 @@ module FNIStash.Logic.Initialize (
 
 -- This file contains stuff for initialization before normal processing.
 
-import Debug.Trace
 
 -- FNIStash stuff
 import FNIStash.Logic.Config
@@ -61,29 +60,25 @@ import GHC.Exts
 import Data.Word
 
 
--- These are paths to test assets, so I don't mess up my real ones.  Delete later.
-testDir = "C:\\Users\\Dan\\Desktop\\FNI Testing"
-sharedStashCrypted = testDir </> "sharedstash_v2.bin"
-textOutputPath = testDir </> "sharedStashTxt.txt"
-
 -- Sets up paths, generates files, and builds the text environment
-initialize appRoot guiRoot = do
+initialize messages appRoot guiRoot = do
+    writeChan messages $ Message $ Initializing "Initializing"
+
     -- First do one time initialization stuff
+    writeChan messages $ Message $ Initializing "Checking config file"
     cfg <- ensureConfig appRoot
+
+    writeChan messages $ Message $ Initializing "Generating icons for first time.  Please wait."
     ensureGUIAssets guiRoot cfg
+
+    writeChan messages $ Message $ Initializing "Building lookup environment"
     pak <- readPAKPrefixes cfg envPrefixes
+
     -- Build the data lookup environment
     let env = buildEnv pak
-    -- Descramble the scrambled shared stash file.  Just reads the test file for now. Needs to
-    -- eventually read the file defined by cfg
-    ssData <- readCryptoFile (encodeString sharedStashCrypted) >>= return . fileGameData
-    -- Parse the items as text (for now)
-    let sharedStashResult = parseSharedStash env ssData
-    case sharedStashResult of
-        Left error -> return $ Message Error
-        Right sharedStash -> do
-            T.writeFile (encodeString textOutputPath) $ textSharedStash env sharedStash
-            return $ Message Initialized
+    writeChan messages $ Message $ Initialized
+    return env
+
 
 {-
     The stuff here usually only does work the first time the program is run.

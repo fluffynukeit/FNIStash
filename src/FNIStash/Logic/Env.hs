@@ -59,7 +59,7 @@ buildEnv pak =
 -- Each of the functions below returns a lookup function.  This is how we can keep the loaded PAK
 -- handy for repeated lookups since we cannot have a global.  The PAK stays on the stack.
 itemLookupGUID pak =
-    let guidFinder = \x -> fromJust $ lkupVar vUNIT_GUID x >>= textVar >>= return . read . T.unpack
+    let guidFinder = \x -> fromJust $ lkupVar vUNIT_GUID x >>= stringVar >>= return . read
         dat = readDATFiles pak "MEDIA/UNITS/ITEMS" guidFinder -- p is pak
     in (\idInt64 -> lkupDATFile dat idInt64)
 

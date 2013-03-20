@@ -30,7 +30,6 @@ import Data.Word
 import Data.Bits
 import Data.Monoid
 import Data.Tuple.All
-import qualified Data.Text as T
 
 -- CryptoFile with a phantom types.  where a is the kind of save file.
 data CryptoFile a = CryptoFile {

@@ -18,10 +18,9 @@ module Main (
 ) where
 
 
-import FNIStash.Logic.Initialize
-import FNIStash.Comm.Messages
 
-import qualified Data.Text as T
+import FNIStash.Comm.Messages
+import FNIStash.Logic.Backend
 
 import Filesystem
 import Filesystem.Path
@@ -34,15 +33,11 @@ import Graphics.UI.Ji
 import Graphics.UI.Ji.JQuery
 import Graphics.UI.Ji.Elements
 import Graphics.UI.Ji.DOM
-import Control.Concurrent
 
 main = do
     setWorkingDirectory "C:\\Users\\Dan\\My Code\\FNIStash" -- only for testing
-    -- Ensure we have an app path for both backend and GUI to access
-    appRoot <- ensureAppRoot
-    guiRoot <- ensureHtml appRoot
     messages <- newChan
-    forkIO $ backend messages appRoot guiRoot
+    (appRoot, guiRoot) <- launchBackend messages
     serve Config
         { jiPort = 10001
         , jiRun = runJi
@@ -51,13 +46,8 @@ main = do
         , jiStatic = encodeString guiRoot
         }
 
--- Start up the backend
-backend messages appRoot guiRoot = do
-    writeChan messages (Message Initializing)
-    result <- initialize appRoot guiRoot
-    writeChan messages result
 
-worker :: MonadJi m => Chan (Message Response) -> m ()
+worker :: MonadJi m => Chan (Message BMessage) -> m ()
 worker messages = do
     setTitle "FNIStash"
     body <- getBody
@@ -65,8 +55,8 @@ worker messages = do
     msgList <- liftIO $ getChanContents messages
     forM_ msgList $ \(Message x) -> do
         case x of
-            Initializing -> setText "Initializing..." div
-            Error -> setText "Something went wrong..." div
+            Initializing msg -> setText (msg ++ "...") div
+            Error msg -> setText ("Error: " ++ msg) div
             Initialized -> do
                 setText "Finally initialized!" div
                 newImg # set "src" "static/GUIAssets/bell.png" # set "alt" "Bell pict" #+ body

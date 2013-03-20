@@ -14,13 +14,17 @@
 
 module FNIStash.Comm.Messages (
     Message (..),
-    Response (..)
+    BMessage (..),
+    module Control.Concurrent
 ) where
 
+import Control.Concurrent
+import FNIStash.File.Item
 
 
-data Response = Initializing
+data BMessage = Initializing {initStatus :: String}
               | Initialized
-              | Error
+              | LocationContents {location :: Location, locContents :: Maybe Item}
+              | Error {errorStatus :: String}
 
 data Message a = Message a
