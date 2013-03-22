@@ -31,9 +31,7 @@ import Control.Monad.Trans
 import Control.Monad
 
 import Graphics.UI.Ji
-import Graphics.UI.Ji.JQuery
-import Graphics.UI.Ji.Elements
-import Graphics.UI.Ji.DOM
+import Graphics.UI.Ji.Browser
 
 main = do
     setWorkingDirectory "C:\\Users\\Dan\\My Code\\FNIStash" -- only for testing
