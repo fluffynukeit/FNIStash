@@ -56,10 +56,8 @@ getSharedStash env = do
     parts <- getSharedStashPartitions
     return $ map (\bs -> runGetWithFail "Could not parse item!" (getItem env bs) bs) parts
 
-showSharedStash :: Env -> SharedStash -> String
-showSharedStash env s =
-    let effSearch = lkupEffect env
-    in foldl (\a b -> a <> showItemResult effSearch b) "" s
+showSharedStash :: SharedStash -> String
+showSharedStash s = foldl (\a b -> a <> showItemResult b) "" s
 
-showItemResult effSearch (Left error) = unlines ["", error, ""]
-showItemResult effSearch (Right item) = showItem item
+showItemResult (Left error) = unlines ["", error, ""]
+showItemResult (Right item) = showItem item

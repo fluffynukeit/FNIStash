@@ -9,7 +9,7 @@ maintainer: dan@fluffynukeit.com
 stability: Development
 author: Daniel Austin
 data-dir: ""
- 
+
 executable FNIStash-Debug
     build-depends: Codec-Image-DevIL -any, array -any, base -any,
                    binary -any, binary-strict -any, bytestring -any,
@@ -22,14 +22,15 @@ executable FNIStash-Debug
     extra-libraries: libIL
     extra-lib-dirs: "C:\\Users\\Dan\\My Code\\DevIL-SDK-x86-1.7.8\\lib"
     hs-source-dirs: src
-    other-modules: FNIStash.UI.Frontend FNIStash.Logic.Backend
+    other-modules: FNIStash.UI.Icon FNIStash.UI.Layout
+                   FNIStash.UI.Frontend FNIStash.Logic.Backend
                    FNIStash.Logic.Translate FNIStash.Logic.Initialize
                    FNIStash.Logic.Env FNIStash.Logic.Config FNIStash.File.Variables
                    FNIStash.File.SharedStash FNIStash.File.PAK FNIStash.File.Location
                    FNIStash.File.Item FNIStash.File.General FNIStash.File.DAT
                    FNIStash.File.Crypto FNIStash.Comm.Messages
     ghc-options: -O2 -prof -rtsopts
- 
+
 executable FNIStash
     build-depends: Codec-Image-DevIL -any, array -any, base -any,
                    binary -any, binary-strict -any, bytestring -any,
@@ -40,11 +41,12 @@ executable FNIStash
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: FNIStash.UI.Frontend FNIStash.Logic.Backend
+    other-modules: FNIStash.UI.Icon FNIStash.UI.Layout
+                   FNIStash.UI.Frontend FNIStash.Logic.Backend
                    FNIStash.Logic.Translate FNIStash.Logic.Initialize
                    FNIStash.Logic.Env FNIStash.Logic.Config FNIStash.File.Variables
                    FNIStash.File.SharedStash FNIStash.File.PAK FNIStash.File.Location
                    FNIStash.File.Item FNIStash.File.General FNIStash.File.DAT
                    FNIStash.File.Crypto FNIStash.Comm.Messages
     ghc-options: -O2 -prof -rtsopts
- 
+

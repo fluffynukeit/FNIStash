@@ -18,7 +18,8 @@ module FNIStash.UI.Frontend (
 ) where
 
 import FNIStash.Comm.Messages
-import FNIStash.File.SharedStash
+import FNIStash.UI.Layout
+import FNIStash.UI.Icon
 
 import Graphics.UI.Ji
 import Graphics.UI.Ji.Browser
@@ -26,20 +27,22 @@ import Graphics.UI.Ji.Browser
 import Control.Monad.Trans
 import Control.Monad
 
+import Debug.Trace
+import Data.Maybe
+
 frontend :: MonadJi m => Chan (Message BMessage) -> m ()
 frontend messages = do
     setTitle "FNIStash"
     body <- getBody
-    div <- new #. "div" #+ body
+    div <- new #+ body
     msgList <- liftIO $ getChanContents messages
     forM_ msgList $ \(Message x) -> do
         case x of
-            Initializing msg -> setText (msg ++ "...") div
-            Error msg -> setText ("Error: " ++ msg) div
-            Initialized -> do
-                setText "Finally initialized!" div
-            LocationContents loc item -> do
-                newImg # set "src" (maybe "defaultIcon.png" iconPath item)
-                       # set "alt" (maybe "Unknown name" iconPath item)
-                       #+ body
-iconPath i = "static/GUIAssets/" ++ (itemIcon i) ++ ".png"
+            Initializing msg -> return div #= (msg ++ "...") # unit
+            Error msg -> return div #= ("Error: " ++ msg) # unit
+            Initialized -> stash x #+ body # unit
+            LocationContents loc mItem -> do
+                case mItem of
+                    Just item -> newItemIcon item # insertAt loc
+                    Nothing -> return ()
+
