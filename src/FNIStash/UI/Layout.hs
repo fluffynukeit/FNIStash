@@ -31,19 +31,24 @@ locIdGenerator loc = \x -> locContainer loc ++ ":" ++ locSlot loc ++ ":" ++ (sho
 locToId :: Location -> String
 locToId loc = locIdGenerator loc $ locIndex loc
 
-sharedStashArms = (5, 8, Location "SHARED_STASH_BAG_ARMS" "BAG_ARMS_SLOT" 0)
-sharedStashCons = (5, 8, Location "SHARED_STASH_BAG_CONSUMABLES" "BAG_CONSUMABLES_SLOT" 0)
-sharedStashSpells = (5, 8, Location "SHARED_STASH_BAG_SPELLS" "BAG_SPELL_SLOT" 0)
+sharedStashArms = (5, 8, Location "SHARED_STASH_BAG_ARMS" "BAG_ARMS_SLOT" 0, "ig_inventorytabs_arms")
+sharedStashCons = (5, 8, Location "SHARED_STASH_BAG_CONSUMABLES" "BAG_CONSUMABLES_SLOT" 0, "ig_inventorytabs_consumables")
+sharedStashSpells = (5, 8, Location "SHARED_STASH_BAG_SPELLS" "BAG_SPELL_SLOT" 0, "ig_inventorytabs_spells")
 
 stash _ = do
-    cont <- new ## "ss"
-    (newIcon "ig_merchant_menu_base" "stash_image") ## "ss_img" #+ cont
-    gridFromTemplate sharedStashArms #+ cont
-    gridFromTemplate sharedStashCons #+ cont
-    gridFromTemplate sharedStashSpells #+ cont
+    cont <- new ## "sharedstash_div"
+    newIcon "ig_merchant_menu_base" ## "sharedstash_img" #+ cont
+    tabbedGrid sharedStashArms #+ cont
+    tabbedGrid sharedStashCons #+ cont
+    tabbedGrid sharedStashSpells #+ cont
     return cont
 
-gridFromTemplate (r, c, loc) = grid r c (locIdGenerator loc)
+tabbedGrid (r, c, loc, im) = do
+    g <- grid r c (locIdGenerator loc)
+    i <- newIcon (im ++ "_unselected_") #. "inventory_tab"  ## im
+    return i #+ g # unit
+    onClick i (\_ -> return i # setSrc (im ++ "_selected_") # unit)
+    return g
 
 grid r c gen = do
     let rowStarts = [0, c .. r*c-1]

@@ -30,8 +30,9 @@ import Control.Monad
 import Debug.Trace
 import Data.Maybe
 
-frontend :: MonadJi m => Chan (Message BMessage) -> m ()
+frontend :: Chan (Message BMessage) -> Ji ()
 frontend messages = do
+    forkJi handleEvents -- start the event handler.
     setTitle "FNIStash"
     body <- getBody
     div <- new #+ body
@@ -45,4 +46,5 @@ frontend messages = do
                 case mItem of
                     Just item -> newItemIcon item # insertAt loc
                     Nothing -> return ()
+
 

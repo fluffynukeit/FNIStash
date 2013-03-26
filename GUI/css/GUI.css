@@ -2,17 +2,22 @@
 	display: none;
 }
 
-div:hover .itempopup {
+/*div:hover .itempopup {
 	display: block;
-}
+}*/
 
-#ss {
+#sharedstash_div {
 	position: relative;
+	z-index: 0;
 	}
 
+.item_div{
+	position:relative;
+}
+	
 .item {
-	max-width:50px;
-	max-height:50px;
+	max-width:56px;
+	max-height:56px;
 	}
 	
 .grid {
@@ -33,7 +38,24 @@ div:hover .itempopup {
 .gridcell {
 	width:57px;
 	height:57px;
+	max-width:57px;
+	max-height:57px;
 	border-style:solid;
 	border-width:1px;
 	display: table-cell;
 }
+
+#ig_inventorytabs_arms {
+	position: absolute;
+	left: 100px;
+	}
+	
+#ig_inventorytabs_consumables {
+	position: absolute;
+	left: 130px;
+	}
+	
+#ig_inventorytabs_spells {
+	position: absolute;
+	left: 160px;
+	}

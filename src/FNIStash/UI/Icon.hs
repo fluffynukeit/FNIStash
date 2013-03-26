@@ -23,17 +23,17 @@ import Graphics.UI.Ji.Browser
 
 newItemIcon item = do
     p <- itemPopup item
-    i <- newIcon (itemIcon item) (itemIcon item)
+    i <- newIcon (itemIcon item)
         #. "item"
         # set "draggable" "true"
         # add p
-    new # add i # add p
+    new #. "item_div" # add i # add p
 
 itemPopup item = new #. "itempopup" #= (showItem item)
 
-newIcon src alt =
+newIcon src =
     newImg
-    # set "src" ("static/GUIAssets/" ++ src ++ ".png")
-    # set "alt" alt
+    # setSrc src
+    # set "alt" src
 
-
+setSrc src = set "src" ("static/GUIAssets/" ++ src ++ ".png")
