@@ -31,24 +31,62 @@ locIdGenerator loc = \x -> locContainer loc ++ ":" ++ locSlot loc ++ ":" ++ (sho
 locToId :: Location -> String
 locToId loc = locIdGenerator loc $ locIndex loc
 
-sharedStashArms = (5, 8, Location "SHARED_STASH_BAG_ARMS" "BAG_ARMS_SLOT" 0, "ig_inventorytabs_arms")
-sharedStashCons = (5, 8, Location "SHARED_STASH_BAG_CONSUMABLES" "BAG_CONSUMABLES_SLOT" 0, "ig_inventorytabs_consumables")
-sharedStashSpells = (5, 8, Location "SHARED_STASH_BAG_SPELLS" "BAG_SPELL_SLOT" 0, "ig_inventorytabs_spells")
+sharedStashArms = (Location "SHARED_STASH_BAG_ARMS" "BAG_ARMS_SLOT" 0, "ig_inventorytabs_arms")
+sharedStashCons = (Location "SHARED_STASH_BAG_CONSUMABLES" "BAG_CONSUMABLES_SLOT" 0, "ig_inventorytabs_consumables")
+sharedStashSpells = (Location "SHARED_STASH_BAG_SPELLS" "BAG_SPELL_SLOT" 0, "ig_inventorytabs_spells")
 
 stash _ = do
     cont <- new ## "sharedstash_div"
     newIcon "ig_merchant_menu_base" ## "sharedstash_img" #+ cont
-    tabbedGrid sharedStashArms #+ cont
-    tabbedGrid sharedStashCons #+ cont
-    tabbedGrid sharedStashSpells #+ cont
+    gTop <- tabbedGridStack 5 8 cont [sharedStashArms, sharedStashCons, sharedStashSpells] #+ cont
     return cont
 
-tabbedGrid (r, c, loc, im) = do
-    g <- grid r c (locIdGenerator loc)
-    i <- newIcon (im ++ "_unselected_") #. "inventory_tab"  ## im
-    return i #+ g # unit
-    onClick i (\_ -> return i # setSrc (im ++ "_selected_") # unit)
-    return g
+tabbedGridStack r c cont templates = do
+    div <- new #. "tabbed_grid_stack"
+    gridTabPairs <- forM templates (\(loc, tabImg) -> do
+        trip1 <- grid r c (locIdGenerator loc)
+        trip2 <- newIcon (tabImg ++ "_unselected_") #. "inventory_tab" ## tabImg
+        return (trip1, trip2, tabImg)
+        )
+    let gridCombos = complements gridTabPairs
+    -- set up click handlers and append to container
+    forM_ gridCombos (\((g,t,i), otherPairs) -> do
+        onClick t (\_ -> do
+            forM_ otherPairs (\(og, ot, oi) -> do
+                return og # setZ (-5) # unit
+                return ot # setSrc (oi ++ "_unselected_") # unit)
+            return g # setZ 5 # unit
+            return t # setSrc (i ++ "_selected_") # unit)
+        return g #+ cont
+        return t #+ cont
+        )
+    -- set the tail grids to lower z index to start with
+    forM (tail gridTabPairs) (\(grid, _, _) ->
+        return grid # setZ (-5) # unit)
+    -- set the top most grid to a higher z index and return it
+    let (gTop, tabTop, srcTop) = head gridTabPairs
+    return gTop # setZ 5 # unit
+    return tabTop # setSrc (srcTop ++ "_selected_") # unit
+    return gTop
+
+-- For each element in a list, returns the pair of the element and the other elements.
+complements list =
+    let indices = [0..]
+        pairList = zip indices list
+        elemsNotMe (i, e) = (e, map snd $ filter (\(k,_) -> i /= k) pairList)
+    in map elemsNotMe pairList
+
+--tabbedGrid (r, c, loc, im) otherPages = do
+--    div <- new #. "tabbedgrid"
+--    g <- grid r c (locIdGenerator loc)
+--    i <- newIcon (im ++ "_unselected_") #. "inventory_tab"  ## im
+--    return g #+ div # unit
+--    return i #+ div # unit
+--    onClick i (\_ -> do
+--        return i # setSrc (im ++ "_selected_") # unit
+--        return g # set "style" "z-index:10;" # unit
+--        forM_ otherPages (\other -> return other # set "style" "z-index:-1;" # unit))
+--    return g
 
 grid r c gen = do
     let rowStarts = [0, c .. r*c-1]

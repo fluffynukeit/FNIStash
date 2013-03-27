@@ -37,3 +37,5 @@ newIcon src =
     # set "alt" src
 
 setSrc src = set "src" ("static/GUIAssets/" ++ src ++ ".png")
+
+setZ int = set "style" ("z-index:" ++ show int ++ ";")
