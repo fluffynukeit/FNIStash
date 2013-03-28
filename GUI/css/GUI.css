@@ -1,61 +1,63 @@
-.itempopup {
-	display: none;
-}
 
-/*div:hover .itempopup {
-	display: block;
-}*/
 
 #sharedstash_div {
 	position: relative;
-	z-index: 0;
 	}
-
-.item_div{
-	position:relative;
-}
-	
-.item {
-	max-width:56px;
-	max-height:56px;
-	}
-	
-.grid {
-	border-style:solid;
-	border-width:1px;
+    
+#sharedstash_stack {    
+    position: absolute;
+    top: 42px;
+	left: 19px;
+    } 
+    
+ .grid {
 	display: table;
-	top: 43px;
-	left: 18px;
-	position: absolute;
+    table-layout:fixed;
+    border-spacing: 2px;
+    position: absolute;
+    top: 0;
+    left: 0;
 }
 
 .gridrow {
-	border-style:solid;
-	border-width:1px;
 	display: table-row;
 }
 
 .gridcell {
-	width:57px;
-	height:57px;
-	max-width:57px;
-	max-height:57px;
-	border-style:solid;
+    height: 57px;
+    min-height: 57px;
+    max-height: 57px;
+    width: 57px;
+    min-width: 57px;
+    max-width: 57px;
+	border-style:hidden;
 	border-width:1px;
 	display: table-cell;
+    padding: 0 0 0 0;
+    overflow:hidden;
 }
+   
+.item {
+    max-height: 57px;
+    display: block;
+}
+	
+
 
 #ig_inventorytabs_arms {
 	position: absolute;
-	left: 100px;
+	left: 153px;
+    top:300px;
 	}
 	
 #ig_inventorytabs_consumables {
 	position: absolute;
-	left: 130px;
+	left: 208px;
+    top:300px;
 	}
 	
 #ig_inventorytabs_spells {
 	position: absolute;
-	left: 160px;
+	left: 263px;
+    top:300px;
 	}

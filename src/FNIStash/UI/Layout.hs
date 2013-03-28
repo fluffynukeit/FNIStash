@@ -38,36 +38,44 @@ sharedStashSpells = (Location "SHARED_STASH_BAG_SPELLS" "BAG_SPELL_SLOT" 0, "ig_
 stash _ = do
     cont <- new ## "sharedstash_div"
     newIcon "ig_merchant_menu_base" ## "sharedstash_img" #+ cont
-    gTop <- tabbedGridStack 5 8 cont [sharedStashArms, sharedStashCons, sharedStashSpells] #+ cont
+    let gStack = tabbedGridStack 5 8 [sharedStashArms, sharedStashCons, sharedStashSpells]
+    gStack ## "sharedstash_stack" #+ cont
     return cont
 
-tabbedGridStack r c cont templates = do
+tabbedGridStack r c templates = do
     div <- new #. "tabbed_grid_stack"
-    gridTabPairs <- forM templates (\(loc, tabImg) -> do
+    -- make a triplet of grid, tab for grid, and tab image prefix
+    gridTabTrips <- forM templates (\(loc, tabImg) -> do
         trip1 <- grid r c (locIdGenerator loc)
         trip2 <- newIcon (tabImg ++ "_unselected_") #. "inventory_tab" ## tabImg
         return (trip1, trip2, tabImg)
         )
-    let gridCombos = complements gridTabPairs
-    -- set up click handlers and append to container
+    -- divide triplets up into "A" and "not A", for each triplet
+    let gridCombos = complements gridTabTrips
+    -- for each divided triplet
     forM_ gridCombos (\((g,t,i), otherPairs) -> do
+        -- set up click handlers and append to container
         onClick t (\_ -> do
+            -- set all other grids to background and make their tabs unselected
             forM_ otherPairs (\(og, ot, oi) -> do
-                return og # setZ (-5) # unit
+                return og # setVis False # unit
                 return ot # setSrc (oi ++ "_unselected_") # unit)
-            return g # setZ 5 # unit
+            -- bring this grid to the foreground and select its tab
+            return g # setVis True # unit
             return t # setSrc (i ++ "_selected_") # unit)
-        return g #+ cont
-        return t #+ cont
+        -- insert the grid and the tab into the containing div
+        return g #+ div
+        return t #+ div
         )
+    -- now we need to pick a grid to start out as the "top" grid
     -- set the tail grids to lower z index to start with
-    forM (tail gridTabPairs) (\(grid, _, _) ->
-        return grid # setZ (-5) # unit)
+    forM (tail gridTabTrips) (\(grid, _, _) ->
+        return grid # setVis False # unit)
     -- set the top most grid to a higher z index and return it
-    let (gTop, tabTop, srcTop) = head gridTabPairs
-    return gTop # setZ 5 # unit
+    let (gTop, tabTop, srcTop) = head gridTabTrips
+    return gTop # setVis True # unit
     return tabTop # setSrc (srcTop ++ "_selected_") # unit
-    return gTop
+    return div
 
 -- For each element in a list, returns the pair of the element and the other elements.
 complements list =

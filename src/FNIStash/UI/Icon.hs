@@ -22,20 +22,23 @@ import Graphics.UI.Ji.Browser
 
 
 newItemIcon item = do
-    p <- itemPopup item
     i <- newIcon (itemIcon item)
         #. "item"
         # set "draggable" "true"
-        # add p
-    new #. "item_div" # add i # add p
+    return i
 
 itemPopup item = new #. "itempopup" #= (showItem item)
 
 newIcon src =
     newImg
     # setSrc src
-    # set "alt" src
 
-setSrc src = set "src" ("static/GUIAssets/" ++ src ++ ".png")
+setSrc src = \x -> set "src" ("static/GUIAssets/" ++ src ++ ".png") x # set "alt" src
 
 setZ int = set "style" ("z-index:" ++ show int ++ ";")
+
+setVis v = set "style" ("visibility:" ++
+    case v of
+        True    -> "visible;"
+        False   -> "hidden;"
+        )
