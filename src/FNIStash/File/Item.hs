@@ -101,6 +101,9 @@ getItem env itemBinaryData = do
     nElements <- getWord16le
     elements <- replicateM (fromIntegral nElements) getDamageType
     modLists <- getModLists env >>= return . concat
+    -- every item ends in 16 00 bytes?  Only read 12 more bytes because 4 were
+    -- consumed by identifying the end of the mod lists
+    replicateM 3 getWord32le
     let iconName = getIconName env guid
     return $ Item guid (unwords [name, prefix, suffix]) (fromIntegral nEnchants) level
                       (fromIntegral nSockets) gems (fromIntegral (if maxDmg == 0xFFFFFFFF then armor else maxDmg))
