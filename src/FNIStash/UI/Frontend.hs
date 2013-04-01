@@ -14,15 +14,15 @@
 
 module FNIStash.UI.Frontend (
    frontend,
-   module Graphics.UI.Ji
+   module Graphics.UI.Threepenny
 ) where
 
 import FNIStash.Comm.Messages
 import FNIStash.UI.Layout
 import FNIStash.UI.Icon
 
-import Graphics.UI.Ji
-import Graphics.UI.Ji.Browser
+import Graphics.UI.Threepenny
+import Graphics.UI.Threepenny.Browser
 
 import Control.Monad.Trans
 import Control.Monad

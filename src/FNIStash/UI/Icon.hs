@@ -17,8 +17,8 @@ where
 
 import FNIStash.File.SharedStash
 
-import Graphics.UI.Ji
-import Graphics.UI.Ji.Browser
+import Graphics.UI.Threepenny
+import Graphics.UI.Threepenny.Browser
 
 
 newItemIcon item = do

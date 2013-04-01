@@ -34,7 +34,7 @@ main = do
         { jiPort = 10001
         , jiRun = runJi
         , jiWorker = frontend messages
-        , jiInitHTML = "GUI.html"
+        , jiInitHTML = Just "GUI.html"
         , jiStatic = encodeString guiRoot
         }
 

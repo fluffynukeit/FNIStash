@@ -113,7 +113,7 @@ getItem env itemBinaryData = do
                        iconName
 
 getDamageType = do
-    getByteString 8     -- 8 leading bytes are always 0?
+    getByteString 8     -- 8 leading bytes are always 0? - No, look at raleigh claire
     dmgType <- getWord32le
     return $ damageTypeLookup dmgType
 

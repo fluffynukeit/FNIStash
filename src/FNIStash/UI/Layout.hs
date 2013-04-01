@@ -20,8 +20,8 @@ module FNIStash.UI.Layout (
 import FNIStash.UI.Icon
 import FNIStash.File.Location
 
-import Graphics.UI.Ji.Browser
-import Graphics.UI.Ji
+import Graphics.UI.Threepenny.Browser
+import Graphics.UI.Threepenny
 
 import Control.Monad
 
