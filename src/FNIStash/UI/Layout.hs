@@ -111,8 +111,8 @@ gridRow startId n gen = do
 
 gridCell id gen = do
     d <- new ## (gen id) #. "gridcell"
-    --onDragEnter d $ \_ -> set "background-color" "#00ff00" d # unit
-    --onDragLeave d $ \_ -> set "background-color" "transparent" d # unit
+    onDragEnter d $ \_ -> set "style" "background-color:#ffff99;" d # unit
+    onDragLeave d $ \_ -> set "style" "background-color:transparent;" d # unit
     return d
 
 
