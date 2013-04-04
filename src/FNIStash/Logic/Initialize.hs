@@ -60,6 +60,12 @@ import GHC.Exts
 import Data.Word
 
 
+-- Debug stuff
+--import FNIStash.File.General
+--import FNIStash.File.DAT
+--import qualified Data.Text.IO as T
+--import Debug.Trace
+
 -- Sets up paths, generates files, and builds the text environment
 initialize messages appRoot guiRoot = do
     writeChan messages $ Message $ Initializing "Initializing"
@@ -73,6 +79,15 @@ initialize messages appRoot guiRoot = do
 
     writeChan messages $ Message $ Initializing "Building lookup environment"
     pak <- readPAKPrefixes cfg envPrefixes
+
+-- -- This part is for writing out a particular DAT file for testing.  TODO clean up later
+--    let dest = "C:\\Users\\Dan\\Desktop\\FNI Testing\\dump\\"
+--        writeDatFile f d = let t = fromJust $lkupPAKFile f pak >>= return . textDAT . (runGetSuppress getDAT)
+--            in T.writeFile (dest <> d) t
+--
+--    trace "about to write---------" $ return ()
+--    writeDatFile "MEDIA/INVENTORY/BAG_ARMS_SLOT.DAT" "BAG_ARMS_SLOT.DAT"
+--    trace "end write -----------" $ return ()
 
     -- Build the data lookup environment
     let env = buildEnv pak

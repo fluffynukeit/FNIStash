@@ -118,8 +118,9 @@ data MANFolder = MANFolder {
 
 data MANHeader = MANHeader {
     headerVersion :: Word16,
-    headerName :: T.Text,
     headerUnknown1W32 :: Word32,
+    headerName :: T.Text,
+    headerUnknown2W32 :: Word32,
     headerFolders :: [MANFolder]
     } deriving Eq
 
@@ -151,6 +152,7 @@ getMANFolder =
 getMANHeader :: SG.Get MANHeader
 getMANHeader =
     MANHeader <$> SG.getWord16le
+              <*> SG.getWord32le
               <*> getTorchText
               <*> SG.getWord32le
               <*> (SG.getWord32le >>= (flip replicateM getMANFolder) . fromIntegral)

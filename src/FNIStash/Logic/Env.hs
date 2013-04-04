@@ -35,7 +35,7 @@ import Data.Configurator
 import Data.Binary.Get
 import Data.Word
 import Data.Int
-
+import qualified Data.Map as M
 
 -- Env is the lookup environment we pass around manually.  (I suppose we could use a Reader monad
 -- but I tried it out and found it to be more complicated than simple argument passing)
@@ -88,8 +88,14 @@ priceIsRightSearch realPrice pricer (guess:guesses) =
 
 
 locLookup pak =
-    let allSlotTypesRoot = runGetSuppress getDAT $ fromJust $ lkupPAKFile "MEDIA/INVENTORY/INVENTORYSLOTS.DAT" pak
-        allSlotTypesList = datSubNodes allSlotTypesRoot
+    -- ok, this is a little messy because Runic made an update in early April 2013 that changed
+    -- how the slots are organized.  Originally they were all separate nodes in a INVENTORYSLOTS.DAT
+    -- file, but now each slot is its own dat file.  I did as little as I needed to adapt the old
+    -- algorithm to the new organizational scheme
+    let invenSlotFiles = M.filterWithKey (\k _ -> T.isInfixOf "MEDIA/INVENTORY" k && not (T.isInfixOf "MEDIA/INVENTORY/CONTAINERS" k)) pak
+        slotsDatFiles = readDATFiles invenSlotFiles "MEDIA/INVENTORY" (\x -> lkupVar vNAME x >>= textVar)
+        allSlotTypesList = M.elems slotsDatFiles
+        --allSlotTypesList = datSubNodes allSlotTypesRoot
         containerIDFinder = \dat -> fromJust (lkupVar vUNIQUEID dat >>= word32Var >>= \x -> return (fromIntegral x :: Word16))
         -- containers is a map of container ID to DATNode for the container
         containers = readDATFiles pak "MEDIA/INVENTORY/CONTAINERS" containerIDFinder

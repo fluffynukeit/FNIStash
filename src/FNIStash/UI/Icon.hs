@@ -42,3 +42,25 @@ setVis v = set "style" ("visibility:" ++
         True    -> "visible;"
         False   -> "hidden;"
         )
+
+-- Drag events
+onDragStart :: MonadTP m => Element -> (EventData -> m ()) -> m ()
+onDragStart = bind "dragstart"
+
+onDragEnter :: MonadTP m => Element -> (EventData -> m ()) -> m ()
+onDragEnter = bind "dragenter"
+
+onDragOver :: MonadTP m => Element -> (EventData -> m ()) -> m ()
+onDragOver = bind "dragover"
+
+onDragLeave :: MonadTP m => Element -> (EventData -> m ()) -> m ()
+onDragLeave = bind "dragleave"
+
+onDrag :: MonadTP m => Element -> (EventData -> m ()) -> m ()
+onDrag = bind "drag"
+
+onDragDrop :: MonadTP m => Element -> (EventData -> m ()) -> m ()
+onDragDrop = bind "drop"
+
+onDragEnd :: MonadTP m => Element -> (EventData -> m ()) -> m ()
+onDragEnd = bind "dragend"

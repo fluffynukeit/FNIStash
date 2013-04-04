@@ -31,11 +31,11 @@ main = do
     messages <- newChan
     (appRoot, guiRoot) <- launchBackend messages
     serve Config
-        { jiPort = 10001
-        , jiRun = runJi
-        , jiWorker = frontend messages
-        , jiInitHTML = Just "GUI.html"
-        , jiStatic = encodeString guiRoot
+        { tpPort = 10001
+        , tpRun = runTP
+        , tpWorker = frontend messages
+        , tpInitHTML = Just "GUI.html"
+        , tpStatic = encodeString guiRoot
         }
 
 

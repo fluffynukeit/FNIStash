@@ -30,12 +30,12 @@ import Control.Monad
 import Debug.Trace
 import Data.Maybe
 
-frontend :: Chan (Message BMessage) -> Ji ()
+frontend :: Chan (Message BMessage) -> TP ()
 frontend messages = do
-    forkJi handleEvents -- start the event handler.
+    forkTP handleEvents -- start the event handler.
     setTitle "FNIStash"
     body <- getBody
-    div <- new #+ body
+    div <- new #. "msgwindow" #+ body
     msgList <- liftIO $ getChanContents messages
     forM_ msgList $ \(Message x) -> do
         case x of

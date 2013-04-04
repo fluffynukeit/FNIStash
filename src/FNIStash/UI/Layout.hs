@@ -109,7 +109,12 @@ gridRow startId n gen = do
     return row
 
 
-gridCell id gen = new ## (gen id) #. "gridcell"
+gridCell id gen = do
+    d <- new ## (gen id) #. "gridcell"
+    --onDragEnter d $ \_ -> set "background-color" "#00ff00" d # unit
+    --onDragLeave d $ \_ -> set "background-color" "transparent" d # unit
+    return d
+
 
 insertAt loc itemElems = do
     mEl <- getElementById (locToId loc)
