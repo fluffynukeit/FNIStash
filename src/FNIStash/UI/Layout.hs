@@ -25,6 +25,8 @@ import Graphics.UI.Threepenny
 
 import Control.Monad
 
+import Debug.Trace
+
 locIdGenerator :: Location -> (Int -> String)
 locIdGenerator loc = \x -> locContainer loc ++ ":" ++ locSlot loc ++ ":" ++ (show $ x)
 
@@ -110,14 +112,17 @@ gridRow startId n gen = do
 
 
 gridCell id gen = do
-    d <- new ## (gen id) #. "gridcell"
+    d <- new ## (gen id) #. "gridcell" # allowDrop
     onDragEnter d $ \_ -> set "style" "background-color:#ffff99;" d # unit
     onDragLeave d $ \_ -> set "style" "background-color:transparent;" d # unit
+    onDragEnd d $ \_ -> set "style" "background-color:transparent;" d # unit
+    onDrop d $  \(EventData a) -> set "style" "background-color:transparent;" d # unit
     return d
 
 
 insertAt loc itemElems = do
-    mEl <- getElementById (locToId loc)
+    let id = locToId loc
+    mEl <- getElementById id
     case mEl of
-        Just el -> return itemElems #+ el # unit
+        Just el -> return itemElems # setDragData id #+ el # unit
         Nothing -> return ()
