@@ -28,7 +28,7 @@ import Filesystem.Path.CurrentOS
 
 main = do
     setWorkingDirectory "C:\\Users\\Dan\\My Code\\FNIStash" -- only for testing
-    messages <- newChan
+    messages <- newMessages
     (appRoot, guiRoot) <- launchBackend messages
     serve Config
         { tpPort = 10001

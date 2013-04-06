@@ -12,11 +12,7 @@
 --
 -----------------------------------------------------------------------------
 
-module FNIStash.Comm.Messages (
-    Message (..),
-    BMessage (..),
-    module Control.Concurrent
-) where
+module FNIStash.Comm.Messages where
 
 import Control.Concurrent
 import FNIStash.File.Item
@@ -27,4 +23,33 @@ data BMessage = Initializing {initStatus :: String}
               | LocationContents {location :: Location, locContents :: Maybe Item}
               | Error {errorStatus :: String}
 
-data Message a = Message a
+data FMessage = Move {moveFrom :: Location, moveTo :: Location}
+
+data Message = FMessage FMessage
+             | BMessage BMessage
+
+type Messages = Chan Message
+
+newMessages = newChan
+
+onlyFMessages :: Chan Message -> IO [FMessage]
+onlyFMessages c = do
+    m <- getChanContents c
+    return $ map stripF $ filter isFMessage m
+
+onlyBMessages :: Chan Message -> IO [BMessage]
+onlyBMessages c = do
+    m <- getChanContents c
+    return $ map stripB $ filter isBMessage m
+
+isFMessage (FMessage _) = True
+isFMessage _ = False
+
+isBMessage (BMessage _) = True
+isBMessage _ = False
+
+stripF (FMessage x) = x
+stripB (BMessage x) = x
+
+writeFMessage c m = writeChan c (FMessage m)
+writeBMessage c m = writeChan c (BMessage m)

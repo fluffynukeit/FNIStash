@@ -24,7 +24,7 @@ import FNIStash.File.SharedStash
 
 import Filesystem.Path
 import Filesystem.Path.CurrentOS
-
+import Control.Concurrent
 
 -- These are paths to test assets, so I don't mess up my real ones.  Delete later.
 testDir = "C:\\Users\\Dan\\Desktop\\FNI Testing"
@@ -51,12 +51,12 @@ backend messages appRoot guiRoot = do
     -- Parse the items as text (for now)
     let sharedStashResult = parseSharedStash env ssData
     case sharedStashResult of
-        Left error -> writeChan messages $ Message $ Error error
+        Left error -> writeBMessage messages $ Error error
         Right sharedStash -> dumpItemLocs messages sharedStash
 
 
 dumpItemLocs messages sharedStash = mapM_ dumpItem sharedStash where
-    dumpItem i = writeChan messages $ Message $ case i of
+    dumpItem i = writeBMessage messages $ case i of
         Left itemError -> Error itemError
         Right item -> LocationContents (itemLocation item) $ Just item
 

@@ -68,16 +68,16 @@ import Data.Word
 
 -- Sets up paths, generates files, and builds the text environment
 initialize messages appRoot guiRoot = do
-    writeChan messages $ Message $ Initializing "Initializing"
+    writeBMessage messages $ Initializing "Initializing"
 
     -- First do one time initialization stuff
-    writeChan messages $ Message $ Initializing "Checking config file"
+    writeBMessage messages  $ Initializing "Checking config file"
     cfg <- ensureConfig appRoot
 
-    writeChan messages $ Message $ Initializing "Generating icons for first time.  Please wait."
+    writeBMessage messages $ Initializing "Generating icons for first time.  Please wait."
     ensureGUIAssets guiRoot cfg
 
-    writeChan messages $ Message $ Initializing "Building lookup environment"
+    writeBMessage messages $ Initializing "Building lookup environment"
     pak <- readPAKPrefixes cfg envPrefixes
 
 -- -- This part is for writing out a particular DAT file for testing.  TODO clean up later
@@ -91,7 +91,7 @@ initialize messages appRoot guiRoot = do
 
     -- Build the data lookup environment
     let env = buildEnv pak
-    writeChan messages $ Message $ Initialized
+    writeBMessage messages $ Initialized
     return env
 
 

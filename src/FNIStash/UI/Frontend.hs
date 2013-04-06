@@ -30,14 +30,14 @@ import Control.Monad
 import Debug.Trace
 import Data.Maybe
 
-frontend :: Chan (Message BMessage) -> TP ()
+frontend :: Messages -> TP ()
 frontend messages = do
     forkTP handleEvents -- start the event handler.
     setTitle "FNIStash"
     body <- getBody
     div <- new #. "msgwindow" #+ body
-    msgList <- liftIO $ getChanContents messages
-    forM_ msgList $ \(Message x) -> do
+    msgList <- liftIO $ onlyBMessages messages
+    forM_ msgList $ \x -> do
         case x of
             Initializing msg -> return div #= (msg ++ "...") # unit
             Error msg -> return div #= ("Error: " ++ msg) # unit
