@@ -115,7 +115,7 @@ notifyMove mes eData toId = do
 updateCell loc mItem = do
     let id = locToId loc
     mEl <- getElementById id
-    maybe (trace ("ID not found!!!: " ++ id) return ()) (\el -> do
+    maybe (return ()) (\el -> do
         case mItem of
             Just item   -> do
                 emptyEl el

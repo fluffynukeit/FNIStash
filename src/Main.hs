@@ -22,21 +22,24 @@ import FNIStash.Logic.Backend
 import FNIStash.UI.Frontend
 import FNIStash.Comm.Messages
 
-
+import Control.Concurrent
+import Control.Monad.Trans
 import Filesystem
 import Filesystem.Path.CurrentOS
 
 main = do
     setWorkingDirectory "C:\\Users\\Dan\\My Code\\FNIStash" -- only for testing
-    messages <- newMessages
-    messagesCopy <- dupMessages messages
-    (appRoot, guiRoot) <- launchBackend messages
+    (appRoot, guiRoot) <- ensurePaths
     serve Config
         { tpPort = 10001
         , tpRun = runTP
-        , tpWorker = frontend messagesCopy
+        , tpWorker = launchAll appRoot guiRoot
         , tpInitHTML = Just "GUI.html"
         , tpStatic = encodeString guiRoot
         }
 
-
+launchAll appRoot guiRoot = do
+    messages <- liftIO newMessages
+    messagesCopy <- liftIO $ dupMessages messages
+    liftIO $ forkIO $ backend messages appRoot guiRoot
+    frontend messagesCopy
