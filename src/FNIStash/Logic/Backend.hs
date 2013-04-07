@@ -18,6 +18,7 @@ module FNIStash.Logic.Backend (
 ) where
 
 import FNIStash.Logic.Initialize
+import FNIStash.File.Location
 import FNIStash.Comm.Messages
 import FNIStash.File.Crypto
 import FNIStash.File.SharedStash
@@ -25,6 +26,10 @@ import FNIStash.File.SharedStash
 import Filesystem.Path
 import Filesystem.Path.CurrentOS
 import Control.Concurrent
+import Control.Monad.Trans
+import Control.Monad
+
+import Debug.Trace
 
 -- These are paths to test assets, so I don't mess up my real ones.  Delete later.
 testDir = "C:\\Users\\Dan\\Desktop\\FNI Testing"
@@ -48,15 +53,27 @@ backend messages appRoot guiRoot = do
      -- Descramble the scrambled shared stash file.  Just reads the test file for now. Needs to
     -- eventually read the file defined by cfg
     ssData <- readCryptoFile (encodeString sharedStashCrypted) >>= return . fileGameData
-    -- Parse the items as text (for now)
+
     let sharedStashResult = parseSharedStash env ssData
     case sharedStashResult of
         Left error -> writeBMessage messages $ Error error
-        Right sharedStash -> dumpItemLocs messages sharedStash
+        Right sharedStash -> do
+            dumpItemLocs messages sharedStash
+            msgList <- liftIO $ onlyFMessages messages
+            handleMessages messages sharedStash msgList
+
 
 
 dumpItemLocs messages sharedStash = mapM_ dumpItem sharedStash where
     dumpItem i = writeBMessage messages $ case i of
         Left itemError -> Error itemError
         Right item -> LocationContents (itemLocation item) $ Just item
+
+
+handleMessages m sharedStash (msg:rest) = do
+    let (newStash, updates) = case msg of
+            Move from to -> moveContents from to sharedStash
+    forM updates $ \(loc, contents) -> writeBMessage m $ LocationContents loc contents
+    handleMessages m newStash rest
+
 

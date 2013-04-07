@@ -11,15 +11,17 @@ description:
 author: Daniel Austin
 data-dir: ""
  
-executable FNIStash
+executable FNIStash-Debug
     build-depends: Codec-Image-DevIL -any, array -any, base -any,
                    binary -any, binary-strict -any, bytestring -any,
                    configurator -any, containers -any, data-endian -any, errors -any,
-                   filepath -any, monad-loops -any, mtl -any, system-fileio -any,
-                   system-filepath -any, text -any, threepenny-gui -any, tuple -any,
-                   xml -any, zlib -any
+                   filepath -any, monad-loops -any, mtl -any, split -any,
+                   system-fileio -any, system-filepath -any, text -any,
+                   threepenny-gui -any, tuple -any, xml -any, zlib -any
     main-is: Main.hs
     buildable: True
+    extra-libraries: libIL
+    extra-lib-dirs: "C:\\Users\\Dan\\My Code\\DevIL-SDK-x86-1.7.8\\lib"
     hs-source-dirs: src
     other-modules: FNIStash.UI.Layout FNIStash.UI.Icon
                    FNIStash.UI.Frontend FNIStash.Logic.Translate
@@ -30,17 +32,15 @@ executable FNIStash
                    FNIStash.File.Crypto FNIStash.Comm.Messages
     ghc-options: -O2 -prof -rtsopts
  
-executable FNIStash-Debug
+executable FNIStash
     build-depends: Codec-Image-DevIL -any, array -any, base -any,
                    binary -any, binary-strict -any, bytestring -any,
                    configurator -any, containers -any, data-endian -any, errors -any,
-                   filepath -any, monad-loops -any, mtl -any, system-fileio -any,
-                   system-filepath -any, text -any, threepenny-gui -any, tuple -any,
-                   xml -any, zlib -any
+                   filepath -any, monad-loops -any, mtl -any, split -any,
+                   system-fileio -any, system-filepath -any, text -any,
+                   threepenny-gui -any, tuple -any, xml -any, zlib -any
     main-is: Main.hs
     buildable: True
-    extra-libraries: libIL
-    extra-lib-dirs: "C:\\Users\\Dan\\My Code\\DevIL-SDK-x86-1.7.8\\lib"
     hs-source-dirs: src
     other-modules: FNIStash.UI.Layout FNIStash.UI.Icon
                    FNIStash.UI.Frontend FNIStash.Logic.Translate

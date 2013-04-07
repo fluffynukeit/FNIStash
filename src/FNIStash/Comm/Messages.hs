@@ -17,7 +17,6 @@ module FNIStash.Comm.Messages where
 import Control.Concurrent
 import FNIStash.File.Item
 
-
 data BMessage = Initializing {initStatus :: String}
               | Initialized
               | LocationContents {location :: Location, locContents :: Maybe Item}
@@ -31,6 +30,8 @@ data Message = FMessage FMessage
 type Messages = Chan Message
 
 newMessages = newChan
+dupMessages = dupChan
+
 
 onlyFMessages :: Chan Message -> IO [FMessage]
 onlyFMessages c = do

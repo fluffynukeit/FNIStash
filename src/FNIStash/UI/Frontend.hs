@@ -41,10 +41,6 @@ frontend messages = do
         case x of
             Initializing msg -> return div #= (msg ++ "...") # unit
             Error msg -> return div #= ("Error: " ++ msg) # unit
-            Initialized -> stash x #+ body # unit
-            LocationContents loc mItem -> do
-                case mItem of
-                    Just item -> newItemIcon item # insertAt loc
-                    Nothing -> return ()
-
+            Initialized -> stash messages #+ body # unit
+            LocationContents loc mItem -> updateCell loc mItem
 

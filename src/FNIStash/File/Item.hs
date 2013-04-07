@@ -12,10 +12,12 @@
 --
 -----------------------------------------------------------------------------
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module FNIStash.File.Item (
     getItem,
     showItem,
+    moveTo,
     Item(..),
     Location(..)
 ) where
@@ -50,7 +52,7 @@ data Item = Item
     , itemLocation :: Location
     , itemDataPieces :: (BS.ByteString, BS.ByteString)    -- Item data before and after location.
     , itemIcon :: String
-}
+} deriving (Eq, Ord, Show)
 
 
 data Mod = Mod {
@@ -65,13 +67,19 @@ data Mod = Mod {
     modClass :: ModClass,
     modText :: String,
     modPrecision :: Int
-}
+} deriving (Eq, Ord, Show)
 
 
 data DamageType = Physical | Fire | Electric | Ice | Poison | All | Unknown
-    deriving (Show, Eq)
+    deriving (Ord, Show, Eq)
 
 data ModClass = Normal | Innate | Augment
+    deriving (Ord, Eq, Show)
+
+moveTo loc (Item {..}) =
+    Item itemGUID itemName itemNumEnchants itemLevel itemNumSockets itemGems itemPoints
+         itemDamageTypes itemMods loc itemDataPieces itemIcon
+
 
 getItem :: Env -> BS.ByteString -> Get Item
 getItem env itemBinaryData = do

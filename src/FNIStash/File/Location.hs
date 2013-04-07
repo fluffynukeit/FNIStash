@@ -14,10 +14,7 @@
 
 {-# LANGUAGE OverloadedStrings #-}
 
-module FNIStash.File.Location (
-    Location (..),
-    getLocation
-) where
+module FNIStash.File.Location where
 
 import FNIStash.Logic.Env
 import FNIStash.File.Variables
@@ -26,6 +23,8 @@ import FNIStash.File.DAT
 import qualified Data.ByteString as BS
 import Data.Binary.Strict.Get
 import Data.Word
+import Data.List.Split
+
 
 data Location = Location
     { locContainer :: String
@@ -46,3 +45,14 @@ getLocation env = do
         Just slotID = lkupVar vUNIQUEID slotType >>= word32Var
         index = fromIntegral locBytes - slotID
     return $ Location containerName slotName $ fromIntegral index
+
+locIdGenerator :: Location -> (Int -> String)
+locIdGenerator loc = \x -> locContainer loc ++ ":" ++ locSlot loc ++ ":" ++ (show $ x)
+
+locToId :: Location -> String
+locToId loc = locIdGenerator loc $ locIndex loc
+
+idToLoc :: String -> Location
+idToLoc id =
+    let (a:b:c:rest) = splitOn ":" id
+    in Location a b (read c)

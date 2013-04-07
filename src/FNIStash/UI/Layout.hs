@@ -14,41 +14,36 @@
 
 module FNIStash.UI.Layout (
     stash,
-    insertAt
+    updateCell
 ) where
 
 import FNIStash.UI.Icon
 import FNIStash.File.Location
+import FNIStash.Comm.Messages
 
 import Graphics.UI.Threepenny.Browser
 import Graphics.UI.Threepenny
 
 import Control.Monad
-
-import Debug.Trace
-
-locIdGenerator :: Location -> (Int -> String)
-locIdGenerator loc = \x -> locContainer loc ++ ":" ++ locSlot loc ++ ":" ++ (show $ x)
-
-locToId :: Location -> String
-locToId loc = locIdGenerator loc $ locIndex loc
+import Control.Monad.Trans
+import Data.Maybe
 
 sharedStashArms = (Location "SHARED_STASH_BAG_ARMS" "BAG_ARMS_SLOT" 0, "ig_inventorytabs_arms")
 sharedStashCons = (Location "SHARED_STASH_BAG_CONSUMABLES" "BAG_CONSUMABLES_SLOT" 0, "ig_inventorytabs_consumables")
 sharedStashSpells = (Location "SHARED_STASH_BAG_SPELLS" "BAG_SPELL_SLOT" 0, "ig_inventorytabs_spells")
 
-stash _ = do
+stash mes = do
     cont <- new ## "sharedstash_div"
     newIcon "ig_merchant_menu_base" ## "sharedstash_img" #+ cont
-    let gStack = tabbedGridStack 5 8 [sharedStashArms, sharedStashCons, sharedStashSpells]
+    let gStack = tabbedGridStack mes 5 8 [sharedStashArms, sharedStashCons, sharedStashSpells]
     gStack ## "sharedstash_stack" #+ cont
     return cont
 
-tabbedGridStack r c templates = do
+tabbedGridStack messages r c templates = do
     div <- new #. "tabbed_grid_stack"
     -- make a triplet of grid, tab for grid, and tab image prefix
     gridTabTrips <- forM templates (\(loc, tabImg) -> do
-        trip1 <- grid r c (locIdGenerator loc)
+        trip1 <- grid messages r c (locIdGenerator loc)
         trip2 <- newIcon (tabImg ++ "_unselected_") #. "inventory_tab" ## tabImg
         return (trip1, trip2, tabImg)
         )
@@ -86,43 +81,45 @@ complements list =
         elemsNotMe (i, e) = (e, map snd $ filter (\(k,_) -> i /= k) pairList)
     in map elemsNotMe pairList
 
---tabbedGrid (r, c, loc, im) otherPages = do
---    div <- new #. "tabbedgrid"
---    g <- grid r c (locIdGenerator loc)
---    i <- newIcon (im ++ "_unselected_") #. "inventory_tab"  ## im
---    return g #+ div # unit
---    return i #+ div # unit
---    onClick i (\_ -> do
---        return i # setSrc (im ++ "_selected_") # unit
---        return g # set "style" "z-index:10;" # unit
---        forM_ otherPages (\other -> return other # set "style" "z-index:-1;" # unit))
---    return g
 
-grid r c gen = do
+grid messages r c gen = do
     let rowStarts = [0, c .. r*c-1]
     grid <- new #. "grid"
-    mapM (\startId -> gridRow startId c gen #+ grid) rowStarts
+    mapM (\startId -> gridRow messages startId c gen #+ grid) rowStarts
     return grid
 
-gridRow startId n gen = do
+gridRow messages startId n gen = do
     let idList = [startId..startId+n-1]
     row <- (new #. "gridrow")
-    mapM (\id -> gridCell id gen #+ row) idList
+    mapM (\id -> gridCell messages id gen #+ row) idList
     return row
 
 
-gridCell id gen = do
-    d <- new ## (gen id) #. "gridcell" # allowDrop
+gridCell messages id gen = do
+    let idString = gen id
+    d <- new ## idString #. "gridcell" # allowDrop
     onDragEnter d $ \_ -> set "style" "background-color:#ffff99;" d # unit
     onDragLeave d $ \_ -> set "style" "background-color:transparent;" d # unit
     onDragEnd d $ \_ -> set "style" "background-color:transparent;" d # unit
-    onDrop d $  \(EventData a) -> set "style" "background-color:transparent;" d # unit
+    onDrop d $  \(EventData eData) -> do
+        set "style" "background-color:transparent;" d # unit
+        liftIO (notifyMove messages eData idString)
     return d
 
+notifyMove mes eData toId = do
+    let fromId = fromJust $ head eData
+        from = idToLoc fromId
+        to = idToLoc toId
+    writeFMessage mes $ Move from to
 
-insertAt loc itemElems = do
+updateCell loc mItem = do
     let id = locToId loc
     mEl <- getElementById id
-    case mEl of
-        Just el -> return itemElems # setDragData id #+ el # unit
-        Nothing -> return ()
+    maybe (trace ("ID not found!!!: " ++ id) return ()) (\el -> do
+        case mItem of
+            Just item   -> do
+                emptyEl el
+                newItemIcon item # setDragData id #+ el # unit
+            Nothing     -> emptyEl el # unit)
+        mEl
+
