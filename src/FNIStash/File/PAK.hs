@@ -28,7 +28,6 @@ module FNIStash.File.PAK (
 
 import FNIStash.File.General
 
-import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString as SBS
 import qualified Data.Map as M
 import qualified Data.List as L
@@ -59,12 +58,10 @@ filterMANByPrefix man prefList =
 
 
 pakSeek pakFile (file, offset) = do
-    withBinaryFile pakFile ReadMode (
-        \h -> hSeek h AbsoluteSeek (fromIntegral offset - 4) >>
-        return h >>=
-        LBS.hGetContents >>=
-        (\c -> return $! LG.runGet getPAKEntry c) >>=
-        return . (,) file
+    withBinaryFile pakFile ReadMode ( \h -> do
+        hSeek h AbsoluteSeek (fromIntegral offset - 4)
+        p <- readPAKEntry h
+        return $! (file, p)
         )
         
 pakFiles :: MAN -> FilePath -> IO (PAKFiles)
@@ -181,16 +178,20 @@ getFileType = do
         0x15 -> Mpp
         _    -> Unrecognized
 
-getPAKEntry :: LG.Get PAKEntry
-getPAKEntry = do
-    hdr <- LG.getWord32le
-    decSize <- LG.getWord32le
-    encSize <- LG.getWord32le
-    encData <- LG.getByteString (fromIntegral encSize) >>= return . SBS.copy
-    return $ PAKEntry hdr decSize encSize $! encData
+getPAKEntryHdr = do
+    hdr <- SG.getWord32le
+    decSize <- SG.getWord32le
+    encSize <- SG.getWord32le
+    return (hdr, decSize, encSize)
+
+readPAKEntry movedHandle = do
+    hdrBS <- SBS.hGet movedHandle 12
+    let (Right (hdr, decSize, encSize), _) = SG.runGet getPAKEntryHdr hdrBS
+    dataBS <- SBS.hGet movedHandle $ fromIntegral encSize
+    return $! PAKEntry hdr decSize encSize $! dataBS
 
 
-
+    
 
 
 
