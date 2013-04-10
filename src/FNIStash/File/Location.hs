@@ -25,7 +25,6 @@ import Data.Binary.Strict.Get
 import Data.Word
 import Data.List.Split
 
-
 data Location = Location
     { locContainer :: String
     , locSlot :: String

@@ -25,7 +25,21 @@ newItemIcon item = do
     i <- newIcon (itemIcon item)
         #. "item"
         # allowDrag
+    onHover i $ \_ -> makePopUp item
+    onBlur i $ \_ -> killPopUp
     return i
+
+makePopUp item = do
+    let displayText = showItem item
+    body <- getBody
+    new #. "itempopup" ## "itempopup" #= displayText #+ body # unit
+
+killPopUp :: MonadTP m => m ()
+killPopUp = do
+    maybeP <- getElementById "itempopup"
+    case maybeP of
+        Nothing -> return ()
+        Just p -> delete p
 
 itemPopup item = new #. "itempopup" #= (showItem item)
 

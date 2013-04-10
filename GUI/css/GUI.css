@@ -17,11 +17,11 @@
     position: absolute;
     top: 0;
     left: 0;
-}
+    }
 
 .gridrow {
 	display: table-row;
-}
+    }
 
 .gridcell {
     height: 57px;
@@ -35,15 +35,20 @@
 	display: table-cell;
     padding: 0 0 0 0;
     overflow:hidden;
-}
+    }
    
 .item {
     max-height: 57px;
     display: block;
     cursor:pointer;cursor:hand;
-}
-	
+    }
 
+.itempopup {
+    max-width: 200px;
+    position: absolute;
+    top: 65px;
+    left: 530px;
+    }
 
 #ig_inventorytabs_arms {
 	position: absolute;
