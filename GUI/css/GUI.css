@@ -1,15 +1,4 @@
-
-
-#sharedstash_div {
-	position: relative;
-	}
-    
-#sharedstash_stack {    
-    position: absolute;
-    top: 42px;
-	left: 19px;
-    } 
-    
+/* General layout */
  .grid {
 	display: table;
     table-layout:fixed;
@@ -43,13 +32,44 @@
     cursor:pointer;cursor:hand;
     }
 
+/* Item display popup */
 .itempopup {
     max-width: 200px;
     position: absolute;
     top: 65px;
     left: 530px;
+    background-color:black;
+    border-color: orange;
+    border-style: solid;
     }
 
+.poplevel {
+    position: relative;
+    right: 60px;
+    color: white;
+    }
+
+.poptitle {
+    font-size: 16;
+    color: orange;
+    }
+
+.popmod {
+    font-size: 12;
+    color: blue;
+    }
+    
+/* Positioning of elements */
+#sharedstash_div {
+	position: relative;
+	}
+    
+#sharedstash_stack {    
+    position: absolute;
+    top: 42px;
+	left: 19px;
+    } 
+    
 #ig_inventorytabs_arms {
 	position: absolute;
 	left: 153px;

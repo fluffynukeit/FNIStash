@@ -20,6 +20,7 @@ import FNIStash.File.SharedStash
 import Graphics.UI.Threepenny
 import Graphics.UI.Threepenny.Browser
 
+import Control.Monad
 
 newItemIcon item = do
     i <- newIcon (itemIcon item)
@@ -32,7 +33,17 @@ newItemIcon item = do
 makePopUp item = do
     let displayText = showItem item
     body <- getBody
-    new #. "itempopup" ## "itempopup" #= displayText #+ body # unit
+    container <- new #. "itempopup" ## "itempopup"
+    new #. "poplevel" #= "Level " ++ (show.itemLevel) item #+ container
+    newIcon (itemIcon item) #. "popicon" #+ container
+    new #. "poptitle" #= itemName item #+ container
+    new #. "poppoints" #= (show.itemPoints) item #+ container
+    forM_ (itemMods item) $ \mod -> do
+        new #. "popmod" #= showMod mod #+ container
+    new #. "popnumenchants" #= (show.itemNumEnchants) item #+ container
+    return container #+ body # unit
+
+
 
 killPopUp :: MonadTP m => m ()
 killPopUp = do

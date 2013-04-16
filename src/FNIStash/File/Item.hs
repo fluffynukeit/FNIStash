@@ -18,6 +18,7 @@ module FNIStash.File.Item (
     getItem,
     showItem,
     moveTo,
+    showMod,
     Item(..),
     Location(..)
 ) where
