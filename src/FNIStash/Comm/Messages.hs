@@ -21,8 +21,10 @@ data BMessage = Initializing {initStatus :: String}
               | Initialized
               | LocationContents {location :: Location, locContents :: Maybe Item}
               | Error {errorStatus :: String}
+              | Saved
 
 data FMessage = Move {moveFrom :: Location, moveTo :: Location}
+              | Save
 
 data Message = FMessage FMessage
              | BMessage BMessage

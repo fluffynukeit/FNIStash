@@ -16,6 +16,7 @@
 
 module FNIStash.File.Item (
     getItem,
+    putItem,
     showItem,
     moveTo,
     showMod,
@@ -32,6 +33,7 @@ import FNIStash.File.Location
 
 import qualified Data.ByteString as BS
 import Data.Binary.Strict.Get
+import Data.Binary.Put
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Loops
@@ -118,7 +120,7 @@ getItem env itemBinaryData = do
                       (fromIntegral nSockets) gems (fromIntegral (if maxDmg == 0xFFFFFFFF then armor else maxDmg))
                       elements modLists location
                       (BS.take nBytesBeforeLocation itemBinaryData,
-                       BS.drop (nBytesBeforeLocation+2) itemBinaryData)
+                       BS.drop (nBytesBeforeLocation+4) itemBinaryData)
                        iconName
 
 getDamageType = do
@@ -166,6 +168,18 @@ damageTypeLookup 0x04 = Electric
 damageTypeLookup 0x05 = Poison
 damageTypeLookup 0x06 = All
 damageTypeLookup _ = Unknown
+
+
+-- TODO look out! I think only item data in the shared stash file is prefixed by its length
+putItem :: Env -> Item -> Put
+putItem env item = do
+    let data1 = fst $ itemDataPieces item
+        data2 = snd $ itemDataPieces item
+        dataLength = BS.length data1 + BS.length data2 + 4
+    putWord32le $ fromIntegral dataLength
+    putByteString data1
+    putLocation env $ itemLocation item
+    putByteString data2
 
 
 getIconName env guid =

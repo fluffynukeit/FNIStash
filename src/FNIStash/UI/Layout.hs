@@ -14,6 +14,7 @@
 
 module FNIStash.UI.Layout (
     stash,
+    controls,
     updateCell
 ) where
 
@@ -31,6 +32,14 @@ import Data.Maybe
 sharedStashArms = (Location "SHARED_STASH_BAG_ARMS" "BAG_ARMS_SLOT" 0, "ig_inventorytabs_arms")
 sharedStashCons = (Location "SHARED_STASH_BAG_CONSUMABLES" "BAG_CONSUMABLES_SLOT" 0, "ig_inventorytabs_consumables")
 sharedStashSpells = (Location "SHARED_STASH_BAG_SPELLS" "BAG_SPELL_SLOT" 0, "ig_inventorytabs_spells")
+
+controls mes body = do
+    controls <- new
+    msgWindow <- new #. "msgwindow" #+ controls
+    saveButton <- new #= "Click here to save" #+ controls
+    onClick saveButton $ \_ -> liftIO (notifySave mes)
+    return controls #+ body
+    return msgWindow
 
 stash mes = do
     cont <- new ## "sharedstash_div"
@@ -111,6 +120,8 @@ notifyMove mes eData toId = do
         from = idToLoc fromId
         to = idToLoc toId
     writeFMessage mes $ Move from to
+
+notifySave mes = writeFMessage mes Save
 
 updateCell loc mItem = do
     let id = locToId loc

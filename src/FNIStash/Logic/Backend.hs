@@ -23,6 +23,7 @@ import FNIStash.File.Location
 import FNIStash.Comm.Messages
 import FNIStash.File.Crypto
 import FNIStash.File.SharedStash
+import FNIStash.Logic.Items
 
 import Filesystem.Path
 import Filesystem.Path.CurrentOS
@@ -34,7 +35,7 @@ import Control.Monad
 testDir = "C:\\Users\\Dan\\Desktop\\FNI Testing"
 sharedStashCrypted = testDir </> "sharedstash_v2.bin"
 textOutputPath = testDir </> "sharedStashTxt.txt"
-
+savePath = testDir </> "testSave.bin"
 
 -- Gets/makes the necessary application paths
 ensurePaths = do
@@ -49,7 +50,8 @@ backend messages appRoot guiRoot = do
 
      -- Descramble the scrambled shared stash file.  Just reads the test file for now. Needs to
     -- eventually read the file defined by cfg
-    ssData <- readCryptoFile (encodeString sharedStashCrypted) >>= return . fileGameData
+    cryptoFile <- readCryptoFile (encodeString sharedStashCrypted)
+    let ssData = fileGameData cryptoFile
 
     let sharedStashResult = parseSharedStash env ssData
     case sharedStashResult of
@@ -57,7 +59,7 @@ backend messages appRoot guiRoot = do
         Right sharedStash -> do
             dumpItemLocs messages sharedStash
             msgList <- liftIO $ onlyFMessages messages
-            handleMessages messages sharedStash msgList
+            handleMessages env messages cryptoFile sharedStash msgList
 
 dumpItemLocs messages sharedStash = mapM_ dumpItem sharedStash where
     dumpItem i = writeBMessage messages $ case i of
@@ -65,10 +67,12 @@ dumpItemLocs messages sharedStash = mapM_ dumpItem sharedStash where
         Right item -> LocationContents (itemLocation item) $ Just item
 
 
-handleMessages m sharedStash (msg:rest) = do
-    let (newStash, updates) = case msg of
+handleMessages env m cryptoFile sharedStash (msg:rest) = do
+    (newStash, updates) <- case msg of
             Move from to -> moveContents from to sharedStash
+            Save -> do
+                a <- saveItems env cryptoFile sharedStash (encodeString savePath)
+                writeBMessage m Saved
+                return a
     forM updates $ \(loc, contents) -> writeBMessage m $ LocationContents loc contents
-    handleMessages m newStash rest
-
-
+    handleMessages env m cryptoFile newStash rest

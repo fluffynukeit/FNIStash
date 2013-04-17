@@ -7,7 +7,6 @@ license-file: LICENSE
 copyright: 2013 Daniel Austin
 maintainer: dan@fluffynukeit.com
 stability: Development
-description:  
 author: Daniel Austin
 data-dir: ""
  
@@ -21,8 +20,8 @@ executable FNIStash
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: FNIStash.UI.Layout FNIStash.UI.Icon
-                   FNIStash.UI.Frontend FNIStash.Logic.Translate
+    other-modules: FNIStash.Logic.Items FNIStash.UI.Layout
+                   FNIStash.UI.Icon FNIStash.UI.Frontend FNIStash.Logic.Translate
                    FNIStash.Logic.Initialize FNIStash.Logic.Env FNIStash.Logic.Config
                    FNIStash.Logic.Backend FNIStash.File.Variables
                    FNIStash.File.SharedStash FNIStash.File.PAK FNIStash.File.Location
@@ -42,8 +41,8 @@ executable FNIStash-Debug
     extra-libraries: libIL
     extra-lib-dirs: "C:\\Users\\Dan\\My Code\\DevIL-SDK-x86-1.7.8\\lib"
     hs-source-dirs: src
-    other-modules: FNIStash.UI.Layout FNIStash.UI.Icon
-                   FNIStash.UI.Frontend FNIStash.Logic.Translate
+    other-modules: FNIStash.Logic.Items FNIStash.UI.Layout
+                   FNIStash.UI.Icon FNIStash.UI.Frontend FNIStash.Logic.Translate
                    FNIStash.Logic.Initialize FNIStash.Logic.Env FNIStash.Logic.Config
                    FNIStash.Logic.Backend FNIStash.File.Variables
                    FNIStash.File.SharedStash FNIStash.File.PAK FNIStash.File.Location

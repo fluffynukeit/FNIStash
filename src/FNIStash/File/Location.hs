@@ -22,6 +22,7 @@ import FNIStash.File.DAT
 
 import qualified Data.ByteString as BS
 import Data.Binary.Strict.Get
+import Data.Binary.Put
 import Data.Word
 import Data.List.Split
 
@@ -37,13 +38,20 @@ getLocation env = do
     locBytes <- getWord16le
     containerID <- getWord16le
     let l = lkupLocNodes env
-        (Just container, slotType) = l locBytes containerID
+        (slotType, Just container) = l locBytes containerID
         -- get the Container name
         Just containerName = lkupVar vNAME container >>= stringVar
         Just slotName = lkupVar vNAME slotType >>= stringVar
         Just slotID = lkupVar vUNIQUEID slotType >>= word32Var
         index = fromIntegral locBytes - slotID
-    return $ Location containerName slotName $ fromIntegral index
+    return $ Location containerName slotName (fromIntegral index)
+
+putLocation :: Env -> Location -> Put
+putLocation env loc = do
+    let l = lkupLocIDs env
+        (Just slotID, Just contID) = l (locSlot loc) (locContainer loc)
+    putWord16le (slotID + (fromIntegral $ locIndex loc))
+    putWord16le contID
 
 locIdGenerator :: Location -> (Int -> String)
 locIdGenerator loc = \x -> locContainer loc ++ ":" ++ locSlot loc ++ ":" ++ (show $ x)

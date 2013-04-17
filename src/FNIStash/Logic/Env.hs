@@ -42,7 +42,8 @@ import qualified Data.Map as M
 data Env = Env
     { lkupEffect :: Word32 -> Maybe DATNode
     , lkupSkill :: T.Text -> Maybe DATNode
-    , lkupLocNodes :: Word16 -> Word16 -> (Maybe DATNode, DATNode) -- location, containerID -> Container node, slot node
+    , lkupLocNodes :: Word16 -> Word16 -> (DATNode, Maybe DATNode) -- location, containerID -> Container node, slot node
+    , lkupLocIDs :: String -> String -> (Maybe Word16, Maybe Word16)
     , lkupItemGUID :: Int64 -> Maybe DATNode
     , lkupItemPath :: T.Text -> Maybe DATNode
     }
@@ -51,10 +52,10 @@ data Env = Env
 buildEnv pak =
     let effects = effectLookup pak
         skills = skillLookup pak
-        bytesToNodesFxn = locLookup pak
+        (bytesToNodesFxn, nodesToBytesFxn) = locLookup pak
         itemsGUID = itemLookupGUID pak
         itemsPath = itemLookupPath pak
-    in Env effects skills bytesToNodesFxn itemsGUID itemsPath
+    in Env effects skills bytesToNodesFxn nodesToBytesFxn itemsGUID itemsPath
 
 -- Each of the functions below returns a lookup function.  This is how we can keep the loaded PAK
 -- handy for repeated lookups since we cannot have a global.  The PAK stays on the stack.
@@ -93,12 +94,15 @@ locLookup pak =
     -- file, but now each slot is its own dat file.  I did as little as I needed to adapt the old
     -- algorithm to the new organizational scheme
     let invenSlotFiles = M.filterWithKey (\k _ -> T.isInfixOf "MEDIA/INVENTORY" k && not (T.isInfixOf "MEDIA/INVENTORY/CONTAINERS" k)) pak
-        slotsDatFiles = readDATFiles invenSlotFiles "MEDIA/INVENTORY" (\x -> lkupVar vNAME x >>= textVar)
+        getName = \x -> lkupVar vNAME x >>= textVar
+        slotsDatFiles = readDATFiles invenSlotFiles "MEDIA/INVENTORY" (fromJust . getName)
         allSlotTypesList = M.elems slotsDatFiles
-        --allSlotTypesList = datSubNodes allSlotTypesRoot
-        containerIDFinder = \dat -> fromJust (lkupVar vUNIQUEID dat >>= word32Var >>= \x -> return (fromIntegral x :: Word16))
+        -- allSlotTypeList is a list of all Dat files for slots.  SlotDatFiles is a map of slot name
+        -- to Dat file
+
+        idFinder = \dat -> lkupVar vUNIQUEID dat >>= word32Var >>= \x -> return (fromIntegral x :: Word16)
         -- containers is a map of container ID to DATNode for the container
-        containers = readDATFiles pak "MEDIA/INVENTORY/CONTAINERS" containerIDFinder
+        containers = readDATFiles pak "MEDIA/INVENTORY/CONTAINERS" (fromJust . idFinder)
 
         -- make a search function for finding the slot type with unique ID closest but no greater
         -- than the locBytes Word16
@@ -106,11 +110,20 @@ locLookup pak =
         winningSlot locBytes = priceIsRightSearch locBytes getID allSlotTypesList
 
         -- Now to piece it all together
-        locBytesContIDToContSlot locBytes contID =
+        locBytesContIDToSlotCont locBytes contID =
             let cont = lkupDATFile containers contID
                 slot = winningSlot locBytes
-            in (cont, slot)
-    in locBytesContIDToContSlot
+            in (slot, cont)
+
+        -- Now create the reverse lookup: Given container and slot name, get container ID and slot ID
+        slotNameToId :: String -> Maybe Word16
+        slotNameToId name = M.lookup (T.pack name) slotsDatFiles >>= idFinder
+
+        revContMap = M.fromList $ map (\(a,b) -> (fromJust $ getName b, a)) $ M.toList containers
+
+
+        slotContToLocBytesContID slotName contName = (slotNameToId slotName, M.lookup (T.pack contName) revContMap)
+    in (locBytesContIDToSlotCont, slotContToLocBytesContID)
 
 
 
