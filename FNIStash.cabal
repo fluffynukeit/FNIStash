@@ -7,46 +7,49 @@ license-file: LICENSE
 copyright: 2013 Daniel Austin
 maintainer: dan@fluffynukeit.com
 stability: Development
+description:  
 author: Daniel Austin
 data-dir: ""
  
 executable FNIStash
-    build-depends: Codec-Image-DevIL -any, array -any, base -any,
-                   binary -any, binary-strict -any, bytestring -any,
-                   configurator -any, containers -any, data-endian -any, errors -any,
-                   filepath -any, monad-loops -any, mtl -any, split -any,
-                   system-fileio -any, system-filepath -any, text -any,
-                   threepenny-gui -any, tuple -any, xml -any, zlib -any
+    build-depends: Codec-Image-DevIL -any, HDBC -any,
+                   HDBC-sqlite3 -any, array -any, base -any, binary -any,
+                   binary-strict -any, bytestring -any, configurator -any,
+                   containers -any, data-endian -any, errors -any, filepath -any,
+                   monad-loops -any, mtl -any, split -any, system-fileio -any,
+                   system-filepath -any, text -any, threepenny-gui -any, tuple -any,
+                   xml -any, zlib -any
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: FNIStash.Logic.Items FNIStash.UI.Layout
-                   FNIStash.UI.Icon FNIStash.UI.Frontend FNIStash.Logic.Translate
-                   FNIStash.Logic.Initialize FNIStash.Logic.Env FNIStash.Logic.Config
-                   FNIStash.Logic.Backend FNIStash.File.Variables
-                   FNIStash.File.SharedStash FNIStash.File.PAK FNIStash.File.Location
-                   FNIStash.File.Item FNIStash.File.General FNIStash.File.DAT
-                   FNIStash.File.Crypto FNIStash.Comm.Messages
+    other-modules: FNIStash.UI.Layout FNIStash.UI.Icon
+                   FNIStash.UI.Frontend FNIStash.Logic.Translate FNIStash.Logic.Items
+                   FNIStash.Logic.Initialize FNIStash.Logic.Env FNIStash.Logic.DB
+                   FNIStash.Logic.Config FNIStash.Logic.Backend
+                   FNIStash.File.Variables FNIStash.File.SharedStash FNIStash.File.PAK
+                   FNIStash.File.Location FNIStash.File.Item FNIStash.File.General
+                   FNIStash.File.DAT FNIStash.File.Crypto FNIStash.Comm.Messages
     ghc-options: -O2 -prof -rtsopts
  
 executable FNIStash-Debug
-    build-depends: Codec-Image-DevIL -any, array -any, base -any,
-                   binary -any, binary-strict -any, bytestring -any,
-                   configurator -any, containers -any, data-endian -any, errors -any,
-                   filepath -any, monad-loops -any, mtl -any, split -any,
-                   system-fileio -any, system-filepath -any, text -any,
-                   threepenny-gui -any, tuple -any, xml -any, zlib -any
+    build-depends: Codec-Image-DevIL -any, HDBC -any,
+                   HDBC-sqlite3 -any, array -any, base -any, binary -any,
+                   binary-strict -any, bytestring -any, configurator -any,
+                   containers -any, data-endian -any, errors -any, filepath -any,
+                   monad-loops -any, mtl -any, split -any, system-fileio -any,
+                   system-filepath -any, text -any, threepenny-gui -any, tuple -any,
+                   xml -any, zlib -any
     main-is: Main.hs
     buildable: True
     extra-libraries: libIL
     extra-lib-dirs: "C:\\Users\\Dan\\My Code\\DevIL-SDK-x86-1.7.8\\lib"
     hs-source-dirs: src
-    other-modules: FNIStash.Logic.Items FNIStash.UI.Layout
-                   FNIStash.UI.Icon FNIStash.UI.Frontend FNIStash.Logic.Translate
-                   FNIStash.Logic.Initialize FNIStash.Logic.Env FNIStash.Logic.Config
-                   FNIStash.Logic.Backend FNIStash.File.Variables
-                   FNIStash.File.SharedStash FNIStash.File.PAK FNIStash.File.Location
-                   FNIStash.File.Item FNIStash.File.General FNIStash.File.DAT
-                   FNIStash.File.Crypto FNIStash.Comm.Messages
+    other-modules: FNIStash.UI.Layout FNIStash.UI.Icon
+                   FNIStash.UI.Frontend FNIStash.Logic.Translate FNIStash.Logic.Items
+                   FNIStash.Logic.Initialize FNIStash.Logic.Env FNIStash.Logic.DB
+                   FNIStash.Logic.Config FNIStash.Logic.Backend
+                   FNIStash.File.Variables FNIStash.File.SharedStash FNIStash.File.PAK
+                   FNIStash.File.Location FNIStash.File.Item FNIStash.File.General
+                   FNIStash.File.DAT FNIStash.File.Crypto FNIStash.Comm.Messages
     ghc-options: -O2 -prof -rtsopts -auto-all
  

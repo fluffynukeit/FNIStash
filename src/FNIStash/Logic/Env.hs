@@ -46,6 +46,7 @@ data Env = Env
     , lkupLocIDs :: String -> String -> (Maybe Word16, Maybe Word16)
     , lkupItemGUID :: Int64 -> Maybe DATNode
     , lkupItemPath :: T.Text -> Maybe DATNode
+    , totalItems :: Int
     }
 
 -- build the lookup environment needed for app operations
@@ -53,16 +54,16 @@ buildEnv pak =
     let effects = effectLookup pak
         skills = skillLookup pak
         (bytesToNodesFxn, nodesToBytesFxn) = locLookup pak
-        itemsGUID = itemLookupGUID pak
+        (itemsGUID, totalItems) = itemLookupGUID pak
         itemsPath = itemLookupPath pak
-    in Env effects skills bytesToNodesFxn nodesToBytesFxn itemsGUID itemsPath
+    in  Env effects skills bytesToNodesFxn nodesToBytesFxn itemsGUID itemsPath totalItems
 
 -- Each of the functions below returns a lookup function.  This is how we can keep the loaded PAK
 -- handy for repeated lookups since we cannot have a global.  The PAK stays on the stack.
 itemLookupGUID pak =
     let guidFinder = \x -> fromJust $ lkupVar vUNIT_GUID x >>= stringVar >>= return . read
         dat = readDATFiles pak "MEDIA/UNITS/ITEMS" guidFinder -- p is pak
-    in (\idInt64 -> lkupDATFile dat idInt64)
+    in (\idInt64 -> lkupDATFile dat idInt64, M.size dat)
 
 itemLookupPath pak =
     let ffp p = T.replace "\\" "/" p -- fix file path

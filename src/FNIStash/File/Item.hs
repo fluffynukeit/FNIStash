@@ -44,6 +44,7 @@ import Data.Maybe
 
 data Item = Item
     { itemGUID :: Int64
+    , itemRandomID :: BS.ByteString
     , itemName :: String
     , itemNumEnchants :: Int
     , itemLevel :: Int
@@ -80,7 +81,7 @@ data ModClass = Normal | Innate | Augment
     deriving (Ord, Eq, Show)
 
 moveTo loc (Item {..}) =
-    Item itemGUID itemName itemNumEnchants itemLevel itemNumSockets itemGems itemPoints
+    Item itemGUID itemRandomID itemName itemNumEnchants itemLevel itemNumSockets itemGems itemPoints
          itemDamageTypes itemMods loc itemDataPieces itemIcon
 
 
@@ -91,7 +92,7 @@ getItem env itemBinaryData = do
     name <- getTorchString
     prefix <- getTorchString
     suffix <- getTorchString
-    serial <- getByteString 24
+    randomID <- getByteString 24
     bytes1 <- getByteString 29  -- not sure what these do
     nEnchants <- getWord32le
     nBytesBeforeLocation <- bytesRead
@@ -116,7 +117,7 @@ getItem env itemBinaryData = do
     -- consumed by identifying the end of the mod lists
     replicateM 3 getWord32le
     let iconName = getIconName env guid
-    return $ Item guid (unwords [name, prefix, suffix]) (fromIntegral nEnchants) level
+    return $ Item guid randomID (unwords [name, prefix, suffix]) (fromIntegral nEnchants) level
                       (fromIntegral nSockets) gems (fromIntegral (if maxDmg == 0xFFFFFFFF then armor else maxDmg))
                       elements modLists location
                       (BS.take nBytesBeforeLocation itemBinaryData,

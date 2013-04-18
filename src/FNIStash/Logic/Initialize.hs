@@ -26,6 +26,7 @@ module FNIStash.Logic.Initialize (
 -- FNIStash stuff
 import FNIStash.Logic.Config
 import FNIStash.Logic.Env
+import FNIStash.Logic.DB
 import FNIStash.File.SharedStash
 import FNIStash.File.Crypto
 import FNIStash.File.PAK
@@ -73,6 +74,10 @@ initialize messages appRoot guiRoot = do
     -- First do one time initialization stuff
     writeBMessage messages  $ Initializing "Checking config file"
     cfg <- ensureConfig appRoot
+
+    -- Construct the DB
+    writeBMessage messages $ Initializing "Instantiating database"
+    initializeDB appRoot
 
     writeBMessage messages $ Initializing "Generating icons for first time.  Please wait."
     ensureGUIAssets guiRoot cfg
