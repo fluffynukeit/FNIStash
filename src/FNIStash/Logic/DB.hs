@@ -12,14 +12,18 @@
 --
 -----------------------------------------------------------------------------
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module FNIStash.Logic.DB (
     initializeDB
 ) where
 
+import FNIStash.File.Item
+
 import Database.HDBC
 import Database.HDBC.Sqlite3
 import Data.Monoid
+import Data.Time.LocalTime
 
 import Filesystem.Path.CurrentOS
 
@@ -32,5 +36,12 @@ initializeDB appRoot = do
         ", current_location TEXT NOT NULL" <>
         ", description TEXT NOT NULL" <>
         ", comment TEXT NOT NULL" <>
-        ", binary_data BLOB NOT NULL)") []
+        ", binary_data_ BLOB NOT NULL)") []
+    return conn
 
+register env conn item@(Item {..}) = do
+    zonedTime <- getZonedTime
+    let localTime = zonedTimeToLocalTime zonedTime
+    run conn "INSERT INTO registry VALUES (?, ?, ?, ?, ?, ?, ?)"
+        [ toSql itemGUID, toSql itemRandomID, toSql localTime, toSql (locToId itemLocation)
+        , toSql (showItem item), toSql (""::String), toSql (itemAsBS env item)]

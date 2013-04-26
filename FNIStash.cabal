@@ -11,34 +11,14 @@ description:
 author: Daniel Austin
 data-dir: ""
  
-executable FNIStash
-    build-depends: Codec-Image-DevIL -any, HDBC -any,
-                   HDBC-sqlite3 -any, array -any, base -any, binary -any,
-                   binary-strict -any, bytestring -any, configurator -any,
-                   containers -any, data-endian -any, errors -any, filepath -any,
-                   monad-loops -any, mtl -any, split -any, system-fileio -any,
-                   system-filepath -any, text -any, threepenny-gui -any, tuple -any,
-                   xml -any, zlib -any
-    main-is: Main.hs
-    buildable: True
-    hs-source-dirs: src
-    other-modules: FNIStash.UI.Layout FNIStash.UI.Icon
-                   FNIStash.UI.Frontend FNIStash.Logic.Translate FNIStash.Logic.Items
-                   FNIStash.Logic.Initialize FNIStash.Logic.Env FNIStash.Logic.DB
-                   FNIStash.Logic.Config FNIStash.Logic.Backend
-                   FNIStash.File.Variables FNIStash.File.SharedStash FNIStash.File.PAK
-                   FNIStash.File.Location FNIStash.File.Item FNIStash.File.General
-                   FNIStash.File.DAT FNIStash.File.Crypto FNIStash.Comm.Messages
-    ghc-options: -O2 -prof -rtsopts
- 
 executable FNIStash-Debug
     build-depends: Codec-Image-DevIL -any, HDBC -any,
                    HDBC-sqlite3 -any, array -any, base -any, binary -any,
                    binary-strict -any, bytestring -any, configurator -any,
                    containers -any, data-endian -any, errors -any, filepath -any,
                    monad-loops -any, mtl -any, split -any, system-fileio -any,
-                   system-filepath -any, text -any, threepenny-gui -any, tuple -any,
-                   xml -any, zlib -any
+                   system-filepath -any, text -any, threepenny-gui -any, time -any,
+                   tuple -any, xml -any, zlib -any
     main-is: Main.hs
     buildable: True
     extra-libraries: libIL
@@ -52,4 +32,24 @@ executable FNIStash-Debug
                    FNIStash.File.Location FNIStash.File.Item FNIStash.File.General
                    FNIStash.File.DAT FNIStash.File.Crypto FNIStash.Comm.Messages
     ghc-options: -O2 -prof -rtsopts -auto-all
+ 
+executable FNIStash
+    build-depends: Codec-Image-DevIL -any, HDBC -any,
+                   HDBC-sqlite3 -any, array -any, base -any, binary -any,
+                   binary-strict -any, bytestring -any, configurator -any,
+                   containers -any, data-endian -any, errors -any, filepath -any,
+                   monad-loops -any, mtl -any, split -any, system-fileio -any,
+                   system-filepath -any, text -any, threepenny-gui -any, time -any,
+                   tuple -any, xml -any, zlib -any
+    main-is: Main.hs
+    buildable: True
+    hs-source-dirs: src
+    other-modules: FNIStash.UI.Layout FNIStash.UI.Icon
+                   FNIStash.UI.Frontend FNIStash.Logic.Translate FNIStash.Logic.Items
+                   FNIStash.Logic.Initialize FNIStash.Logic.Env FNIStash.Logic.DB
+                   FNIStash.Logic.Config FNIStash.Logic.Backend
+                   FNIStash.File.Variables FNIStash.File.SharedStash FNIStash.File.PAK
+                   FNIStash.File.Location FNIStash.File.Item FNIStash.File.General
+                   FNIStash.File.DAT FNIStash.File.Crypto FNIStash.Comm.Messages
+    ghc-options: -O2 -prof -rtsopts
  

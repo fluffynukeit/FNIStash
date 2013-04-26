@@ -21,7 +21,8 @@ module FNIStash.File.Item (
     moveTo,
     showMod,
     Item(..),
-    Location(..)
+    itemAsBS,
+    module FNIStash.File.Location
 ) where
 
 import FNIStash.File.General
@@ -182,6 +183,8 @@ putItem env item = do
     putLocation env $ itemLocation item
     putByteString data2
 
+
+itemAsBS env item = runPut (putItem env item)
 
 getIconName env guid =
     let lkupID = lkupItemGUID env -- looks up an item by Int64 GUID
