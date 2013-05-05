@@ -20,6 +20,7 @@ module FNIStash.UI.Frontend (
 import FNIStash.Comm.Messages
 import FNIStash.UI.Layout
 import FNIStash.UI.Icon
+import FNIStash.UI.Effects
 
 import Graphics.UI.Threepenny
 import Graphics.UI.Threepenny.Browser
@@ -40,8 +41,10 @@ frontend messages = do
     forM_ msgList $ \x -> do
         case x of
             Initializing msg -> return msgWindow #= (msg ++ "...") # unit
+            Info msg -> return msgWindow #= msg # unit
             Error msg -> return msgWindow #= ("Error: " ++ msg) # unit
             Initialized -> stash messages #+ body # unit
-            LocationContents loc mItem -> updateCell loc mItem
+            LocationContents loc mItem -> withCell loc $ updateItem mItem
             Saved -> return msgWindow #= "Data saved!" # unit
-
+            Registered locList -> forM_ locList (\loc -> withCell loc $ flashElement 500)
+            _ -> return ()

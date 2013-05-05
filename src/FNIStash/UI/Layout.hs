@@ -12,10 +12,11 @@
 --
 -----------------------------------------------------------------------------
 
-module FNIStash.UI.Layout (
-    stash,
-    controls,
-    updateCell
+module FNIStash.UI.Layout
+( stash
+, controls
+, withCell
+, updateItem
 ) where
 
 import FNIStash.UI.Icon
@@ -123,14 +124,14 @@ notifyMove mes eData toId = do
 
 notifySave mes = writeFMessage mes Save
 
-updateCell loc mItem = do
+withCell loc action = do
     let id = locToId loc
     mEl <- getElementById id
-    maybe (return ()) (\el -> do
-        case mItem of
-            Just item   -> do
-                emptyEl el
-                newItemIcon item # setDragData id #+ el # unit
-            Nothing     -> emptyEl el # unit)
-        mEl
+    maybe (return ()) action (fmap (\x -> (x, id)) mEl)
 
+updateItem mItem (el, id) = do
+    case mItem of
+        Just item   -> do
+            emptyEl el
+            newItemIcon item # setDragData id #+ el # unit
+        Nothing     -> emptyEl el # unit

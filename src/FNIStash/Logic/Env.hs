@@ -36,6 +36,7 @@ import Data.Binary.Get
 import Data.Word
 import Data.Int
 import qualified Data.Map as M
+import Database.HDBC.Sqlite3
 
 -- Env is the lookup environment we pass around manually.  (I suppose we could use a Reader monad
 -- but I tried it out and found it to be more complicated than simple argument passing)
@@ -47,16 +48,17 @@ data Env = Env
     , lkupItemGUID :: Int64 -> Maybe DATNode
     , lkupItemPath :: T.Text -> Maybe DATNode
     , totalItems :: Int
+    , dbConn :: Connection
     }
 
 -- build the lookup environment needed for app operations
-buildEnv pak =
+buildEnv pak conn =
     let effects = effectLookup pak
         skills = skillLookup pak
         (bytesToNodesFxn, nodesToBytesFxn) = locLookup pak
         (itemsGUID, totalItems) = itemLookupGUID pak
         itemsPath = itemLookupPath pak
-    in  Env effects skills bytesToNodesFxn nodesToBytesFxn itemsGUID itemsPath totalItems
+    in  Env effects skills bytesToNodesFxn nodesToBytesFxn itemsGUID itemsPath totalItems conn
 
 -- Each of the functions below returns a lookup function.  This is how we can keep the loaded PAK
 -- handy for repeated lookups since we cannot have a global.  The PAK stays on the stack.

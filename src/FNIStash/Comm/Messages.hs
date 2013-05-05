@@ -17,10 +17,12 @@ module FNIStash.Comm.Messages where
 import Control.Concurrent
 import FNIStash.File.Item
 
-data BMessage = Initializing {initStatus :: String}
+data BMessage = Initializing String
               | Initialized
-              | LocationContents {location :: Location, locContents :: Maybe Item}
-              | Error {errorStatus :: String}
+              | LocationContents Location (Maybe Item)
+              | Registered [Location]
+              | Error String
+              | Info String
               | Saved
 
 data FMessage = Move {moveFrom :: Location, moveTo :: Location}

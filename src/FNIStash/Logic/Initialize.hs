@@ -77,7 +77,7 @@ initialize messages appRoot guiRoot = do
 
     -- Construct the DB
     writeBMessage messages $ Initializing "Instantiating database"
-    initializeDB appRoot
+    conn <- initializeDB appRoot
 
     writeBMessage messages $ Initializing "Generating icons for first time.  Please wait."
     ensureGUIAssets guiRoot cfg
@@ -95,7 +95,7 @@ initialize messages appRoot guiRoot = do
 --    trace "end write -----------" $ return ()
 
     -- Build the data lookup environment
-    let env = buildEnv pak
+    let env = buildEnv pak conn
     writeBMessage messages $ Initialized
     return env
 
