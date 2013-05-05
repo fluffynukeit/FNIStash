@@ -80,7 +80,7 @@ dumpRegistrations env messages sharedStash = do
 -- registered items.
 registerStash env sharedStash =
     let parsedItems = rights sharedStash
-    in filterM (register env) $ trace ("Parsed items: " ++ (show $ length parsedItems)) parsedItems
+    in register env parsedItems
 
 
 handleMessages env m cryptoFile sharedStash (msg:rest) = do

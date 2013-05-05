@@ -23,6 +23,9 @@ import Database.HDBC
 import Database.HDBC.Sqlite3
 import Data.Monoid
 import Data.Time.LocalTime
+import Data.Maybe
+import Control.Monad
+import Control.Applicative
 
 import Filesystem.Path.CurrentOS
 import Filesystem
@@ -48,18 +51,23 @@ initializeDB appRoot = do
                 ", binary_data_ BLOB NOT NULL)") [] >> commit conn
     return conn
 
-register env item@(Item {..}) = do
-    zonedTime <- getZonedTime
-    let localTime = zonedTimeToLocalTime zonedTime
-        conn = dbConn env
-    wasRegistered <- isRegistered env item
-    if wasRegistered then
-        return False
-        else do
-        itemsInserted <- run conn "INSERT INTO registry VALUES (?, ?, ?, ?, ?, ?, ?)"
-            [ toSql itemGUID, toSql itemRandomID, toSql localTime, toSql (locToId itemLocation)
-            , toSql (showItem item), toSql (""::String), toSql (itemAsBS env item)]
-        if itemsInserted == 0 then return False else commit conn >> return True
+-- Given a list of items, registers those that have not been registered yet and
+-- returns the newly registered items in a list
+register env items = do
+    let conn = dbConn env
+    succItems <- fmap catMaybes $ forM items $ \item@(Item {..}) -> do
+        zonedTime <- getZonedTime
+        let localTime = zonedTimeToLocalTime zonedTime
+        wasRegistered <- isRegistered env item
+        if wasRegistered then
+            return Nothing
+            else do
+            itemsInserted <- run conn "INSERT INTO registry VALUES (?, ?, ?, ?, ?, ?, ?)"
+                [ toSql itemGUID, toSql itemRandomID, toSql localTime, toSql (locToId itemLocation)
+                , toSql (showItem item), toSql (""::String), toSql (itemAsBS env item)]
+            if itemsInserted == 0 then return Nothing else return $ Just item
+    commit conn
+    return succItems
 
 isRegistered env (Item {..}) = do
     matchingGuys <- quickQuery' (dbConn env) "SELECT random_id FROM registry WHERE random_id = ?" [toSql itemRandomID]
