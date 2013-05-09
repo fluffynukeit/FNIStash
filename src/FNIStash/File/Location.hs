@@ -31,6 +31,7 @@ data Location = Location
     , locSlot :: String
     , locIndex :: Int
     }
+    | Inserted
     deriving (Eq, Ord, Show)
 
 
@@ -44,7 +45,9 @@ getLocation env = do
         Just slotName = lkupVar vNAME slotType >>= stringVar
         Just slotID = lkupVar vUNIQUEID slotType >>= word32Var
         index = fromIntegral locBytes - slotID
-    return $ Location containerName slotName (fromIntegral index)
+    return $ if locBytes == 0xFFFF && containerID == 0xFFFF
+             then Inserted
+             else Location containerName slotName (fromIntegral index)
 
 putLocation :: Env -> Location -> Put
 putLocation env loc = do
