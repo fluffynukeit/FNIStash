@@ -94,23 +94,23 @@ getItem env itemBinaryData = do
     prefix <- getTorchString
     suffix <- getTorchString
     randomID <- getByteString 24
-    bytes1 <- getByteString 29  -- not sure what these do
+    bytes1 <- getByteString 29  -- not sure what these do... almost all FF
     nEnchants <- getWord32le
     nBytesBeforeLocation <- bytesRead
     location <- getLocation env
-    bytes2 <- getByteString 7
-    bytes3 <- getByteString 8
+    bytes2 <- getByteString 7 -- always 00 01 01 01 01 00 01?
+    bytes3 <- getByteString 8 -- can be different for equal items..more than just 8
     bytes4 <- replicateM 4 $ getByteString 20
     level <- fromIntegral <$> getWord32le
     bytes5 <- getByteString 4 -- always 01 00 00 00?
     nSockets <- getWord32le
     nUsedSockets <-  getWord32le
     gems <- replicateM (fromIntegral nUsedSockets) $ getItem env itemBinaryData
-    bytes6 <- getByteString 4
+    bytes6 <- getByteString 4 -- always 00 00 00 00?
     maxDmg <- getWord32le
     armor <- getWord32le
-    bytes7 <- getByteString 4
-    bytes8 <- getByteString 12
+    bytes7 <- getByteString 4 -- different for equal items?
+    bytes8 <- getByteString 12 -- 12x FF
     nElements <- getWord16le
     elements <- replicateM (fromIntegral nElements) getDamageType
     modLists <- getModLists env >>= return . concat

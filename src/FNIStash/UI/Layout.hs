@@ -124,6 +124,10 @@ notifyMove mes eData toId = do
 
 notifySave mes = writeFMessage mes Save
 
+-- Performs an action with the element at a given location.  The action
+-- right now needs to accept a tuple of (element, id) because the
+-- updateItem function needs an ID, and I don't know if I can get it from the
+-- element alone.
 withCell loc action = do
     let id = locToId loc
     mEl <- getElementById id
