@@ -21,9 +21,11 @@ data BMessage = Initializing String
               | Initialized
               | LocationContents Location (Maybe Item)
               | Registered [Location]
-              | Error String
-              | Info String
-              | Saved
+              | Notice Notice
+
+data Notice = Error String
+            | Info String
+            | Saved String
 
 data FMessage = Move {moveFrom :: Location, moveTo :: Location}
               | Save

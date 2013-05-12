@@ -58,7 +58,7 @@ backend messages appRoot guiRoot = handleDBError $ do
 
     let sharedStashResult = parseSharedStash env ssData
     case sharedStashResult of
-        Left error -> writeBMessage messages $ Error error
+        Left error -> writeBMessage messages $ Notice $ Error error
         Right sharedStash -> do
             dumpItemLocs messages sharedStash
             dumpRegistrations env messages sharedStash
@@ -67,14 +67,14 @@ backend messages appRoot guiRoot = handleDBError $ do
 
 dumpItemLocs messages sharedStash = mapM_ dumpItem sharedStash where
     dumpItem i = writeBMessage messages $ case i of
-        Left itemError -> Error itemError
+        Left itemError -> Notice $ Error itemError
         Right item -> LocationContents (itemLocation item) $ Just item
 
 dumpRegistrations env messages sharedStash = do
     registeredItems <- registerStash env sharedStash
     let locations = map itemLocation registeredItems
     writeBMessage messages $ Registered locations
-    writeBMessage messages $ Info $ "Newly registered items: " ++ (show $ length locations)
+    writeBMessage messages $ Notice $ Info $ "Newly registered items: " ++ (show $ length locations)
 
 -- Tries to register all non-registered items into the DB.  Retuns list of newly
 -- registered items.
@@ -88,7 +88,7 @@ handleMessages env m cryptoFile sharedStash (msg:rest) = do
             Move from to -> moveContents from to sharedStash
             Save -> do
                 a <- saveItems env cryptoFile sharedStash (encodeString savePath)
-                writeBMessage m Saved
+                writeBMessage m $ Notice $ Saved (encodeString savePath)
                 return a
     forM updates $ \(loc, contents) -> writeBMessage m $ LocationContents loc contents
     handleMessages env m cryptoFile newStash rest

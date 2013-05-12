@@ -58,7 +58,28 @@
     font-size: 12;
     color: blue;
     }
-    
+
+/* Message window stuff */
+.msgwindow {
+	height: 90px;
+	width: 510px;
+	border-style:solid;
+	border-width:2px;
+	border-color:gray;
+	overflow:scroll;
+}
+
+.msgwindow .error {
+	color:red;
+}
+
+.msgwindow .info {
+	color:black;
+}
+
+.msgwindow .saved {
+	color:green;
+}
 /* Positioning of elements */
 #sharedstash_div {
 	position: relative;

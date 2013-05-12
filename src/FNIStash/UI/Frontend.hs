@@ -41,10 +41,16 @@ frontend messages = do
     forM_ msgList $ \x -> do
         case x of
             Initializing msg -> return msgWindow #= (msg ++ "...") # unit
-            Info msg -> return msgWindow #= msg # unit
-            Error msg -> return msgWindow #= ("Error: " ++ msg) # unit
             Initialized -> stash messages #+ body # unit
             LocationContents loc mItem -> withCell loc $ updateItem mItem
-            Saved -> return msgWindow #= "Data saved!" # unit
+            Notice notice -> noticeDisplay notice # addTo msgWindow >> scrollToBottom msgWindow
             Registered locList -> forM_ locList (\loc -> withCell loc $ flashElement 500)
-            _ -> return ()
+
+noticeDisplay notice = do
+    msgDisp <- new #. "notice"
+    case notice of
+        Error msg   -> new #. "error" #= msg #+ msgDisp # unit
+        Info msg    -> new #. "info" #= msg #+ msgDisp # unit
+        Saved path  -> new #. "saved" #= "Shared stash saved to " ++ path #+ msgDisp # unit
+    return msgDisp
+
