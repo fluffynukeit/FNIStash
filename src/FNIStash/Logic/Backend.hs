@@ -71,6 +71,7 @@ dumpItemLocs messages sharedStash = mapM_ dumpItem sharedStash where
         Right item -> LocationContents (itemLocation item) $ Just item
 
 dumpRegistrations env messages sharedStash = do
+    writeBMessage messages $ Notice $ Info "Registering items..."
     registeredItems <- registerStash env sharedStash
     let locations = map itemLocation registeredItems
     writeBMessage messages $ Registered locations

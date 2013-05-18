@@ -30,6 +30,7 @@ import Filesystem.Path.CurrentOS
 main = do
     setWorkingDirectory "C:\\Users\\Dan\\My Code\\FNIStash" -- only for testing
     (appRoot, guiRoot) <- ensurePaths
+    
     serve Config
         { tpPort = 10001
         , tpRun = runTP

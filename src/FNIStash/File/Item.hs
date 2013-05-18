@@ -22,6 +22,10 @@ module FNIStash.File.Item (
     showMod,
     Item(..),
     itemAsBS,
+    itemLeadData,
+    itemTrailData,
+    modText,
+    modValue,
     module FNIStash.File.Location
 ) where
 
@@ -85,6 +89,9 @@ moveTo loc (Item {..}) =
     Item itemGUID itemRandomID itemName itemNumEnchants itemLevel itemNumSockets itemGems itemPoints
          itemDamageTypes itemMods loc itemDataPieces itemIcon
 
+
+itemLeadData = fst . itemDataPieces
+itemTrailData = snd . itemDataPieces
 
 getItem :: Env -> BS.ByteString -> Get Item
 getItem env itemBinaryData = do
@@ -175,8 +182,8 @@ damageTypeLookup _ = Unknown
 -- TODO look out! I think only item data in the shared stash file is prefixed by its length
 putItem :: Env -> Item -> Put
 putItem env item = do
-    let data1 = fst $ itemDataPieces item
-        data2 = snd $ itemDataPieces item
+    let data1 = itemLeadData item
+        data2 = itemTrailData item
         dataLength = BS.length data1 + BS.length data2 + 4
     putWord32le $ fromIntegral dataLength
     putByteString data1
@@ -207,7 +214,7 @@ instance Translate Mod where
             r = roundAt $ modPrecision mod
             dispVal = prec . show . r
         in (case markup of
-            "VALUE" -> dispVal . modValue
+            "VALUE" -> const "VALUE" -- leave VALUE unchanged so we can store in DB smarter
             "DURATION" -> dispVal . modDuration
             "DMGTYPE" -> show . modDamageType
             "VALUE1" -> dispVal . (flip (!!) 1) . modValueList
@@ -239,7 +246,7 @@ modDescription env mod =
     let effectNode = (lkupEffect env) (modEffectIndex mod)
         maybeSentence = (effectNode >>= lkupVar vGOODDES >>= stringVar)
     in case maybeSentence of
-        Just sentence -> unlines [translateSentence mod sentence]
+        Just sentence -> translateSentence mod sentence
         Nothing -> modDataDump mod
 
 modDataDump i =
