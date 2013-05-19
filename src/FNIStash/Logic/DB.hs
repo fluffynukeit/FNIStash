@@ -76,11 +76,13 @@ register env items = do
     return succItems
 
 locIDsKeywordStatus :: Env -> [String] -> IO [(String, Bool)]
-locIDsKeywordStatus env keywords = do
-    let conn = dbConn env
-        keywordExpr = "FD like '%" ++ L.intercalate "%' and FD like '%" keywords ++ "%'"
+locIDsKeywordStatus env keywordList = do
+    let keywords = if length keywordList > 0 then keywordList else [""]
+        conn = dbConn env
+        keywordExpr = L.intercalate " and " $ replicate (length keywords) "FD like ?"
         query = (keywordQuery keywordExpr)
-    idStrings <- quickQuery' conn query []
+        s word = toSql $ "%" ++ word ++ "%"
+    idStrings <- quickQuery' conn query $ map s keywords
     let returnList = map (\row -> (fromSql $ row !! 0, fromSql $ row !! 1)) idStrings
     return $ returnList
 
@@ -105,10 +107,11 @@ addItemToDB env item@(Item {..}) = let c  = dbConn env in withTransaction c $ \_
 -- Use like this: ensureExists conn "ITEMS" ["RANDOM_ID", "GUID"] [toSql itemRandomID, toSql itemGUID]
 -- Tries to do an insert and ignores if constraint is broken.  Returns the ID of the row with
 -- head of cols matching head of values
-ensureExists conn table cols vals = do
-    let stringListToTupleString strings = "(" <> (L.intercalate "," strings) <> ")"
-        colsTuple = stringListToTupleString cols
-        marksTuple = stringListToTupleString $ replicate (length vals) "?"
+ensureExists conn table colVals = do
+    let cols = map fst colVals
+        vals = map snd colVals
+        colsTuple = stringTuple cols
+        marksTuple = stringTuple $ replicate (length vals) "?"
         insertQ = "insert or ignore into " <> table <> colsTuple <> " values " <> marksTuple
         selectQ = "select ID from " <> table <> " where " <> (head cols) <> " = (?)"
     --traceShow (insertQ, selectQ, cols, vals) $ return ()
@@ -117,34 +120,39 @@ ensureExists conn table cols vals = do
     --traceShow (L.concat idList) $ return ()
     (return $ fromSql $ (head . L.concat) idList) :: IO (ID a)
 
+stringTuple strings = "(" <> (L.intercalate "," strings) <> ")"
 
 insertTrailData :: Env -> Item -> IO (ID TrailData)
 insertTrailData (Env {..}) item@(Item {..}) =
-    ensureExists dbConn "TRAIL_DATA" ["DATA"] [toSql $ itemTrailData item]
+    ensureExists dbConn "TRAIL_DATA" [("DATA", toSql $ itemTrailData item)]
 
 insertItem :: Env -> Item -> ID TrailData -> IO (ID Items)
 insertItem (Env {..}) item@(Item {..}) trailDataID = do
     zonedTime <- getZonedTime
     let localTime = zonedTimeToLocalTime zonedTime
 
-    ensureExists dbConn "ITEMS" ["RANDOM_ID", "GUID", "CONTAINER", "SLOT", "POSITION", "LEAD_DATA", "FK_TRAIL_DATA_ID", "DATE"]
-        [ toSql itemRandomID, toSql itemGUID, toSql (locContainer itemLocation), toSql (locSlot itemLocation)
-        , toSql (locIndex itemLocation), toSql (itemLeadData item), toSql trailDataID, toSql localTime]
+    ensureExists dbConn "ITEMS" [ ("RANDOM_ID", toSql itemRandomID)
+                                , ("GUID", toSql itemGUID)
+                                , ("CONTAINER", toSql $ locContainer itemLocation)
+                                , ("SLOT", toSql $ locSlot itemLocation)
+                                , ("POSITION", toSql $ locIndex itemLocation)
+                                , ("LEAD_DATA", toSql $ itemLeadData item)
+                                , ("FK_TRAIL_DATA_ID", toSql trailDataID)
+                                , ("DATE", toSql localTime)]
 
 insertDescriptor :: Show a => Env -> DescriptorType -> String -> a -> IO (ID Descriptors, String)
 insertDescriptor (Env {..}) descType desc val = do
-    id <- ensureExists dbConn "DESCRIPTORS" ["EXPRESSION", "TYPE"] [toSql $ (desc::String), toSql descType]
+    id <- ensureExists dbConn "DESCRIPTORS" [("EXPRESSION", toSql $ (desc::String))
+                                            , ("TYPE", toSql descType)]
     return (id, show val)
 
 insertDescriptorSet :: Env -> ID Items -> [(ID Descriptors, String)] -> IO ()
 insertDescriptorSet (Env {..}) itemID descIDValPairs =
     forM_ descIDValPairs $ \(id, val) ->
         ensureExists dbConn "DESCRIPTOR_SETS"
-            ["FK_DESCRIPTOR_ID", "VALUE", "FK_ITEM_ID"]
-            [toSql id, toSql $ val, toSql itemID]
-
-
-
+            [ ("FK_DESCRIPTOR_ID", toSql id)
+            , ("VALUE", toSql $ val)
+            , ("FK_ITEM_ID", toSql itemID)]
 
 setUpAllTables conn =
     forM_ [setUpDescriptors, setUpTrailData, setUpItems, setUpDescriptorSets]
