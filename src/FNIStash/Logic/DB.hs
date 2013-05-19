@@ -16,7 +16,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module FNIStash.Logic.DB
-( handleDBError
+( handleDB
 , initializeDB
 , register
 , locIDsKeywordStatus
@@ -43,7 +43,7 @@ import Filesystem
 
 import Debug.Trace
 
-handleDBError io = catchSql io (\err -> trace ("**SQL ERROR**: " ++ show err) return ())
+handleDB = handleSql
 
 initializeDB appRoot = do
     let dbPath = appRoot </> "fnistash.db"

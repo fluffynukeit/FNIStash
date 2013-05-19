@@ -41,12 +41,12 @@ newMessages = newChan
 dupMessages = dupChan
 
 
-onlyFMessages :: Chan Message -> IO [FMessage]
+onlyFMessages :: Messages -> IO [FMessage]
 onlyFMessages c = do
     m <- getChanContents c
     return $ map stripF $ filter isFMessage m
 
-onlyBMessages :: Chan Message -> IO [BMessage]
+onlyBMessages :: Messages -> IO [BMessage]
 onlyBMessages c = do
     m <- getChanContents c
     return $ map stripB $ filter isBMessage m
