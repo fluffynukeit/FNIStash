@@ -19,6 +19,7 @@ module FNIStash.Logic.DB
 ( handleDBError
 , initializeDB
 , register
+, locIDsKeywordStatus
 )
 where
 
@@ -74,23 +75,31 @@ register env items = do
             
     return succItems
 
+locIDsKeywordStatus :: Env -> [String] -> IO [(String, Bool)]
+locIDsKeywordStatus env keywords = do
+    let conn = dbConn env
+        keywordExpr = "FD like '%" ++ L.intercalate "%' and FD like '%" keywords ++ "%'"
+        query = (keywordQuery keywordExpr)
+    idStrings <- quickQuery' conn query []
+    let returnList = map (\row -> (fromSql $ row !! 0, fromSql $ row !! 1)) idStrings
+    return $ returnList
+
+
 isRegistered env (Item {..}) = do
     matchingGuys <- quickQuery' (dbConn env) "select RANDOM_ID from ITEMS where RANDOM_ID = ?" [toSql itemRandomID]
     if length matchingGuys == 0 then return False else return True
 
-addItemToDB env item@(Item {..}) = let c  = dbConn env in withTransaction c $ \conn -> do
+addItemToDB env item@(Item {..}) = let c  = dbConn env in withTransaction c $ \_ -> do
     -- First register the item data, starting with the Trail data
-    trailID <- insertTrailData conn item
-    itemID <- insertItem conn item trailID
+    trailID <- insertTrailData env item
+    itemID <- insertItem env item trailID
     descList <- sequence (
-        [ insertDescriptor conn Name itemName 0
-        , insertDescriptor conn Level "Level VALUE" itemLevel
+        [ insertDescriptor env Name itemName 0
+        , insertDescriptor env Level "Level VALUE" itemLevel
         ] ++
-        L.map (\mod -> insertDescriptor conn Mod (translateSentence mod $ modText mod) (modValue mod)) itemMods
+        L.map (\mod -> insertDescriptor env Mod (translateSentence mod $ modText mod) (modValue mod)) itemMods
         )
-    insertDescriptorSet conn itemID descList
-
-
+    insertDescriptorSet env itemID descList
 
 
 -- Use like this: ensureExists conn "ITEMS" ["RANDOM_ID", "GUID"] [toSql itemRandomID, toSql itemGUID]
@@ -109,28 +118,28 @@ ensureExists conn table cols vals = do
     (return $ fromSql $ (head . L.concat) idList) :: IO (ID a)
 
 
---insertTrailData :: IConnection a => a -> Item -> IO (ID TrailData)
-insertTrailData conn item@(Item {..}) =
-    ensureExists conn "TRAIL_DATA" ["DATA"] [toSql $ itemTrailData item]
+insertTrailData :: Env -> Item -> IO (ID TrailData)
+insertTrailData (Env {..}) item@(Item {..}) =
+    ensureExists dbConn "TRAIL_DATA" ["DATA"] [toSql $ itemTrailData item]
 
---insertItem :: IConnection a => a -> Item -> ID TrailData -> IO (ID Items)
-insertItem conn item@(Item {..}) trailDataID = do
+insertItem :: Env -> Item -> ID TrailData -> IO (ID Items)
+insertItem (Env {..}) item@(Item {..}) trailDataID = do
     zonedTime <- getZonedTime
     let localTime = zonedTimeToLocalTime zonedTime
 
-    ensureExists conn "ITEMS" ["RANDOM_ID", "GUID", "CONTAINER", "SLOT", "POSITION", "LEAD_DATA", "FK_TRAIL_DATA_ID", "DATE"]
+    ensureExists dbConn "ITEMS" ["RANDOM_ID", "GUID", "CONTAINER", "SLOT", "POSITION", "LEAD_DATA", "FK_TRAIL_DATA_ID", "DATE"]
         [ toSql itemRandomID, toSql itemGUID, toSql (locContainer itemLocation), toSql (locSlot itemLocation)
         , toSql (locIndex itemLocation), toSql (itemLeadData item), toSql trailDataID, toSql localTime]
 
---insertDescriptor :: IConnection a => a -> DescriptorType -> String -> Float-> IO (ID Descriptors, Float)
-insertDescriptor conn descType desc val = do
-    id <- ensureExists conn "DESCRIPTORS" ["EXPRESSION", "TYPE"] [toSql $ (desc::String), toSql descType]
+insertDescriptor :: Show a => Env -> DescriptorType -> String -> a -> IO (ID Descriptors, String)
+insertDescriptor (Env {..}) descType desc val = do
+    id <- ensureExists dbConn "DESCRIPTORS" ["EXPRESSION", "TYPE"] [toSql $ (desc::String), toSql descType]
     return (id, show val)
 
---insertDescriptorSet :: IConnection a => a -> ID Items -> [(ID Descriptors, Float)] -> IO ()
-insertDescriptorSet conn itemID descIDValPairs =
+insertDescriptorSet :: Env -> ID Items -> [(ID Descriptors, String)] -> IO ()
+insertDescriptorSet (Env {..}) itemID descIDValPairs =
     forM_ descIDValPairs $ \(id, val) ->
-        ensureExists conn "DESCRIPTOR_SETS"
+        ensureExists dbConn "DESCRIPTOR_SETS"
             ["FK_DESCRIPTOR_ID", "VALUE", "FK_ITEM_ID"]
             [toSql id, toSql $ val, toSql itemID]
 
@@ -199,6 +208,19 @@ setUpDescriptorSets =
     \( ID integer primary key not null \
     \, FK_ITEM_ID integer not null \
     \, FK_DESCRIPTOR_ID integer not null \
-    \, VALUE text unique not null \
+    \, VALUE text not null \
     \, foreign key(FK_ITEM_ID) references ITEMS(ID)\
     \, foreign key(FK_DESCRIPTOR_ID) references DESCRIPTORS(ID));"
+
+keywordQuery condString =
+    "select IDSTRING, " ++ condString ++ " \
+    \ from ( \
+        \ select i.CONTAINER || ':' || i.SLOT || ':' || i.POSITION as IDSTRING, \
+        \ group_concat(replace(d.EXPRESSION, 'VALUE', s.VALUE), char(10)) as FD \
+        \ from DESCRIPTORS d \
+        \ inner join DESCRIPTOR_SETS s \
+        \ on s.FK_DESCRIPTOR_ID = d.ID \
+        \ inner join ITEMS i \
+        \ on s.FK_ITEM_ID = i.ID \
+        \ group by s.FK_ITEM_ID \
+    \ );"

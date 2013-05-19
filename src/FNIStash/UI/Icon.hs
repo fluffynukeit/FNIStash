@@ -62,9 +62,10 @@ setSrc src = \x -> set "src" ("static/GUIAssets/" ++ src ++ ".png") x # set "alt
 
 setZ int = set "style" ("z-index:" ++ show int ++ ";")
 
-setVis v = set "style" ("visibility:" ++
+setVis v = setStyle [("visibility",
     case v of
-        True    -> "visible;"
-        False   -> "hidden;"
-        )
+        True    -> "inherit"
+        False   -> "hidden"
+        )]
+    
 

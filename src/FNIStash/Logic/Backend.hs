@@ -12,6 +12,7 @@
 --
 -----------------------------------------------------------------------------
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module FNIStash.Logic.Backend (
     ensurePaths,
@@ -91,5 +92,11 @@ handleMessages env m cryptoFile sharedStash (msg:rest) = do
                 a <- saveItems env cryptoFile sharedStash (encodeString savePath)
                 writeBMessage m $ Notice $ Saved (encodeString savePath)
                 return a
+            Search keywordsString -> do
+                writeBMessage m $ Notice $ Info "Searching..."
+                matchStatuses <- locIDsKeywordStatus env $ words keywordsString
+                writeBMessage m $ Visibility matchStatuses
+                return (sharedStash, [])
     forM updates $ \(loc, contents) -> writeBMessage m $ LocationContents loc contents
     handleMessages env m cryptoFile newStash rest
+

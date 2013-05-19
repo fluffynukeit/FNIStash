@@ -24,6 +24,7 @@ import FNIStash.File.Location
 import FNIStash.Comm.Messages
 
 import Graphics.UI.Threepenny.Browser
+import Graphics.UI.Threepenny.Elements
 import Graphics.UI.Threepenny
 
 import Control.Monad
@@ -38,7 +39,10 @@ controls mes body = do
     controls <- new
     msgWindow <- new #. "msgwindow" #+ controls
     saveButton <- new #= "Click here to save" #+ controls
-    onClick saveButton $ \_ -> liftIO (notifySave mes)
+    onClick saveButton $ \_ -> liftIO $ notifySave mes
+    searchBox <- newTextarea #. "searchbox"
+    onSendValue searchBox $ \content -> liftIO $ notifySearch mes content
+    searchPanel <- new #. "searchpanel" # add searchBox #+ controls
     return controls #+ body
     return msgWindow
 
@@ -123,6 +127,7 @@ notifyMove mes eData toId = do
     writeFMessage mes $ Move from to
 
 notifySave mes = writeFMessage mes Save
+notifySearch mes str = writeFMessage mes $ Search str
 
 -- Performs an action with the element at a given location.  The action
 -- right now needs to accept a tuple of (element, id) because the

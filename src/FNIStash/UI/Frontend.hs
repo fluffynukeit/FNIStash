@@ -45,6 +45,7 @@ frontend messages = do
             LocationContents loc mItem -> withCell loc $ updateItem mItem
             Notice notice -> noticeDisplay notice # addTo msgWindow >> scrollToBottom msgWindow
             Registered locList -> forM_ locList (\loc -> withCell loc $ flashElement 500)
+            Visibility idStatusList -> forM_ idStatusList updateVisibility
 
 noticeDisplay notice = do
     msgDisp <- new #. "notice"
@@ -54,3 +55,6 @@ noticeDisplay notice = do
         Saved path  -> new #. "saved" #= "Shared stash saved to " ++ path #+ msgDisp # unit
     return msgDisp
 
+updateVisibility (id, visBool) = do
+    mEl <- getElementById id
+    maybe (return ()) (\e -> setVis visBool e # unit) mEl

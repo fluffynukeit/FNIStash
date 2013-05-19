@@ -22,6 +22,7 @@ data BMessage = Initializing String
               | LocationContents Location (Maybe Item)
               | Registered [Location]
               | Notice Notice
+              | Visibility [(String, Bool)]
 
 data Notice = Error String
             | Info String
@@ -29,6 +30,7 @@ data Notice = Error String
 
 data FMessage = Move {moveFrom :: Location, moveTo :: Location}
               | Save
+              | Search String
 
 data Message = FMessage FMessage
              | BMessage BMessage
