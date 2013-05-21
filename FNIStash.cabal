@@ -15,8 +15,8 @@ executable FNIStash
     build-depends: Codec-Image-DevIL -any, HDBC -any,
                    HDBC-sqlite3 -any, array -any, base -any, binary -any,
                    binary-strict -any, bytestring -any, configurator -any,
-                   containers -any, convertible -any, data-endian -any, errors -any,
-                   filepath -any, monad-loops -any, mtl -any, split -any,
+                   containers ==0.4.2.1, convertible -any, data-endian -any,
+                   errors -any, filepath -any, monad-loops -any, mtl -any, split -any,
                    system-fileio -any, system-filepath -any, text -any,
                    threepenny-gui -any, time -any, tuple -any, xml -any, zlib -any
     main-is: Main.hs
@@ -29,14 +29,14 @@ executable FNIStash
                    FNIStash.File.Variables FNIStash.File.SharedStash FNIStash.File.PAK
                    FNIStash.File.Location FNIStash.File.Item FNIStash.File.General
                    FNIStash.File.DAT FNIStash.File.Crypto FNIStash.Comm.Messages
-    ghc-options: -O2 -prof -rtsopts
+    ghc-options: -O2 -threaded
  
 executable FNIStash-Debug
     build-depends: Codec-Image-DevIL -any, HDBC -any,
                    HDBC-sqlite3 -any, array -any, base -any, binary -any,
                    binary-strict -any, bytestring -any, configurator -any,
-                   containers -any, convertible -any, data-endian -any, errors -any,
-                   filepath -any, monad-loops -any, mtl -any, split -any,
+                   containers ==0.4.2.1, convertible -any, data-endian -any,
+                   errors -any, filepath -any, monad-loops -any, mtl -any, split -any,
                    system-fileio -any, system-filepath -any, text -any,
                    threepenny-gui -any, time -any, tuple -any, xml -any, zlib -any
     main-is: Main.hs
@@ -51,5 +51,5 @@ executable FNIStash-Debug
                    FNIStash.File.Variables FNIStash.File.SharedStash FNIStash.File.PAK
                    FNIStash.File.Location FNIStash.File.Item FNIStash.File.General
                    FNIStash.File.DAT FNIStash.File.Crypto FNIStash.Comm.Messages
-    ghc-options: -O2 -prof -rtsopts -auto-all
+    ghc-options: -O2 -prof -rtsopts -auto-all -threaded
  

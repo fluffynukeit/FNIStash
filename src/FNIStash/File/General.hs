@@ -14,20 +14,23 @@
 {-# LANGUAGE FlexibleContexts, OverloadedStrings #-}
 
 module FNIStash.File.General 
-    (getTorchText,
-     getTorchTextL,
-     getTorchString,
-     wordToFloat,
-     wordToDouble,
-     showHex,
-     streamToHex,
-     intToHex,
-     showListString,
-     runGetWithFail,
-     runGetSuppress,
-     getFloat,
-     fromStrict,
-     toStrict)
+( getTorchText
+, getTorchTextL
+, getTorchString
+, wordToFloat
+, wordToDouble
+, showHex
+, streamToHex
+, intToHex
+, showListString
+, runGetWithFail
+, runGetSuppress
+, getFloat
+, fromStrict
+, toStrict
+, copyLazy
+, copyStrict
+)
 where
 
 -- General helper functions for file operations
@@ -51,10 +54,10 @@ import Filesystem.Path.CurrentOS
 showListString f = foldl (\a b -> a <> f b) (""::String)
 
 getTorchText :: SG.Get T.Text
-getTorchText = fromIntegral . (*2) <$> SG.getWord16le >>= SG.getByteString >>= \x -> return (decodeUtf16LE x)
+getTorchText = fromIntegral . (*2) <$> SG.getWord16le >>= SG.getByteString >>= return . decodeUtf16LE 
 
 getTorchTextL :: LG.Get T.Text
-getTorchTextL = fromIntegral . (*2) <$> LG.getWord16le >>= LG.getByteString >>= \x -> return (decodeUtf16LE x)
+getTorchTextL = fromIntegral . (*2) <$> LG.getWord16le >>= LG.getByteString >>= return . decodeUtf16LE 
 
 getTorchString :: SG.Get String
 getTorchString = getTorchText >>= return . T.unpack
@@ -75,6 +78,9 @@ intToHex i = ("0x" ++ padding ++ (showHex i ""))
 
 fromStrict bs = LBS.fromChunks [bs]
 toStrict = (mconcat . LBS.toChunks)
+
+copyLazy = LBS.copy
+copyStrict = SBS.copy
 
 -- Utilities for handling file Get errors
 

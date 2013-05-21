@@ -42,11 +42,11 @@ frontend messages = do
         case x of
             Initializing msg -> return msgWindow #= (msg ++ "...") # unit
             Initialized -> stash messages #+ body # unit
-            LocationContents loc mItem -> withCell loc $ updateItem mItem
+            LocationContents locItemsList -> withLocVals locItemsList updateItem
             Notice notice -> noticeDisplay notice # addTo msgWindow >> scrollToBottom msgWindow
-            Registered locList -> forM_ locList (\loc -> withCell loc $ flashElement 500)
-            Visibility idStatusList -> forM_ idStatusList updateVisibility
-
+            Registered locList -> withLocVals (zip locList locList) (\e _ _ -> flashElement 500 e)
+            Visibility idStatusList -> withLocVals idStatusList $ \e v _ -> setVis v e # unit
+                                 
 noticeDisplay notice = do
     msgDisp <- new #. "notice"
     case notice of
@@ -55,6 +55,5 @@ noticeDisplay notice = do
         Saved path  -> new #. "saved" #= "Shared stash saved to " ++ path #+ msgDisp # unit
     return msgDisp
 
-updateVisibility (id, visBool) = do
-    mEl <- getElementById id
-    maybe (return ()) (\e -> setVis visBool e # unit) mEl
+
+

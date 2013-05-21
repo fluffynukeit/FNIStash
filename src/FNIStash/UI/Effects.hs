@@ -20,6 +20,6 @@ import Graphics.UI.Threepenny.Browser
 
 import FNIStash.UI.Layout
 
-flashElement outDuration (el, id) = do
+flashElement outDuration el = do
     animate el [("opacity", "0")] 300 Swing
         (animate el [("opacity", "1")] outDuration Swing (return ()))

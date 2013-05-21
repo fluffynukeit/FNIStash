@@ -19,7 +19,7 @@ module FNIStash.Logic.DB
 ( handleDB
 , initializeDB
 , register
-, locIDsKeywordStatus
+, locsKeywordStatus
 )
 where
 
@@ -75,15 +75,17 @@ register env items = do
             
     return succItems
 
-locIDsKeywordStatus :: Env -> [String] -> IO [(String, Bool)]
-locIDsKeywordStatus env keywordList = do
+locsKeywordStatus :: Env -> [String] -> IO [(Location, Bool)]
+locsKeywordStatus env keywordList = do
     let keywords = if length keywordList > 0 then keywordList else [""]
         conn = dbConn env
         keywordExpr = L.intercalate " and " $ replicate (length keywords) "FD like ?"
         query = (keywordQuery keywordExpr)
         s word = toSql $ "%" ++ word ++ "%"
     idStrings <- quickQuery' conn query $ map s keywords
-    let returnList = map (\row -> (fromSql $ row !! 0, fromSql $ row !! 1)) idStrings
+    let returnList = map (\row -> (Location (fromSql $ row !! 0) (fromSql $ row !! 1) (fromSql $ row !! 2)
+                                  , fromSql $ row !! 3))
+                    idStrings
     return $ returnList
 
 
@@ -221,9 +223,9 @@ setUpDescriptorSets =
     \, foreign key(FK_DESCRIPTOR_ID) references DESCRIPTORS(ID));"
 
 keywordQuery condString =
-    "select IDSTRING, " ++ condString ++ " \
+    "select CONTAINER, SLOT, POSITION, " ++ condString ++ " \
     \ from ( \
-        \ select i.CONTAINER || ':' || i.SLOT || ':' || i.POSITION as IDSTRING, \
+        \ select i.CONTAINER, i.SLOT, i.POSITION, \
         \ group_concat(replace(d.EXPRESSION, 'VALUE', s.VALUE), char(10)) as FD \
         \ from DESCRIPTORS d \
         \ inner join DESCRIPTOR_SETS s \

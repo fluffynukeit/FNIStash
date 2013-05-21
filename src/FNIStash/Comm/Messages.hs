@@ -19,10 +19,10 @@ import FNIStash.File.Item
 
 data BMessage = Initializing String
               | Initialized
-              | LocationContents Location (Maybe Item)
+              | LocationContents [(Location, Maybe Item)]
               | Registered [Location]
               | Notice Notice
-              | Visibility [(String, Bool)]
+              | Visibility [(Location, Bool)]
 
 data Notice = Error String
             | Info String
@@ -32,33 +32,21 @@ data FMessage = Move {moveFrom :: Location, moveTo :: Location}
               | Save
               | Search String
 
-data Message = FMessage FMessage
-             | BMessage BMessage
+data Messages = Messages
+    { fSource :: Chan FMessage
+    , bSource :: Chan BMessage
+    }
 
-type Messages = Chan Message
-
-newMessages = newChan
-dupMessages = dupChan
-
+newMessages = do
+    f <- newChan
+    b <- newChan
+    return $ Messages f b
 
 onlyFMessages :: Messages -> IO [FMessage]
-onlyFMessages c = do
-    m <- getChanContents c
-    return $ map stripF $ filter isFMessage m
+onlyFMessages (Messages f _) = getChanContents f
 
 onlyBMessages :: Messages -> IO [BMessage]
-onlyBMessages c = do
-    m <- getChanContents c
-    return $ map stripB $ filter isBMessage m
+onlyBMessages (Messages _ b) = getChanContents b
 
-isFMessage (FMessage _) = True
-isFMessage _ = False
-
-isBMessage (BMessage _) = True
-isBMessage _ = False
-
-stripF (FMessage x) = x
-stripB (BMessage x) = x
-
-writeFMessage c m = writeChan c (FMessage m)
-writeBMessage c m = writeChan c (BMessage m)
+writeFMessage (Messages f _) m = writeChan f m
+writeBMessage (Messages _ b) m = writeChan b m

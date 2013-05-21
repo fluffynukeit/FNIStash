@@ -15,8 +15,8 @@
 module FNIStash.UI.Layout
 ( stash
 , controls
-, withCell
 , updateItem
+, withLocVals
 ) where
 
 import FNIStash.UI.Icon
@@ -30,10 +30,23 @@ import Graphics.UI.Threepenny
 import Control.Monad
 import Control.Monad.Trans
 import Data.Maybe
+import Data.List.Split
 
 sharedStashArms = (Location "SHARED_STASH_BAG_ARMS" "BAG_ARMS_SLOT" 0, "ig_inventorytabs_arms")
 sharedStashCons = (Location "SHARED_STASH_BAG_CONSUMABLES" "BAG_CONSUMABLES_SLOT" 0, "ig_inventorytabs_consumables")
 sharedStashSpells = (Location "SHARED_STASH_BAG_SPELLS" "BAG_SPELL_SLOT" 0, "ig_inventorytabs_spells")
+
+locIdGenerator :: Location -> (Int -> String)
+locIdGenerator loc = \x -> locContainer loc ++ ":" ++ locSlot loc ++ ":" ++ (show $ x)
+
+locToId :: Location -> String
+locToId loc = locIdGenerator loc $ locIndex loc
+
+idToLoc :: String -> Location
+idToLoc id =
+    let (a:b:c:rest) = splitOn ":" id
+    in Location a b (read c)
+
 
 controls mes body = do
     controls <- new
@@ -129,16 +142,13 @@ notifyMove mes eData toId = do
 notifySave mes = writeFMessage mes Save
 notifySearch mes str = writeFMessage mes $ Search str
 
--- Performs an action with the element at a given location.  The action
--- right now needs to accept a tuple of (element, id) because the
--- updateItem function needs an ID, and I don't know if I can get it from the
--- element alone.
-withCell loc action = do
-    let id = locToId loc
-    mEl <- getElementById id
-    maybe (return ()) action (fmap (\x -> (x, id)) mEl)
+withLocVals locValList actionOfElValId = do
+    let ids = map (locToId.fst) locValList
+    els <- getElementsById ids
+    let tuples = zip3 els (map snd locValList) ids
+    forM_ tuples $ \(e,v,i) -> actionOfElValId e v i
 
-updateItem mItem (el, id) = do
+updateItem el mItem id = do
     case mItem of
         Just item   -> do
             emptyEl el

@@ -71,10 +71,16 @@ backend msg appRoot guiRoot = handle (sendErrIO msg) $ handleDB (sendErrDB msg) 
             msgList <- liftIO $ onlyFMessages msg
             handleMessages env msg cryptoFile sharedStash msgList
 
-dumpItemLocs messages sharedStash = mapM_ dumpItem sharedStash where
-    dumpItem i = writeBMessage messages $ case i of
-        Left itemError -> Notice $ Error itemError
-        Right item -> LocationContents (itemLocation item) $ Just item
+dumpItemLocs messages sharedStash =
+    let itemErrors = lefts sharedStash
+        goodItems = rights sharedStash
+        locContents = map (\i -> (itemLocation i, Just i)) goodItems
+        locMsg = LocationContents locContents
+    in do
+        writeBMessage messages locMsg
+        forM_ itemErrors $ \err -> writeBMessage messages $
+            Notice $ Error $ err
+
 
 dumpRegistrations env messages sharedStash = do
     writeBMessage messages $ Notice $ Info "Registering items..."
@@ -99,9 +105,10 @@ handleMessages env m cryptoFile sharedStash (msg:rest) = do
                 return a
             Search keywordsString -> do
                 writeBMessage m $ Notice $ Info "Searching..."
-                matchStatuses <- locIDsKeywordStatus env $ words keywordsString
+                matchStatuses <- locsKeywordStatus env $ words keywordsString
                 writeBMessage m $ Visibility matchStatuses
                 return (sharedStash, [])
-    forM updates $ \(loc, contents) -> writeBMessage m $ LocationContents loc contents
+    let locMsg = LocationContents updates
+    writeBMessage m locMsg
     handleMessages env m cryptoFile newStash rest
 

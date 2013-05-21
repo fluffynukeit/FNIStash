@@ -24,7 +24,6 @@ import qualified Data.ByteString as BS
 import Data.Binary.Strict.Get
 import Data.Binary.Put
 import Data.Word
-import Data.List.Split
 
 data Location = Location
     { locContainer :: String
@@ -56,13 +55,3 @@ putLocation env loc = do
     putWord16le (slotID + (fromIntegral $ locIndex loc))
     putWord16le contID
 
-locIdGenerator :: Location -> (Int -> String)
-locIdGenerator loc = \x -> locContainer loc ++ ":" ++ locSlot loc ++ ":" ++ (show $ x)
-
-locToId :: Location -> String
-locToId loc = locIdGenerator loc $ locIndex loc
-
-idToLoc :: String -> Location
-idToLoc id =
-    let (a:b:c:rest) = splitOn ":" id
-    in Location a b (read c)

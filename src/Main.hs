@@ -41,6 +41,5 @@ main = do
 
 launchAll appRoot guiRoot = do
     messages <- liftIO newMessages
-    messagesCopy <- liftIO $ dupMessages messages
     liftIO $ forkIO $ backend messages appRoot guiRoot
-    frontend messagesCopy
+    frontend messages

@@ -76,7 +76,7 @@ lkupPAKFile filePath pakFiles =
 
 pakWithKeysContaining substr pak = M.filterWithKey (\k a -> T.isInfixOf substr k) pak
 
-entryData = (toStrict . decompress . fromStrict . pakEncodedData)
+entryData = (copyStrict . toStrict . decompress . fromStrict . pakEncodedData)
 
 fileEntriesOnly entries = L.filter ((Folder /=) . entryType) entries
 
