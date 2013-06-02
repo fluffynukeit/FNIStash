@@ -69,20 +69,20 @@ import Data.Word
 
 -- Sets up paths, generates files, and builds the text environment
 initialize messages appRoot guiRoot = do
-    writeBMessage messages $ Initializing "Initializing"
 
     -- First do one time initialization stuff
-    writeBMessage messages  $ Initializing "Checking config file"
+    writeBMessage messages  $ Initializing $ CfgStart
     cfg <- ensureConfig appRoot
 
     -- Construct the DB
-    writeBMessage messages $ Initializing "Instantiating database"
+    writeBMessage messages $ Initializing DBStart
     conn <- initializeDB appRoot
 
-    writeBMessage messages $ Initializing "Generating icons for first time.  Please wait."
+    writeBMessage messages $ Initializing AssetsStart
     ensureGUIAssets guiRoot cfg
+    writeBMessage messages $ Initializing AssetsComplete    
 
-    writeBMessage messages $ Initializing "Building lookup environment"
+    writeBMessage messages $ Initializing EnvStart
     pak <- readPAKPrefixes cfg envPrefixes
 
 -- -- This part is for writing out a particular DAT file for testing.  TODO clean up later
@@ -96,7 +96,7 @@ initialize messages appRoot guiRoot = do
 
     -- Build the data lookup environment
     let env = buildEnv pak conn
-    writeBMessage messages $ Initialized
+    
     return env
 
 
@@ -155,59 +155,81 @@ ensureConfig appRoot = do
 ensureGUIAssets root cfg = do
     let assetPath = root </> "GUIAssets"
     assetsExist <- isDirectory assetPath
-    when (not assetsExist) $ do
+    when (not assetsExist) $ do        
         createTree assetPath
-        -- writeHTML will go here to write out HTML page
-        writeIcons assetPath cfg
+        guiPAK <- readPAKPrefixes cfg guiAssets
+        -- writeHTML will go here to write out HTML page? maybe use quasi quotes
+        withAssetsContaining guiPAK ".IMAGESET" $ processImageSet assetPath guiPAK
+        withAssetsContaining guiPAK ".TTF" $ writeAssetFile assetPath -- for fonts
+        withAssetsContaining guiPAK "SCREENS" $ exportScreen assetPath -- for backgrounds
 
--- Reads the PAK file described in cfg, extracts lots of icons from the PAK file,
--- converts to PNG and writes to disk.
-writeIcons assetPath cfg = do
-    guiPAK <- readPAKPrefixes cfg guiAssets
-    let imageSets = map entryData (M.elems $ pakWithKeysContaining ".IMAGESET" guiPAK)
-    mapM_ (processImageSet assetPath guiPAK) imageSets
+withAssetsContaining guiPAK subStr action =
+    let pathDataTuples = mapsnd entryData $ M.toList $ pakWithKeysContaining subStr guiPAK
+        mapsnd f list = map (\(x,y) -> (x,f y)) list
+    in forM_  pathDataTuples (uncurry action)
+
+writeAssetFile assetPath lkupPath dataBS =
+     writeFile (assetPath </> (filename $ fromText lkupPath)) dataBS
+
 
 -- The list of prefix paths at which the desired icons are found.
 guiAssets = (fmap ("MEDIA/UI/ICONS/" <>) ["ARMOR", "FISH", "GEMS", "JEWELRY", "MISC",
                                           "POTIONS", "QUESTITEMS", "WEAPONS", "SPELLS"])
             <>
             (fmap ("MEDIA/UI/HUD/INGAMETEXTURESHEETS" <>) ["2", "5", "6"])
+            <>
+            ["MEDIA/UI/LOADING"]
+            <>
+            (fmap ("MEDIA/UI/" <>) ["HUGE.TTF"])
+
+
+withTempFile assetPath name contents action =
+    let tempFilePath = (assetPath </> name)
+    in do
+        writeFile tempFilePath contents
+        action tempFilePath
+        fileExists <- isFile tempFilePath
+        (when fileExists $ removeFile tempFilePath) :: IO ()
 
 -- Given a desired destination path for images, a pak archive from which to extract
 -- the data, and a decoded/unzipped bytestring for a file conforming to the .IMAGESET
 -- XML format, will write image files to the destination path for each file listed in
 -- the .IMAGESET
-processImageSet assetPath pak iset = do
+processImageSet assetPath pak _ iset = do
     let rootElement = flip (!!) 1 $ onlyElems $ parseXML iset
         Just imageFilePath = fmap (T.toUpper . T.pack) $ findAttr "Imagefile" rootElement
-        -- First we need to write the original DDS image to a temp file so we can use
-        -- DevIL library to read in and convert.
-        tempFileName = assetPath </> (filename $ fromText imageFilePath)
         Just imageFile = lkupPAKFile imageFilePath pak
-    writeFile tempFileName imageFile
-    I.ilInit
-    dds <- I.readImage $ encodeString tempFileName
-    let subImagesXML = elChildren rootElement
-        subImagesData = map subImageData subImagesXML
-    mapM_ (writeSubImage dds assetPath) subImagesData -- map over list of all sub images
-    -- clean up temp file
-    fileExists <- isFile tempFileName
-    (when fileExists $ removeFile tempFileName) :: IO ()
+    -- First we need to write the original DDS image to a temp file so we can use
+    -- DevIL library to read in and convert.
+    withTempFile assetPath (filename $ fromText imageFilePath) imageFile $ \path -> do
+        I.ilInit
+        dds <- I.readImage $ encodeString path
+        let subImagesXML = elChildren rootElement
+            subImagesData = map subImageData subImagesXML
+        forM_ subImagesData $ \(name, dims) ->
+            writeImageAsPNG assetPath name $ snapBox dims dds -- map over list of all sub images
 
 -- For an XML element el describing the location and size of an icon in a larger imageset file,
 -- parse the XML into a 5 tuple containing name, x, y, width, and height
 subImageData el =
-    let k = ( T.pack . fromJust $ findAttr "Name" el, read . fromJust $ findAttr "XPos" el
+    let k = ( T.pack . fromJust $ findAttr "Name" el, (read . fromJust $ findAttr "XPos" el
             , read . fromJust $ findAttr "YPos" el, read . fromJust $ findAttr "Width" el
-            , read . fromJust $ findAttr "Height" el)
+            , read . fromJust $ findAttr "Height" el))
     in k
 
--- Given a DDS image read using DevIL, a destination path, and a 5 tuple describing the sub image,
--- extract and write the sub image as a png file to the destination path.
-writeSubImage dds assetPath (n,x,y,w,h) = do
-    let newImg = ulSubImage x y w h dds
-    I.writeImage (encodeString (assetPath </> (fromText n) <.> "png")) newImg
+-- Writes image data out to disk as PNG
+writeImageAsPNG assetPath name newImgData =
+    I.writeImage (encodeString (assetPath </> (basename $ fromText name) <.> "png")) newImgData
 
+exportScreen assetPath name imgData =
+    withTempFile assetPath (filename $ fromText name) imgData $ \tempPath -> do
+        I.ilInit
+        dds <- I.readImage (encodeString tempPath)
+        let cropped = snapBox (0,0,1024,765) dds
+        writeImageAsPNG assetPath name cropped
+
+-- Pulls a pulls a frame out of image data
+snapBox (x,y,w,h) dds = ulSubImage x y w h dds
 
 -- In XML imageset files, icons are described with origin in top left.  In DevIL library
 -- images have origin at bottom left, so need to translate and flip y axis

@@ -1,3 +1,77 @@
+/* Set up custom assets */
+
+@font-face {
+	font-family: 'huge';
+	src: url('/static/GUIAssets/HUGE.TTF');
+	}
+
+* {
+	font-family:Arial;
+	font-size:10pt;
+	}
+
+/* Macro layout stuff */
+
+#underlay {
+	background-color: white;
+	text-align: center;
+	background-repeat: no-repeat;
+	background-size: cover;
+	background-position: center;
+	top: 0%;
+	left: 0%;
+	width: 100%;
+	height: 100%;
+	}
+
+	
+#frame {
+	padding: 15px;
+	margin: 0 auto;
+	border-radius: 5px;
+	background-color: transparent;
+	display: inline-block;
+	text-align: left;
+	}
+
+#msgwindow {
+	height: 90px;
+	width: 510px;
+	border-style:solid;
+	border-width:2px;
+	border-color:gray;
+	overflow:scroll;
+	background-color: white;
+	}
+
+#sharedstash{
+	position: relative;
+	}
+    
+#sharedstash_stack {    
+    position: absolute;
+    top: 42px;
+	left: 19px;
+    } 
+    
+#ig_inventorytabs_arms {
+	position: absolute;
+	left: 153px;
+    top:300px;
+	}
+	
+#ig_inventorytabs_consumables {
+	position: absolute;
+	left: 208px;
+    top:300px;
+	}
+	
+#ig_inventorytabs_spells {
+	position: absolute;
+	left: 263px;
+    top:300px;
+	}
+    
 /* General layout */
  .grid {
 	display: table;
@@ -41,71 +115,96 @@
     background-color:black;
     border-color: orange;
     border-style: solid;
+	text-align: left;
     }
 
 .poplevel {
     position: absolute;
     right: 10px;
     color: white;
+	font-family: huge;
+	font-size: 10pt;
     }
 
 .poptitle {
-    font-size: 16;
+    font-size: 16pt;
     color: orange;
+	font-family: huge;
     }
 
 .popmod {
-    font-size: 12;
+    font-size: 12pt;
     color: blue;
     }
 
 /* Message window stuff */
-.msgwindow {
-	height: 90px;
-	width: 510px;
-	border-style:solid;
-	border-width:2px;
-	border-color:gray;
-	overflow:scroll;
-}
 
-.msgwindow .error {
+#msgwindow {
+	width: 95%;
+	margin-left: auto;
+	margin-right: auto;
+	height: 80px;
+	}
+
+#msgwindow .error {
 	color:red;
-}
+	}
 
-.msgwindow .info {
+#msgwindow .info {
 	color:black;
+	}
+
+#msgwindow .saved {
+	color:green;
+	}
+
+/* Filter box stuff */
+.searchbox {
+	height: 1.2em;
+	font-size: 1em;
+	display: inline-block;
+	width: 85%;
 }
 
-.msgwindow .saved {
-	color:green;
-}
-/* Positioning of elements */
-#sharedstash_div {
-	position: relative;
+.searchlabel {
+	font-size: 1.2em;
+	font-family: huge;
+	color: white;
+	display: inline-block;
+	margin-right: 2%;
 	}
-    
-#sharedstash_stack {    
-    position: absolute;
-    top: 42px;
-	left: 19px;
-    } 
-    
-#ig_inventorytabs_arms {
-	position: absolute;
-	left: 153px;
-    top:300px;
+
+.searchpanel {
+	width: 95%;
+	margin-left: auto;
+	margin-right: auto;
 	}
 	
-#ig_inventorytabs_consumables {
+/* Overlay */
+#overlay {
 	position: absolute;
-	left: 208px;
-    top:300px;
+	left: 0%;
+	top: 0%;
+	width: 100%;
+	height: 100%;
+	z-index: 100;
+	background-color: white;
+	text-align: center;
+	}
+
+#overlaycontent {
+	margin-left: auto;
+	margin-right: auto;
+	margin-top: 350px;
+	border-style: solid;
+	border-width: 3px;
+	border-radius: 15px;
+	padding: 10px;
+	display: inline-block;
 	}
 	
-#ig_inventorytabs_spells {
-	position: absolute;
-	left: 263px;
-    top:300px;
+#overlaylogo {
+	font-family: huge;
+	font-size: 40pt;
+	color: black;
 	}
-    

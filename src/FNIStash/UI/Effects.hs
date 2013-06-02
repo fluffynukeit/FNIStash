@@ -18,8 +18,21 @@ module FNIStash.UI.Effects  where
 import Graphics.UI.Threepenny
 import Graphics.UI.Threepenny.Browser
 
-import FNIStash.UI.Layout
-
 flashElement outDuration el = do
     animate el [("opacity", "0")] 300 Swing
         (animate el [("opacity", "1")] outDuration Swing (return ()))
+
+crossFade elOut elIn halfDur = do
+    return elIn # setVis False # setStyle [("opacity", "0")] # unit
+    fadeOut elOut halfDur Linear $ do
+        return elOut # setVis False # unit
+        return elIn # setVis True # unit
+        fadeIn elIn halfDur Linear $ return ()
+
+
+setVis v = setStyle [("visibility",
+    case v of
+        True    -> "inherit"
+        False   -> "hidden"
+        )]
+

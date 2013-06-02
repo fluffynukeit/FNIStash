@@ -64,10 +64,12 @@ backend msg appRoot guiRoot = handle (sendErrIO msg) $ handleDB (sendErrDB msg) 
 
     let sharedStashResult = parseSharedStash env ssData
     case sharedStashResult of
-        Left error -> writeBMessage msg $ Notice $ Error error
+        Left error -> writeBMessage msg $ Initializing $ InitError $ "Error reading shared stash: " ++ error
         Right sharedStash -> do
             dumpItemLocs msg sharedStash
+            writeBMessage msg $ Initializing RegisterStart
             dumpRegistrations env msg sharedStash
+            writeBMessage msg $ Initializing Complete
             msgList <- liftIO $ onlyFMessages msg
             handleMessages env msg cryptoFile sharedStash msgList
 
@@ -83,10 +85,9 @@ dumpItemLocs messages sharedStash =
 
 
 dumpRegistrations env messages sharedStash = do
-    writeBMessage messages $ Notice $ Info "Registering items..."
+
     registeredItems <- registerStash env sharedStash
     let locations = map itemLocation registeredItems
-    writeBMessage messages $ Registered locations
     writeBMessage messages $ Notice $ Info $ "Newly registered items: " ++ (show $ length locations)
 
 -- Tries to register all non-registered items into the DB.  Retuns list of newly
@@ -104,7 +105,7 @@ handleMessages env m cryptoFile sharedStash (msg:rest) = do
                 writeBMessage m $ Notice $ Saved (encodeString savePath)
                 return a
             Search keywordsString -> do
-                writeBMessage m $ Notice $ Info "Searching..."
+                -- writeBMessage m $ Notice $ Info "Searching..."
                 matchStatuses <- locsKeywordStatus env $ words keywordsString
                 writeBMessage m $ Visibility matchStatuses
                 return (sharedStash, [])

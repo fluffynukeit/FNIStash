@@ -17,12 +17,19 @@ module FNIStash.Comm.Messages where
 import Control.Concurrent
 import FNIStash.File.Item
 
-data BMessage = Initializing String
-              | Initialized
+data BMessage = Initializing InitEvent
               | LocationContents [(Location, Maybe Item)]
-              | Registered [Location]
               | Notice Notice
               | Visibility [(Location, Bool)]
+
+data InitEvent = CfgStart
+               | DBStart
+               | AssetsStart
+               | AssetsComplete
+               | EnvStart
+               | RegisterStart
+               | Complete
+               | InitError String
 
 data Notice = Error String
             | Info String

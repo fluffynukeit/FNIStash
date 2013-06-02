@@ -27,6 +27,7 @@ import Graphics.UI.Threepenny.Browser
 
 import Control.Monad.Trans
 import Control.Monad
+import System.Random
 
 import Debug.Trace
 import Data.Maybe
@@ -36,15 +37,23 @@ frontend messages = do
     forkTP handleEvents -- start the event handler.
     setTitle "FNIStash"
     body <- getBody
-    msgWindow <- controls messages body
+    (overlay, overlayMsg) <- overlay
+    return overlay #+ body
+    underlay <- new ## "underlay" #+ body
+    frame <- new ## "frame" #+ underlay
+    msgWindow <- controls messages frame
     msgList <- liftIO $ onlyBMessages messages
+    
     forM_ msgList $ \x -> do
         case x of
-            Initializing msg -> return msgWindow #= (msg ++ "...") # unit
-            Initialized -> stash messages #+ body # unit
+            Initializing AssetsComplete -> stash messages #+ frame # unit
+            Initializing Complete -> do
+                assignRandomBackground underlay
+                crossFade overlay underlay 350
+            Initializing x -> handleInit x overlayMsg
+                
             LocationContents locItemsList -> withLocVals locItemsList updateItem
             Notice notice -> noticeDisplay notice # addTo msgWindow >> scrollToBottom msgWindow
-            Registered locList -> withLocVals (zip locList locList) (\e _ _ -> flashElement 500 e)
             Visibility idStatusList -> withLocVals idStatusList $ \e v _ -> setVis v e # unit
                                  
 noticeDisplay notice = do
@@ -55,5 +64,20 @@ noticeDisplay notice = do
         Saved path  -> new #. "saved" #= "Shared stash saved to " ++ path #+ msgDisp # unit
     return msgDisp
 
+assignRandomBackground el = do
+    let suffs = ["","2","3","4","5","6"]; -- screen 7 doesn't look good with it
+    roll <- liftIO $ getStdRandom (randomR (0,5)) :: TP (Int)
+    let url = "url('/static/GUIAssets/SCREENS" ++ (suffs !! roll) ++ ".png')"
+    return el # setStyle [("backgroundImage", url)] # unit
 
 
+initMsg msg overlayMsg = return overlayMsg #= msg # unit
+
+handleInit CfgStart = initMsg "Reading configuration file..."
+handleInit DBStart  = initMsg "Instantiating database..."
+handleInit AssetsStart = initMsg "Extracting assets for first time startup.  Please wait..."
+handleInit EnvStart = initMsg "Building lookup environment..."
+handleInit RegisterStart = initMsg "Registering new items..."
+handleInit Complete = initMsg "Startup complete."
+handleInit (InitError s) = initMsg s
+handleInit _        = initMsg "Unknown initialization event!"

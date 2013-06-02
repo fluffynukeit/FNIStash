@@ -15,6 +15,7 @@
 module FNIStash.UI.Layout
 ( stash
 , controls
+, overlay
 , updateItem
 , withLocVals
 ) where
@@ -22,6 +23,7 @@ module FNIStash.UI.Layout
 import FNIStash.UI.Icon
 import FNIStash.File.Location
 import FNIStash.Comm.Messages
+import FNIStash.UI.Effects
 
 import Graphics.UI.Threepenny.Browser
 import Graphics.UI.Threepenny.Elements
@@ -48,19 +50,32 @@ idToLoc id =
     in Location a b (read c)
 
 
+overlay = do
+    overlayLogo <- new ## "overlaylogo" #= "FNIStash":: TP Element
+    overlayMsg <- new ## "overlaymsg"
+    overlayContent <- new ## "overlaycontent" #
+                      add overlayLogo #
+                      add overlayMsg
+    overlay <- new ## "overlay" # add overlayContent
+    return (overlay, overlayMsg)
+
 controls mes body = do
     controls <- new
-    msgWindow <- new #. "msgwindow" #+ controls
+    msgWindow <- new ## "msgwindow" #+ controls
     saveButton <- new #= "Click here to save" #+ controls
     onClick saveButton $ \_ -> liftIO $ notifySave mes
     searchBox <- newTextarea #. "searchbox"
     onSendValue searchBox $ \content -> liftIO $ notifySearch mes content
-    searchPanel <- new #. "searchpanel" # add searchBox #+ controls
+    searchLabel <- new #. "searchlabel" #= "Filter:"
+    searchPanel <- new #. "searchpanel" #
+                    add searchLabel #
+                    add searchBox #+
+                    controls
     return controls #+ body
     return msgWindow
 
 stash mes = do
-    cont <- new ## "sharedstash_div"
+    cont <- new ## "sharedstash"
     newIcon "ig_merchant_menu_base" ## "sharedstash_img" #+ cont
     let gStack = tabbedGridStack mes 5 8 [sharedStashArms, sharedStashCons, sharedStashSpells]
     gStack ## "sharedstash_stack" #+ cont
