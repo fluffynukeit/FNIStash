@@ -66,7 +66,7 @@ data Item = Item
 
 data Mod = Mod {
     modType :: Word32,
-    modName :: String,
+    modDisplayName :: Maybe String,
     modValueList :: [Float],
     modEffectIndex :: Word32,
     modDamageType :: DamageType,
@@ -141,9 +141,9 @@ getDamageType = do
     dmgType <- getWord32le
     return $ damageTypeLookup dmgType
 
-getMod env = do
+getMod (env@Env{..}) = do
     mType <- getWord32le
-    mName <- getTorchString
+    mName <- getTorchText
     numVals <- iterateUntil (/= 0) getWord8
     mValueList <- replicateM (fromIntegral numVals) getFloat
     mUnknown1 <- getTorchText
@@ -155,10 +155,12 @@ getMod env = do
     mUnknown3 <- getWord32le
     mValue <- getFloat
     mUnknown4 <- getWord32le
-    let mod = Mod mType mName mValueList mEffectIndex mDmgType mDescType
+    let dispName = lkupSkill mName >>= lkupVar vDISPLAYNAME >>= stringVar
+        mod = Mod mType dispName mValueList mEffectIndex mDmgType mDescType
                   mItemLevel mDuration mValue Normal text prec
         text = modDescription env mod
         prec = modPrecisionVal env mod
+        
     return mod
                  
 getModList env modCount = replicateM (fromIntegral modCount) (getMod env)
@@ -218,21 +220,22 @@ getIconName env guid =
     in findIcon guid
 
 instance Translate Mod where
-    translateMarkup mod markup =
-        let prec = stringPrecision $ modPrecision mod
-            r = roundAt $ modPrecision mod
+    translateMarkup (Mod{..}) markup =
+        let prec = stringPrecision modPrecision
+            r = roundAt modPrecision
             dispVal = prec . show . r
-        in (case markup of
-            "VALUE" -> const "VALUE" -- leave VALUE unchanged so we can store in DB smarter
-            "DURATION" -> dispVal . modDuration
-            "DMGTYPE" -> show . modDamageType
-            "VALUE1" -> dispVal . (flip (!!) 1) . modValueList
-            "VALUE2" -> dispVal . (flip (!!) 2) . modValueList
-            "VALUE3" -> dispVal . (flip (!!) 3) . modValueList
-            "VALUE4" -> dispVal . (flip (!!) 4) . modValueList
-            "VALUE3AND4" -> dispVal . (flip (!!) 3) . modValueList
-            _ -> \mod -> "???"
-            ) mod
+        in case markup of
+            "VALUE"     -> "VALUE" -- leave VALUE unchanged so we can store in DB smarter
+            "DURATION"  -> dispVal modDuration
+            "DMGTYPE"   -> show modDamageType
+            "VALUE1"    -> dispVal $ (flip (!!) 1) modValueList
+            "VALUE2"    -> dispVal $ (flip (!!) 2) modValueList
+            "VALUE3"    -> dispVal $ (flip (!!) 3) modValueList
+            "VALUE4"    -> dispVal $ (flip (!!) 4) modValueList
+            "VALUE3AND4" -> dispVal $ (flip (!!) 3) modValueList
+            "NAME"      -> maybe ("?Name?") id modDisplayName
+            _           -> "???"
+            
 
 
 showItem i = unlines
@@ -263,18 +266,17 @@ modDescription env (mod@Mod {..}) =
         Just sentence -> translateSentence mod sentence
         Nothing -> modDataDump mod
 
-modDataDump i =
-    let k f = show $ f i
-    in   unlines
-        ["","Type: " <> (intToHex . fromIntegral $ modType i),
-         "Name: " <> (modName i),
-         "Values: " <> (showListString (\x -> (show x) <> ", ") $ modValueList i),
-         "EffectIndex: " <> k modEffectIndex,
-         "DmgType: " <> k modDamageType,
-         "ItemLevel: " <> k modItemLevel,
-         "Duration: " <> k modDuration,
-         "Value: " <> k modValue,
-         ""]
+modDataDump (Mod {..}) =
+    unlines
+    ["","Type: " <> (intToHex . fromIntegral $ modType),
+     "Name: " <> (show modDisplayName),
+     "Values: " <> (showListString (\x -> (show x) <> ", ") modValueList),
+     "EffectIndex: " <> show modEffectIndex,
+     "DmgType: " <> show modDamageType,
+     "ItemLevel: " <> show modItemLevel,
+     "Duration: " <> show modDuration,
+     "Value: " <> show modValue,
+     ""]
 
 modPrecisionVal env mod =
     let effectNode = (lkupEffect env) (modEffectIndex mod)

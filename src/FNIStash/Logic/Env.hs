@@ -76,9 +76,9 @@ effectLookup pak =
         return . (runGetSuppress getDAT) >>= subNodeAt effID
 
 skillLookup pak =
-    let nameFinder = \x -> fromJust (lkupVar vNAME x >>= textVar)
-        dat = readDATFiles pak "MEDIA/SKILLS" nameFinder
-    in (\skillName -> lkupDATFile dat skillName)
+    let nameFinder = \x -> fromJust (lkupVar vNAME x >>= textVar >>= return . T.toUpper)
+        dat = readDATFiles pak "MEDIA/SKILLS/" nameFinder
+    in (\skillName -> lkupDATFile dat $ T.toUpper skillName)
 
 priceIsRightSearch :: Word16 -> (DATNode -> Word32) -> [DATNode] -> DATNode
 --priceIsRightSearch realPrice [] = who knows
