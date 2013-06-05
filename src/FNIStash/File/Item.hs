@@ -70,6 +70,7 @@ data Mod = Mod {
     modValueList :: [Float],
     modEffectIndex :: Word32,
     modDamageType :: DamageType,
+    modDescriptionType :: DescriptionType,
     modItemLevel :: Word32,
     modDuration :: Float,
     modValue :: Float,
@@ -78,6 +79,9 @@ data Mod = Mod {
     modPrecision :: Int
 } deriving (Eq, Ord, Show)
 
+
+data DescriptionType = GOODDES | BADDES | GOODDESOT | BADDESOT
+    deriving (Eq, Ord, Show)
 
 data DamageType = Physical | Fire | Electric | Ice | Poison | All | Unknown
     deriving (Ord, Show, Eq)
@@ -145,13 +149,13 @@ getMod env = do
     mUnknown1 <- getTorchText
     mEffectIndex <- getWord32le
     mDmgType <- getWord32le >>= return . damageTypeLookup
-    mUnknown2 <- getWord32le
+    mDescType <- getWord32le >>= return . descTypeLookup
     mItemLevel <- getWord32le
     mDuration <- getFloat
     mUnknown3 <- getWord32le
     mValue <- getFloat
     mUnknown4 <- getWord32le
-    let mod = Mod mType mName mValueList mEffectIndex mDmgType
+    let mod = Mod mType mName mValueList mEffectIndex mDmgType mDescType
                   mItemLevel mDuration mValue Normal text prec
         text = modDescription env mod
         prec = modPrecisionVal env mod
@@ -177,6 +181,11 @@ damageTypeLookup 0x04 = Electric
 damageTypeLookup 0x05 = Poison
 damageTypeLookup 0x06 = All
 damageTypeLookup _ = Unknown
+
+descTypeLookup 0x00 = GOODDES
+descTypeLookup 0x01 = BADDES  -- This is just a guess
+descTypeLookup 0x02 = GOODDESOT
+descTypeLookup 0x03 = BADDESOT -- This is also a guess
 
 
 -- TODO look out! I think only item data in the shared stash file is prefixed by its length
@@ -242,9 +251,14 @@ showItem i = unlines
 
 showMod = modText
 
-modDescription env mod =
-    let effectNode = (lkupEffect env) (modEffectIndex mod)
-        maybeSentence = (effectNode >>= lkupVar vGOODDES >>= stringVar)
+modDescription env (mod@Mod {..}) =
+    let effectNode = lkupEffect env modEffectIndex
+        descType = case modDescriptionType of
+            GOODDES     -> vGOODDES
+            GOODDESOT   -> vGOODDESOT
+            BADDES      -> vBADDES
+            BADDESOT    -> vBADDESOT
+        maybeSentence = (effectNode >>= lkupVar descType >>= stringVar)
     in case maybeSentence of
         Just sentence -> translateSentence mod sentence
         Nothing -> modDataDump mod
