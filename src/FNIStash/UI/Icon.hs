@@ -38,8 +38,8 @@ makePopUp item = do
     newIcon (itemIcon item) #. "popicon" #+ container
     new #. "poptitle" #= itemName item #+ container
     new #. "poppoints" #= (show.itemPoints) item #+ container
-    forM_ (itemMods item) $ \mod -> do
-        new #. "popmod" #= showMod mod #+ container
+    forM_ (itemEffects item) $ \mod -> do
+        new #. "popmod" #= showEffect mod #+ container
     new #. "popnumenchants" #= (show.itemNumEnchants) item #+ container
     return container #+ body # unit
 

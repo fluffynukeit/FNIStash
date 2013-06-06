@@ -19,13 +19,13 @@ module FNIStash.File.Item (
     putItem,
     showItem,
     moveTo,
-    showMod,
+    showEffect,
     Item(..),
     itemAsBS,
     itemLeadData,
     itemTrailData,
-    modText,
-    modValue,
+    effectText,
+    effectValue,
     module FNIStash.File.Location
 ) where
 
@@ -57,26 +57,25 @@ data Item = Item
     , itemGems :: [Item]
     , itemPoints :: Int
     , itemDamageTypes :: [DamageType]
-    , itemMods :: [Mod]
+    , itemEffects :: [Effect]
     , itemLocation :: Location
     , itemDataPieces :: (BS.ByteString, BS.ByteString)    -- Item data before and after location.
     , itemIcon :: String
 } deriving (Eq, Ord, Show)
 
 
-data Mod = Mod {
-    modType :: Word32,
-    modDisplayName :: Maybe String,
-    modValueList :: [Float],
-    modEffectIndex :: Word32,
-    modDamageType :: DamageType,
-    modDescriptionType :: DescriptionType,
-    modItemLevel :: Word32,
-    modDuration :: Float,
-    modValue :: Float,
-    modClass :: ModClass,
-    modText :: String,
-    modPrecision :: Int
+data Effect = Effect {
+    effectType :: Word32,
+    effectSkillName :: Maybe String,
+    effectValueList :: [Float],
+    effectIndex :: Word32,
+    effectDamageType :: DamageType,
+    effectDescriptionType :: DescriptionType,
+    effectItemLevel :: Word32,
+    effectDuration :: Float,
+    effectValue :: Float,
+    effectText :: String,
+    effectPrecision :: Int
 } deriving (Eq, Ord, Show)
 
 
@@ -91,7 +90,7 @@ data ModClass = Normal | Innate | Augment
 
 moveTo loc (Item {..}) =
     Item itemGUID itemRandomID itemName itemNumEnchants itemLevel itemNumSockets itemGems itemPoints
-         itemDamageTypes itemMods loc itemDataPieces itemIcon
+         itemDamageTypes itemEffects loc itemDataPieces itemIcon
 
 
 itemLeadData = fst . itemDataPieces
@@ -124,14 +123,14 @@ getItem env itemBinaryData = do
     bytes8 <- getByteString 12 -- 12x FF
     nElements <- getWord16le
     elements <- replicateM (fromIntegral nElements) getDamageType
-    modLists <- getModLists env >>= return . concat
+    effectLists <- getEffectLists env >>= return . concat
     -- every item ends in 16 00 bytes?  Only read 12 more bytes because 4 were
-    -- consumed by identifying the end of the mod lists
+    -- consumed by identifying the end of the effect lists
     replicateM 3 getWord32le
     let iconName = getIconName env guid
     return $ Item guid randomID (unwords [name, prefix, suffix]) (fromIntegral nEnchants) level
                       (fromIntegral nSockets) gems (fromIntegral (if maxDmg == 0xFFFFFFFF then armor else maxDmg))
-                      elements modLists location
+                      elements effectLists location
                       (BS.take nBytesBeforeLocation itemBinaryData,
                        BS.drop (nBytesBeforeLocation+4) itemBinaryData)
                        iconName
@@ -156,31 +155,31 @@ getMod (env@Env{..}) = do
     mValue <- getFloat
     listLinkValue <- getWord32le
     let dispName = lkupSkill mName >>= lkupVar vDISPLAYNAME >>= stringVar
-        mod = Mod mType dispName mValueList mEffectIndex mDmgType mDescType
-                  mItemLevel mDuration mValue Normal text prec
-        text = modDescription env mod
-        prec = modPrecisionVal env mod
+        effect = Effect mType dispName mValueList mEffectIndex mDmgType mDescType
+                  mItemLevel mDuration mValue text prec
+        text = effectDescription env effect
+        prec = effectPrecisionVal env effect
         
-    return (mod, listLinkValue)
+    return (effect, listLinkValue)
                  
-getModList env = do
-    modCount <- getWord32le
-    modLinkPairs <- replicateM (fromIntegral modCount) (getMod env)
-    if length modLinkPairs == 0 then
+getEffectList env = do
+    effectCount <- getWord32le
+    effectLinkPairs <- replicateM (fromIntegral effectCount) (getMod env)
+    if length effectLinkPairs == 0 then
         return ([], False)
         else do
-            let finalLinkVal = last $ map snd modLinkPairs
-                modsOnly = map fst modLinkPairs
+            let finalLinkVal = last $ map snd effectLinkPairs
+                effectsOnly = map fst effectLinkPairs
                 anotherListNext = finalLinkVal == 0x03
-            return (modsOnly, anotherListNext)
+            return (effectsOnly, anotherListNext)
 
-getModLists :: Env -> Get [[Mod]]
-getModLists env = do
-    (thisList, hasNext) <- getModList env
+getEffectLists :: Env -> Get [[Effect]]
+getEffectLists env = do
+    (thisList, hasNext) <- getEffectList env
     if not hasNext then
         return [thisList]
         else do
-            remainingLists <- getModLists env
+            remainingLists <- getEffectLists env
             return $ (thisList:remainingLists)
 
 
@@ -228,21 +227,21 @@ getIconName env guid =
                 Just icon -> icon
     in findIcon guid
 
-instance Translate Mod where
-    translateMarkup (Mod{..}) markup =
-        let prec = stringPrecision modPrecision
-            r = roundAt modPrecision
+instance Translate Effect where
+    translateMarkup (Effect{..}) markup =
+        let prec = stringPrecision effectPrecision
+            r = roundAt effectPrecision
             dispVal = prec . show . r
         in case markup of
             "VALUE"     -> "VALUE" -- leave VALUE unchanged so we can store in DB smarter
-            "DURATION"  -> dispVal modDuration
-            "DMGTYPE"   -> show modDamageType
-            "VALUE1"    -> dispVal $ (flip (!!) 0) modValueList
-            "VALUE2"    -> dispVal $ (flip (!!) 1) modValueList
-            "VALUE3"    -> dispVal $ (flip (!!) 2) modValueList
-            "VALUE4"    -> dispVal $ (flip (!!) 3) modValueList
-            "VALUE3AND4" -> dispVal $ (flip (!!) 3) modValueList
-            "NAME"      -> maybe ("?Name?") id modDisplayName
+            "DURATION"  -> dispVal effectDuration
+            "DMGTYPE"   -> show effectDamageType
+            "VALUE1"    -> dispVal $ (flip (!!) 0) effectValueList
+            "VALUE2"    -> dispVal $ (flip (!!) 1) effectValueList
+            "VALUE3"    -> dispVal $ (flip (!!) 2) effectValueList
+            "VALUE4"    -> dispVal $ (flip (!!) 3) effectValueList
+            "VALUE3AND4" -> dispVal $ (flip (!!) 3) effectValueList
+            "NAME"      -> maybe ("?Name?") id effectSkillName
             _           -> "???"
             
 
@@ -257,38 +256,38 @@ showItem i = unlines
      "Used Sockets: " <> (show $ (length . itemGems) i) <> "/" <> (show $ itemNumSockets i),
      "Dmg/Armor: " <> (show $ itemPoints i),
      "Num elements: " <> (show $ (length . itemDamageTypes) i),
-     "Mods: " ,"", showListString showMod $ itemMods i,
+     "Effects: " ,"", showListString showEffect $ itemEffects i,
      "Gems: " <> (showListString showItem $ itemGems i),
      "", ""]
 
-showMod = modText
+showEffect = effectText
 
-modDescription env (mod@Mod {..}) =
-    let effectNode = lkupEffect env modEffectIndex
-        descType = case modDescriptionType of
+effectDescription env (effect@Effect {..}) =
+    let effectNode = lkupEffect env effectIndex
+        descType = case effectDescriptionType of
             GOODDES     -> vGOODDES
             GOODDESOT   -> vGOODDESOT
             BADDES      -> vBADDES
             BADDESOT    -> vBADDESOT
         maybeSentence = (effectNode >>= lkupVar descType >>= stringVar)
     in case maybeSentence of
-        Just sentence -> translateSentence mod sentence
-        Nothing -> modDataDump mod
+        Just sentence -> translateSentence effect sentence
+        Nothing -> effectDataDump effect
 
-modDataDump (Mod {..}) =
+effectDataDump (Effect {..}) =
     unlines
-    ["","Type: " <> (intToHex . fromIntegral $ modType),
-     "Name: " <> (show modDisplayName),
-     "Values: " <> (showListString (\x -> (show x) <> ", ") modValueList),
-     "EffectIndex: " <> show modEffectIndex,
-     "DmgType: " <> show modDamageType,
-     "ItemLevel: " <> show modItemLevel,
-     "Duration: " <> show modDuration,
-     "Value: " <> show modValue,
+    ["","Type: " <> (intToHex . fromIntegral $ effectType),
+     "Name: " <> (show effectSkillName),
+     "Values: " <> (showListString (\x -> (show x) <> ", ") effectValueList),
+     "EffectIndex: " <> show effectIndex,
+     "DmgType: " <> show effectDamageType,
+     "ItemLevel: " <> show effectItemLevel,
+     "Duration: " <> show effectDuration,
+     "Value: " <> show effectValue,
      ""]
 
-modPrecisionVal env mod =
-    let effectNode = (lkupEffect env) (modEffectIndex mod)
+effectPrecisionVal env effect =
+    let effectNode = (lkupEffect env) (effectIndex effect)
         maybePrecision = (effectNode >>= lkupVar vDISPLAYPRECISION >>= intVar)
     in maybe 1 id maybePrecision
 

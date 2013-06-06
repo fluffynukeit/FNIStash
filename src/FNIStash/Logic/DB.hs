@@ -97,12 +97,15 @@ addItemToDB env item@(Item {..}) = let c  = dbConn env in withTransaction c $ \_
     -- First register the item data, starting with the Trail data
     trailID <- insertTrailData env item
     itemID <- insertItem env item trailID
+    -- First collect all the descriptors for the item
     descList <- sequence (
         [ insertDescriptor env Name itemName 0
         , insertDescriptor env Level "Level VALUE" itemLevel
         ] ++
-        L.map (\mod -> insertDescriptor env Mod (translateSentence mod $ modText mod) (modValue mod)) itemMods
+        L.map (\d ->
+            insertDescriptor env Effect (translateSentence d $ effectText d) (effectValue d)) itemEffects
         )
+    -- Then insert them into the db
     insertDescriptorSet env itemID descList
 
 
@@ -160,7 +163,7 @@ setUpAllTables conn =
     forM_ [setUpDescriptors, setUpTrailData, setUpItems, setUpDescriptorSets]
         (\q -> run conn q [])
 
-data DescriptorType = Innate | Mod | Socket | Enchant | RequiredLevel | Level | StatReq
+data DescriptorType = Innate | Effect | Socket | Enchant | RequiredLevel | Level | StatReq
                     | Description | EmptySocket | Name | ItemType deriving (Show, Enum)
 
 -- General ID, with phantom type for not getting them mixed up
