@@ -98,15 +98,16 @@ addItemToDB env item@(Item {..}) = let c  = dbConn env in withTransaction c $ \_
     trailID <- insertTrailData env item
     itemID <- insertItem env item trailID
     -- First collect all the descriptors for the item
-    descList <- sequence (
-        [ insertDescriptor env Name itemName 0
-        , insertDescriptor env Level "Level VALUE" itemLevel
-        ] ++
-        L.map (\d ->
-            insertDescriptor env Effect (translateSentence d $ effectText d) (effectValue d)) itemEffects
-        )
+    let descriptorList =
+            [ mkDesc Name itemName 0
+            , mkDesc Level "Level VALUE" $ fromIntegral itemLevel
+            ] ++
+            L.map (\d -> mkDesc Effect (translateSentence d $ effectText d) (effectValue d)) itemEffects
+    
+    descListWithValue <- forM descriptorList $ \(descType, exp, val) -> insertDescriptor env descType exp val 
+
     -- Then insert them into the db
-    insertDescriptorSet env itemID descList
+    insertDescriptorSet env itemID descListWithValue
 
 
 -- Use like this: ensureExists conn "ITEMS" ["RANDOM_ID", "GUID"] [toSql itemRandomID, toSql itemGUID]
@@ -162,6 +163,11 @@ insertDescriptorSet (Env {..}) itemID descIDValPairs =
 setUpAllTables conn =
     forM_ [setUpDescriptors, setUpTrailData, setUpItems, setUpDescriptorSets]
         (\q -> run conn q [])
+
+type Descriptor = (DescriptorType, String, Float)
+
+mkDesc :: DescriptorType -> String -> Float -> Descriptor
+mkDesc a b c = (a, b, c)
 
 data DescriptorType = Innate | Effect | Socket | Enchant | RequiredLevel | Level | StatReq
                     | Description | EmptySocket | Name | ItemType deriving (Show, Enum)
@@ -221,7 +227,7 @@ setUpDescriptorSets =
     \( ID integer primary key not null \
     \, FK_ITEM_ID integer not null \
     \, FK_DESCRIPTOR_ID integer not null \
-    \, VALUE text not null \
+    \, VALUE real not null \
     \, foreign key(FK_ITEM_ID) references ITEMS(ID)\
     \, foreign key(FK_DESCRIPTOR_ID) references DESCRIPTORS(ID));"
 
