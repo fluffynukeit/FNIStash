@@ -154,24 +154,32 @@ getMod (env@Env{..}) = do
     mDuration <- getFloat
     mUnknown3 <- getWord32le
     mValue <- getFloat
-    mUnknown4 <- getWord32le
+    listLinkValue <- getWord32le
     let dispName = lkupSkill mName >>= lkupVar vDISPLAYNAME >>= stringVar
         mod = Mod mType dispName mValueList mEffectIndex mDmgType mDescType
                   mItemLevel mDuration mValue Normal text prec
         text = modDescription env mod
         prec = modPrecisionVal env mod
         
-    return mod
+    return (mod, listLinkValue)
                  
-getModList env modCount = replicateM (fromIntegral modCount) (getMod env)
+getModList env = do
+    modCount <- getWord32le
+    modLinkPairs <- replicateM (fromIntegral modCount) (getMod env)
+    if length modLinkPairs == 0 then
+        return ([], False)
+        else do
+            let finalLinkVal = last $ map snd modLinkPairs
+                modsOnly = map fst modLinkPairs
+                anotherListNext = finalLinkVal == 0x03
+            return (modsOnly, anotherListNext)
 
 getModLists :: Env -> Get [[Mod]]
 getModLists env = do
-    modCount <- getWord32le
-    if (modCount == 0) then -- there are no more lists to read in
-        return []-- finish
+    (thisList, hasNext) <- getModList env
+    if not hasNext then
+        return [thisList]
         else do
-            thisList <- getModList env modCount
             remainingLists <- getModLists env
             return $ (thisList:remainingLists)
 
@@ -185,9 +193,10 @@ damageTypeLookup 0x06 = All
 damageTypeLookup _ = Unknown
 
 descTypeLookup 0x00 = GOODDES
-descTypeLookup 0x01 = BADDES  -- This is just a guess
+descTypeLookup 0x01 = GOODDES
 descTypeLookup 0x02 = GOODDESOT
-descTypeLookup 0x03 = BADDESOT -- This is also a guess
+descTypeLookup 0x03 = BADDES  -- This is just a guess
+descTypeLookup 0x04 = BADDESOT -- This is also a guess
 
 
 -- TODO look out! I think only item data in the shared stash file is prefixed by its length
@@ -228,10 +237,10 @@ instance Translate Mod where
             "VALUE"     -> "VALUE" -- leave VALUE unchanged so we can store in DB smarter
             "DURATION"  -> dispVal modDuration
             "DMGTYPE"   -> show modDamageType
-            "VALUE1"    -> dispVal $ (flip (!!) 1) modValueList
-            "VALUE2"    -> dispVal $ (flip (!!) 2) modValueList
-            "VALUE3"    -> dispVal $ (flip (!!) 3) modValueList
-            "VALUE4"    -> dispVal $ (flip (!!) 4) modValueList
+            "VALUE1"    -> dispVal $ (flip (!!) 0) modValueList
+            "VALUE2"    -> dispVal $ (flip (!!) 1) modValueList
+            "VALUE3"    -> dispVal $ (flip (!!) 2) modValueList
+            "VALUE4"    -> dispVal $ (flip (!!) 3) modValueList
             "VALUE3AND4" -> dispVal $ (flip (!!) 3) modValueList
             "NAME"      -> maybe ("?Name?") id modDisplayName
             _           -> "???"
