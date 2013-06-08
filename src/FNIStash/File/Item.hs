@@ -185,14 +185,18 @@ hasFilePath 0xa141 = True
 hasFilePath 0x9041 = True
 hasFilePath 0x8541 = True
 hasFilePath 0x8149 = True
+hasFilePath 0x0140 = True
+hasFilePath 0x2141 = True
 
 hasFilePath 0xa041 = False
 hasFilePath 0x8041 = False
 hasFilePath 0x8050 = False
+hasFilePath 0x0041 = False
 hasFilePath _ = False
 
 hasGUID 0xA141 = True
 hasGUID 0xA041 = True
+hasGUID 0x2141 = True
 hasGUID _      = False
 
 hasExtraString 0x02 = True

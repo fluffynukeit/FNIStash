@@ -82,7 +82,7 @@ dumpItemLocs messages sharedStash =
         writeBMessage messages locMsg
         forM_ itemErrors $ \err -> writeBMessage messages $
             Notice $ Error $ err
-        writeBMessage messages $
+        when (length itemErrors > 0) $ writeBMessage messages $
              Notice $ Error $ "Number items failed: " ++ (show.length) itemErrors
 
 
