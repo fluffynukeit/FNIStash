@@ -17,6 +17,8 @@ module FNIStash.File.General
 ( getTorchText
 , getTorchTextL
 , getTorchString
+, getTorchString1Byte
+, maybeAction
 , wordToFloat
 , wordToDouble
 , showHex
@@ -60,13 +62,18 @@ getTorchTextL :: LG.Get T.Text
 getTorchTextL = fromIntegral . (*2) <$> LG.getWord16le >>= LG.getByteString >>= return . decodeUtf16LE 
 
 getTorchString :: SG.Get String
-getTorchString = getTorchText >>= return . T.unpack
+getTorchString = T.unpack <$> getTorchText
+
+getTorchText1Byte = fromIntegral . (*2) <$> SG.getWord8 >>= SG.getByteString >>= return . decodeUtf16LE
+getTorchString1Byte = T.unpack <$> getTorchText1Byte
 
 getFloat :: SG.Get Float
 getFloat = (SG.getWord32le >>= (return . wordToFloat))
 
 streamToHex :: SBS.ByteString -> T.Text
 streamToHex = T.pack . ("0x" ++) . concatMap ((" "++) . wordToHex) . SBS.unpack
+
+maybeAction bool action = if bool then Just <$> action else return Nothing
 
 wordToHex word = case length $ showHex word "" of
     1 -> "0" ++ showHex word ""

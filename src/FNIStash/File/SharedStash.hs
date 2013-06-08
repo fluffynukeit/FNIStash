@@ -71,4 +71,4 @@ showSharedStash :: SharedStash -> String
 showSharedStash s = foldl (\a b -> a <> showItemResult b) "" s
 
 showItemResult (Left error) = unlines ["", error, ""]
-showItemResult (Right item) = showItem item
+showItemResult (Right item) = show item

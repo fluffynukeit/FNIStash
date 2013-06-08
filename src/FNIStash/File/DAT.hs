@@ -216,7 +216,8 @@ readDATFiles pak pathSubStr keyFxn =
             let newVal = runGetSuppress getDAT $ maybe SBS.empty id $ lkupPAKFile oldKey pak
                 newKey = keyFxn newVal
             in (newKey, newVal)
-    in M.fromList $ map newPair $ M.toList matchingKeyMap
+        datExt (oldKey, _) = T.isInfixOf ".DAT" oldKey
+    in M.fromList $ map newPair $ filter datExt $ M.toList matchingKeyMap
 
 lkupDATFile :: Ord a => DATFiles a -> a -> Maybe DATNode
 lkupDATFile d k = M.lookup k d

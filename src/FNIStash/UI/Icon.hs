@@ -31,16 +31,19 @@ newItemIcon item = do
     return i
 
 makePopUp item = do
-    let displayText = showItem item
     body <- getBody
     container <- new #. "itempopup" ## "itempopup"
     new #. "poplevel" #= "Level " ++ (show.itemLevel) item #+ container
     newIcon (itemIcon item) #. "popicon" #+ container
     new #. "poptitle" #= itemName item #+ container
     new #. "poppoints" #= (show.itemPoints) item #+ container
-    forM_ (itemMods item) $ \mod -> do
-        new #. "popmod" #= showMod mod #+ container
-    new #. "popnumenchants" #= (show.itemNumEnchants) item #+ container
+    forM_ (itemEffects item) $ \eff -> do
+        new #. "popeffect" #= show eff #+ container
+    new #. "popenchant" #= "Num enchants: " ++ ((show.itemNumEnchants) item) #+ container
+    forM_ (itemTriggerables item) $ \trig -> do
+        new #. "poptriggerable" #= show trig #+ container
+    forM_ (itemStats item) $ \stat -> do
+        new #. "popstat" #= show stat #+ container
     return container #+ body # unit
 
 
@@ -52,7 +55,6 @@ killPopUp = do
         Nothing -> return ()
         Just p -> delete p
 
-itemPopup item = new #. "itempopup" #= (showItem item)
 
 newIcon src =
     newImg
