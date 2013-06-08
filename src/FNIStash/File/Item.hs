@@ -62,6 +62,7 @@ data Item = Item
     , itemLocation :: Location
     , itemDataPieces :: (BS.ByteString, BS.ByteString)    -- Item data before and after location.
     , itemIcon :: String
+    , itemIdentified :: Word8
 } deriving (Eq, Ord)
 
 
@@ -97,7 +98,7 @@ data ModClass = Normal | Innate | Augment
 
 moveTo loc (Item {..}) =
     Item itemGUID itemRandomID itemName itemNumEnchants itemLevel itemNumSockets itemQuantity itemGems itemPoints
-         itemDamageTypes itemEffects itemTriggerables itemStats loc itemDataPieces itemIcon
+         itemDamageTypes itemEffects itemTriggerables itemStats loc itemDataPieces itemIcon itemIdentified
 
 
 itemLeadData = fst . itemDataPieces
@@ -116,7 +117,8 @@ getItem env itemBinaryData = do
     nEnchants <- fromIntegral <$> getWord32le
     nBytesBeforeLocation <- bytesRead
     location <- getLocation env
-    bytes2 <- getByteString 7 -- always 00 01 01 01 01 00 01?
+    bytes2 <- getByteString 6 -- always 00 01 01 01 01 00 01?
+    identified <- getWord8
     bytes3 <- getByteString 8 -- can be different for equal items..more than just 8
     bytes4 <- replicateM 4 $ getByteString 20
     level <- fromIntegral <$> getWord32le
@@ -145,6 +147,7 @@ getItem env itemBinaryData = do
                       (BS.take nBytesBeforeLocation itemBinaryData,
                        BS.drop (nBytesBeforeLocation+4) itemBinaryData)
                        iconName
+                       identified
 
 getDamageType = do
     getByteString 8     -- 8 leading bytes are always 0? - No, look at raleigh claire
