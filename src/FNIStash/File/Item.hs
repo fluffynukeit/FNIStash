@@ -109,6 +109,7 @@ getItem env itemBinaryData = do
     prefix <- getTorchString
     suffix <- getTorchString
     randomID <- getByteString 24
+    bytes0 <- getWord32le   -- added for new stash format
     bytes1 <- getByteString 29  -- not sure what these do... almost all FF
     nEnchants <- getWord32le
     nBytesBeforeLocation <- bytesRead
@@ -130,15 +131,14 @@ getItem env itemBinaryData = do
     elements <- replicateM (fromIntegral nElements) getDamageType
     effectLists <- getEffectLists env >>= return . concat
     effectList2 <- getEffectLists env >>= return . concat
-    -- every item ends in 16 00 bytes?  Only read 12 more bytes because 4 were
-    -- consumed by identifying the end of the effect lists
+    
     trigList <- getListOf getTriggerable
     statList <- getListOf getStat
-    --replicateM 2 getWord32le
+    
     let iconName = getIconName env guid
     return $ Item guid randomID (unwords [name, prefix, suffix]) (fromIntegral nEnchants) level
                       (fromIntegral nSockets) gems (fromIntegral (if maxDmg == 0xFFFFFFFF then armor else maxDmg))
-                      elements effectLists [] []
+                      elements effectLists trigList statList
                       location
                       (BS.take nBytesBeforeLocation itemBinaryData,
                        BS.drop (nBytesBeforeLocation+4) itemBinaryData)
