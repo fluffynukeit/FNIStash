@@ -51,6 +51,7 @@ data Item = Item
     , itemName :: String
     , itemNumEnchants :: Int
     , itemLevel :: Int
+    , itemQuantity :: Int
     , itemNumSockets :: Int
     , itemGems :: [Item]
     , itemPoints :: Int
@@ -67,6 +68,7 @@ data Item = Item
 data Effect = Effect {
     effectType :: Word16,
     effectSkillName :: Maybe String,
+    effectFile :: Maybe String,
     effectValueList :: [Float],
     effectIndex :: Word32,
     effectDamageType :: DamageType,
@@ -94,7 +96,7 @@ data ModClass = Normal | Innate | Augment
     deriving (Ord, Eq, Show)
 
 moveTo loc (Item {..}) =
-    Item itemGUID itemRandomID itemName itemNumEnchants itemLevel itemNumSockets itemGems itemPoints
+    Item itemGUID itemRandomID itemName itemNumEnchants itemLevel itemNumSockets itemQuantity itemGems itemPoints
          itemDamageTypes itemEffects itemTriggerables itemStats loc itemDataPieces itemIcon
 
 
@@ -111,15 +113,15 @@ getItem env itemBinaryData = do
     randomID <- getByteString 24
     bytes0 <- getWord32le   -- added for new stash format
     bytes1 <- getByteString 29  -- not sure what these do... almost all FF
-    nEnchants <- getWord32le
+    nEnchants <- fromIntegral <$> getWord32le
     nBytesBeforeLocation <- bytesRead
     location <- getLocation env
     bytes2 <- getByteString 7 -- always 00 01 01 01 01 00 01?
     bytes3 <- getByteString 8 -- can be different for equal items..more than just 8
     bytes4 <- replicateM 4 $ getByteString 20
     level <- fromIntegral <$> getWord32le
-    bytes5 <- getByteString 4 -- always 01 00 00 00?
-    nSockets <- getWord32le
+    quantity <- fromIntegral <$> getWord32le
+    nSockets <- fromIntegral <$> getWord32le
     nUsedSockets <-  getWord32le
     gems <- replicateM (fromIntegral nUsedSockets) $ getItem env itemBinaryData
     bytes6 <- getByteString 4 -- always 00 00 00 00?
@@ -136,8 +138,8 @@ getItem env itemBinaryData = do
     statList <- getListOf getStat
     
     let iconName = getIconName env guid
-    return $ Item guid randomID (unwords [name, prefix, suffix]) (fromIntegral nEnchants) level
-                      (fromIntegral nSockets) gems (fromIntegral (if maxDmg == 0xFFFFFFFF then armor else maxDmg))
+    return $ Item guid randomID (unwords [name, prefix, suffix]) nEnchants level quantity
+                      nSockets gems (fromIntegral (if maxDmg == 0xFFFFFFFF then armor else maxDmg))
                       elements effectLists trigList statList
                       location
                       (BS.take nBytesBeforeLocation itemBinaryData,
@@ -153,11 +155,9 @@ getEffect (env@Env{..}) = do
     mType <- getWord16le
     hasExtraStringBytes <- getWord16le
     mName <- getTorchText
-    twoBlankBytes <- lookAhead getWord16le
-    when (twoBlankBytes == 0x00) (getWord16le >> return ())
-    guid <- if hasGUID mType
-            then getWord64le >>= (return . Just . fromIntegral)
-            else return Nothing 
+    file <- maybeAction (hasFilePath mType) getTorchString
+    guid <- maybeAction (hasGUID mType) (getWord64le >>= return . fromIntegral)
+             
     numVals <- getWord8
     mValueList <- replicateM (fromIntegral numVals) getFloat
     mUnknown1 <- getTorchText
@@ -169,16 +169,27 @@ getEffect (env@Env{..}) = do
     mUnknown3 <- getWord32le
     mValue <- getFloat
     listLinkValue <- getWord32le
-    extraString <- if hasExtraString hasExtraStringBytes
-                   then Just <$> getTorchString1Byte
-                   else return Nothing
+    extraString <- maybeAction (hasExtraString hasExtraStringBytes) getTorchString1Byte
     let dispName = lkupSkill mName >>= lkupVar vDISPLAYNAME >>= stringVar
-        effect = Effect mType dispName mValueList mEffectIndex mDmgType mDescType
+        effect = Effect mType dispName file mValueList mEffectIndex mDmgType mDescType
                   mItemLevel mDuration mValue text prec guid extraString
         text = effectDescription env effect
         prec = effectPrecisionVal env effect
         
     return (effect, listLinkValue)
+
+
+hasFilePath 0x8141 = True
+hasFilePath 0x8140 = True
+hasFilePath 0xa141 = True
+hasFilePath 0x9041 = True
+hasFilePath 0x8541 = True
+hasFilePath 0x8149 = True
+
+hasFilePath 0xa041 = False
+hasFilePath 0x8041 = False
+hasFilePath 0x8050 = False
+hasFilePath _ = False
 
 hasGUID 0xA141 = True
 hasGUID 0xA041 = True

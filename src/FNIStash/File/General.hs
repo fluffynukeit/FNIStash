@@ -18,6 +18,7 @@ module FNIStash.File.General
 , getTorchTextL
 , getTorchString
 , getTorchString1Byte
+, maybeAction
 , wordToFloat
 , wordToDouble
 , showHex
@@ -71,6 +72,8 @@ getFloat = (SG.getWord32le >>= (return . wordToFloat))
 
 streamToHex :: SBS.ByteString -> T.Text
 streamToHex = T.pack . ("0x" ++) . concatMap ((" "++) . wordToHex) . SBS.unpack
+
+maybeAction bool action = if bool then Just <$> action else return Nothing
 
 wordToHex word = case length $ showHex word "" of
     1 -> "0" ++ showHex word ""
