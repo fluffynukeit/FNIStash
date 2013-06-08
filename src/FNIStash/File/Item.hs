@@ -17,9 +17,7 @@
 module FNIStash.File.Item (
     getItem,
     putItem,
-    showItem,
     moveTo,
-    showEffect,
     Item(..),
     itemAsBS,
     itemLeadData,
@@ -58,14 +56,16 @@ data Item = Item
     , itemPoints :: Int
     , itemDamageTypes :: [DamageType]
     , itemEffects :: [Effect]
+    , itemTriggerables :: [Triggerable]
+    , itemStats :: [Stat]
     , itemLocation :: Location
     , itemDataPieces :: (BS.ByteString, BS.ByteString)    -- Item data before and after location.
     , itemIcon :: String
-} deriving (Eq, Ord, Show)
+} deriving (Eq, Ord)
 
 
 data Effect = Effect {
-    effectType :: Word32,
+    effectType :: Word16,
     effectSkillName :: Maybe String,
     effectValueList :: [Float],
     effectIndex :: Word32,
@@ -75,8 +75,13 @@ data Effect = Effect {
     effectDuration :: Float,
     effectValue :: Float,
     effectText :: String,
-    effectPrecision :: Int
-} deriving (Eq, Ord, Show)
+    effectPrecision :: Int,
+    effectSpecialGUID :: Maybe Int64,
+    effectExtraString :: Maybe String
+} deriving (Eq, Ord)
+
+instance Show Effect where
+    show = effectText
 
 
 data DescriptionType = GOODDES | BADDES | GOODDESOT | BADDESOT
@@ -90,7 +95,7 @@ data ModClass = Normal | Innate | Augment
 
 moveTo loc (Item {..}) =
     Item itemGUID itemRandomID itemName itemNumEnchants itemLevel itemNumSockets itemGems itemPoints
-         itemDamageTypes itemEffects loc itemDataPieces itemIcon
+         itemDamageTypes itemEffects itemTriggerables itemStats loc itemDataPieces itemIcon
 
 
 itemLeadData = fst . itemDataPieces
@@ -124,13 +129,17 @@ getItem env itemBinaryData = do
     nElements <- getWord16le
     elements <- replicateM (fromIntegral nElements) getDamageType
     effectLists <- getEffectLists env >>= return . concat
+    effectList2 <- getEffectLists env >>= return . concat
     -- every item ends in 16 00 bytes?  Only read 12 more bytes because 4 were
     -- consumed by identifying the end of the effect lists
-    replicateM 3 getWord32le
+    trigList <- getListOf getTriggerable
+    statList <- getListOf getStat
+    --replicateM 2 getWord32le
     let iconName = getIconName env guid
     return $ Item guid randomID (unwords [name, prefix, suffix]) (fromIntegral nEnchants) level
                       (fromIntegral nSockets) gems (fromIntegral (if maxDmg == 0xFFFFFFFF then armor else maxDmg))
-                      elements effectLists location
+                      elements effectLists [] []
+                      location
                       (BS.take nBytesBeforeLocation itemBinaryData,
                        BS.drop (nBytesBeforeLocation+4) itemBinaryData)
                        iconName
@@ -140,10 +149,16 @@ getDamageType = do
     dmgType <- getWord32le
     return $ damageTypeLookup dmgType
 
-getMod (env@Env{..}) = do
-    mType <- getWord32le
+getEffect (env@Env{..}) = do
+    mType <- getWord16le
+    hasExtraStringBytes <- getWord16le
     mName <- getTorchText
-    numVals <- iterateUntil (/= 0) getWord8
+    twoBlankBytes <- lookAhead getWord16le
+    when (twoBlankBytes == 0x00) (getWord16le >> return ())
+    guid <- if hasGUID mType
+            then getWord64le >>= (return . Just . fromIntegral)
+            else return Nothing 
+    numVals <- getWord8
     mValueList <- replicateM (fromIntegral numVals) getFloat
     mUnknown1 <- getTorchText
     mEffectIndex <- getWord32le
@@ -154,23 +169,40 @@ getMod (env@Env{..}) = do
     mUnknown3 <- getWord32le
     mValue <- getFloat
     listLinkValue <- getWord32le
+    extraString <- if hasExtraString hasExtraStringBytes
+                   then Just <$> getTorchString1Byte
+                   else return Nothing
     let dispName = lkupSkill mName >>= lkupVar vDISPLAYNAME >>= stringVar
         effect = Effect mType dispName mValueList mEffectIndex mDmgType mDescType
-                  mItemLevel mDuration mValue text prec
+                  mItemLevel mDuration mValue text prec guid extraString
         text = effectDescription env effect
         prec = effectPrecisionVal env effect
         
     return (effect, listLinkValue)
-                 
+
+hasGUID 0xA141 = True
+hasGUID 0xA041 = True
+hasGUID _      = False
+
+hasExtraString 0x02 = True
+hasExtraString _    = False
+
+
+getListOf (getter) = getWord32le >>= return . fromIntegral >>= flip replicateM getter
+
 getEffectList env = do
     effectCount <- getWord32le
-    effectLinkPairs <- replicateM (fromIntegral effectCount) (getMod env)
+    effectLinkPairs <- replicateM (fromIntegral effectCount) (getEffect env)
     if length effectLinkPairs == 0 then
         return ([], False)
         else do
             let finalLinkVal = last $ map snd effectLinkPairs
                 effectsOnly = map fst effectLinkPairs
+                eatExtraByte = if 0x804a == (effectType $ last effectsOnly)
+                               then getWord32le >> return ()
+                               else return ()
                 anotherListNext = finalLinkVal == 0x03
+            eatExtraByte
             return (effectsOnly, anotherListNext)
 
 getEffectLists :: Env -> Get [[Effect]]
@@ -179,9 +211,32 @@ getEffectLists env = do
     if not hasNext then
         return [thisList]
         else do
-            remainingLists <- getEffectLists env
+            remainingLists <- getEffectLists env 
             return $ (thisList:remainingLists)
+--    modCount <- getWord32le
+--    if (modCount == 0) then
+--        return []
+--        else do
+--            thisListPair <- replicateM (fromIntegral modCount) (getEffect env)
+--            remainingLists <- getEffectLists env
+--            return $ ((map fst thisListPair):remainingLists)
 
+getTriggerable = Triggerable <$> getTorchString
+
+getStat = Stat <$> (getWord64le >>= return . fromIntegral) <*> getByteString 4
+
+data Triggerable = Triggerable String deriving (Eq, Ord)
+instance Show Triggerable where
+    show (Triggerable a) = a
+
+data Stat = Stat
+    { statGUID :: Int64
+    , statBytes :: BS.ByteString -- Keep raw data because we only know data type
+                                 -- after we do a lookup by GUID
+    } deriving (Eq, Ord)
+
+instance Show Stat where
+    show (Stat i b) = show i ++ ":" ++ show b  
 
 damageTypeLookup 0x00 = Physical
 damageTypeLookup 0x02 = Fire
@@ -245,22 +300,20 @@ instance Translate Effect where
             _           -> "???"
             
 
-
-showItem i = unlines
-    ["GUID: " <> (show $ (fromIntegral $ itemGUID i::Int64)),
-     "Full name: " <> itemName i,
-     "Icon: " <> itemIcon i,
-     "Location: " <> show (itemLocation i),
-     "Num Enchants: " <> show (itemNumEnchants i),
-     "Item level: " <> show (itemLevel i),
-     "Used Sockets: " <> (show $ (length . itemGems) i) <> "/" <> (show $ itemNumSockets i),
-     "Dmg/Armor: " <> (show $ itemPoints i),
-     "Num elements: " <> (show $ (length . itemDamageTypes) i),
-     "Effects: " ,"", showListString showEffect $ itemEffects i,
-     "Gems: " <> (showListString showItem $ itemGems i),
-     "", ""]
-
-showEffect = effectText
+instance Show Item where
+    show i = unlines
+        ["GUID: " <> (show $ (fromIntegral $ itemGUID i::Int64)),
+         "Full name: " <> itemName i,
+         "Icon: " <> itemIcon i,
+         "Location: " <> show (itemLocation i),
+         "Num Enchants: " <> show (itemNumEnchants i),
+         "Item level: " <> show (itemLevel i),
+         "Used Sockets: " <> (show $ (length . itemGems) i) <> "/" <> (show $ itemNumSockets i),
+         "Dmg/Armor: " <> (show $ itemPoints i),
+         "Num elements: " <> (show $ (length . itemDamageTypes) i),
+         "Effects: " ,"", showListString show $ itemEffects i,
+         "Gems: " <> (showListString show $ itemGems i),
+         "", ""]
 
 effectDescription env (effect@Effect {..}) =
     let effectNode = lkupEffect env effectIndex
