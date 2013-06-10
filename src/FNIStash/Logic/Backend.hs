@@ -20,11 +20,10 @@ module FNIStash.Logic.Backend (
 ) where
 
 import FNIStash.Logic.Initialize
-import FNIStash.File.Location
 import FNIStash.Comm.Messages
 import FNIStash.File.Crypto
 import FNIStash.File.SharedStash
-import FNIStash.Logic.Items
+import FNIStash.Logic.Operations
 import FNIStash.Logic.DB
 
 import Filesystem.Path

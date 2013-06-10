@@ -25,7 +25,6 @@ where
 
 import FNIStash.File.Item
 import FNIStash.Logic.Env
-import FNIStash.Logic.Translate
 
 import Database.HDBC
 import Database.HDBC.Sqlite3

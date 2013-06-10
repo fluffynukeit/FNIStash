@@ -12,7 +12,7 @@
 --
 -----------------------------------------------------------------------------
 
-module FNIStash.Logic.Items (
+module FNIStash.Logic.Operations (
     moveContents,
     saveItems
 ) where

@@ -14,100 +14,67 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module FNIStash.File.Item (
-    getItem,
-    putItem,
-    moveTo,
-    Item(..),
-    itemAsBS,
-    itemLeadData,
-    itemTrailData,
-    effectText,
-    effectValue,
-    module FNIStash.File.Location
-) where
+module FNIStash.File.Item
+    ( getItemBytes
+    , putPartition
+    , ItemBytes(..)
+    , LocationBytes(..)
+    , EffectBytes(..)
+    , Partition(..)
+    , AddedDamageBytes(..)
+    ) where
 
 import FNIStash.File.General
-import FNIStash.Logic.Translate
-import FNIStash.Logic.Env
-import FNIStash.File.Variables
-import FNIStash.File.DAT
-import FNIStash.File.Location
 
 import qualified Data.ByteString as BS
 import Data.Binary.Strict.Get
 import Data.Binary.Put
 import Control.Applicative
-import Control.Monad
 import Control.Monad.Loops
+import Control.Monad
 import Data.Word
-import Data.Int
-import Data.Monoid hiding (All)
 import Data.Maybe
 
-data Item = Item
-    { itemGUID :: Int64
-    , itemRandomID :: BS.ByteString
-    , itemName :: String
-    , itemNumEnchants :: Int
-    , itemLevel :: Int
-    , itemQuantity :: Int
-    , itemNumSockets :: Int
-    , itemGems :: [Item]
-    , itemPoints :: Int
-    , itemDamageTypes :: [DamageType]
-    , itemEffects :: [Effect]
-    , itemTriggerables :: [Triggerable]
-    , itemStats :: [Stat]
-    , itemLocation :: Location
-    , itemDataPieces :: (BS.ByteString, BS.ByteString)    -- Item data before and after location.
-    , itemIcon :: String
-    , itemIdentified :: Word8
+
+-- Utility function for getting a list of something with prepended length
+
+getListOf (getter) = getWord32le >>= return . fromIntegral >>= flip replicateM getter
+
+
+-- Top level for parsing ITEM
+
+data ItemBytes = ItemBytes
+    { iBytesGUID :: Word64
+    , iBytesName :: String
+    , iBytesPrefix :: String
+    , iBytesSuffix :: String
+    , iBytesRandomID :: BS.ByteString
+    , iBytesNumEnchants :: Word32
+    , iBytesLocation :: LocationBytes
+    , iBytesIdentified :: Word8
+    , iBytesLevel :: Word32
+    , iBytesQuantity :: Word32
+    , iBytesNumSockets :: Word32
+    , iBytesGems :: [ItemBytes]
+    , iBytesDamage :: Word32
+    , iBytesArmor :: Word32
+    , iBytesAddedDamages :: [AddedDamageBytes]
+    , iBytesEffects :: [EffectBytes]
+    , iBytesEffects2 :: [EffectBytes]
+    , iBytesTriggerables :: [TriggerableBytes]
+    , iBytesStats :: [StatBytes]
+    , iBytesPartition :: Partition    -- Item data before and after location.
 } deriving (Eq, Ord)
 
+data Partition = Partition
+    { pBeforeLocation :: BS.ByteString
+    , pAfterLocation :: BS.ByteString
+    } deriving (Eq, Ord)
 
-data Effect = Effect {
-    effectType :: Word16,
-    effectSkillName :: Maybe String,
-    effectFile :: Maybe String,
-    effectValueList :: [Float],
-    effectIndex :: Word32,
-    effectDamageType :: DamageType,
-    effectDescriptionType :: DescriptionType,
-    effectItemLevel :: Word32,
-    effectDuration :: Float,
-    effectValue :: Float,
-    effectText :: String,
-    effectPrecision :: Int,
-    effectSpecialGUID :: Maybe Int64,
-    effectExtraString :: Maybe String
-} deriving (Eq, Ord)
-
-instance Show Effect where
-    show = effectText
-
-
-data DescriptionType = GOODDES | BADDES | GOODDESOT | BADDESOT
-    deriving (Eq, Ord, Show)
-
-data DamageType = Physical | Fire | Electric | Ice | Poison | All | Unknown
-    deriving (Ord, Show, Eq)
-
-data ModClass = Normal | Innate | Augment
-    deriving (Ord, Eq, Show)
-
-moveTo loc (Item {..}) =
-    Item itemGUID itemRandomID itemName itemNumEnchants itemLevel itemNumSockets itemQuantity itemGems itemPoints
-         itemDamageTypes itemEffects itemTriggerables itemStats loc itemDataPieces itemIcon itemIdentified
-
-
-itemLeadData = fst . itemDataPieces
-itemTrailData = snd . itemDataPieces
-
-getItem :: Env -> BS.ByteString -> Get Item
-getItem env itemBinaryData = do
+getItemBytes :: BS.ByteString -> Get ItemBytes
+getItemBytes itemBinaryData = do
     lead <- getWord8
-    guid <- fromIntegral <$> getWord64le
+    guid <- getWord64le
     name <- getTorchString
     prefix <- getTorchString
     suffix <- getTorchString
@@ -116,71 +83,117 @@ getItem env itemBinaryData = do
     bytes1 <- getByteString 29  -- not sure what these do... almost all FF
     nEnchants <- fromIntegral <$> getWord32le
     nBytesBeforeLocation <- bytesRead
-    location <- getLocation env
+    location <- getLocationBytes
     bytes2 <- getByteString 6 -- always 00 01 01 01 01 00 01?
     identified <- getWord8
     bytes3 <- getByteString 8 -- can be different for equal items..more than just 8
     bytes4 <- replicateM 4 $ getByteString 20
-    level <- fromIntegral <$> getWord32le
-    quantity <- fromIntegral <$> getWord32le
-    nSockets <- fromIntegral <$> getWord32le
-    nUsedSockets <-  getWord32le
-    gems <- replicateM (fromIntegral nUsedSockets) $ getItem env itemBinaryData
+    level <- getWord32le
+    quantity <- getWord32le
+    nSockets <- getWord32le
+    gems <- getListOf $ getItemBytes itemBinaryData
     bytes6 <- getByteString 4 -- always 00 00 00 00?
     maxDmg <- getWord32le
     armor <- getWord32le
     bytes7 <- getByteString 4 -- different for equal items?
     bytes8 <- getByteString 12 -- 12x FF
-    nElements <- getWord16le
-    elements <- replicateM (fromIntegral nElements) getDamageType
-    effectLists <- getEffectLists env >>= return . concat
-    effectList2 <- getEffectLists env >>= return . concat
+    nDmgTypes <- getWord16le
+    addedDamages <- replicateM (fromIntegral nDmgTypes) getAddedDamageBytes
+    effectList <- getEffectLists >>= return . concat
+    effectList2 <- getEffectLists >>= return . concat
     
-    trigList <- getListOf getTriggerable
-    statList <- getListOf getStat
-    
-    let iconName = getIconName env guid
-    return $ Item guid randomID (unwords [name, prefix, suffix]) nEnchants level quantity
-                      nSockets gems (fromIntegral (if maxDmg == 0xFFFFFFFF then armor else maxDmg))
-                      elements effectLists trigList statList
-                      location
-                      (BS.take nBytesBeforeLocation itemBinaryData,
-                       BS.drop (nBytesBeforeLocation+4) itemBinaryData)
-                       iconName
-                       identified
+    trigList <- getListOf getTriggerableBytes
+    statList <- getListOf getStatBytes
 
-getDamageType = do
-    getByteString 8     -- 8 leading bytes are always 0? - No, look at raleigh claire
-    dmgType <- getWord32le
-    return $ damageTypeLookup dmgType
+    return $ ItemBytes guid name prefix suffix randomID nEnchants location identified level
+                       quantity nSockets gems maxDmg armor addedDamages effectList effectList2
+                       trigList statList
+                       $ Partition (BS.take nBytesBeforeLocation itemBinaryData)
+                                   (BS.drop (nBytesBeforeLocation+4) itemBinaryData)
 
-getEffect (env@Env{..}) = do
+-- Parsing LOCATION
+
+data LocationBytes = LocationBytes
+    { lBytesSlotIndex :: Word16
+    , lBytesContainer :: Word16
+    } deriving (Eq, Ord)
+
+getLocationBytes = LocationBytes <$> getWord16le <*> getWord16le
+putLocationBytes (LocationBytes {..}) = putWord16le lBytesSlotIndex >> putWord16le lBytesContainer
+
+-- Parsing ADDED DAMAGES, such as from enchants or sockets
+
+data AddedDamageBytes = AddedDamageBytes
+    { dBytesFromSocket :: Word32
+    , dBytesFromEnchant :: Word32
+    , dBytesDamageType :: Word32
+    } deriving (Eq, Ord)
+
+getAddedDamageBytes = AddedDamageBytes <$> getWord32le <*> getWord32le <*> getWord32le
+
+
+
+-- Parsing the EFFECTS that add special behaviors
+
+data EffectBytes = EffectBytes
+    { eBytesType :: Word16
+    , eBytesName :: String
+    , eBytesFile :: Maybe String
+    , eBytesGUID :: Maybe Word64
+    , eBytesNumValues :: Word8
+    , eBytesValueList :: [Word32]
+    , eBytesIndex :: Word32
+    , eBytesDamageType :: Word32
+    , eBytesDescriptionType :: Word32
+    , eBytesItemLevel :: Word32
+    , eBytesDuration :: Word32
+    , eBytesValue :: Word32
+    , eBytesLink :: Word32 -- tells us whether the list continues
+    , eBytesExtraString :: Maybe String
+    } deriving (Eq, Ord)
+
+getEffect = do
     mType <- getWord16le
-    hasExtraStringBytes <- getWord16le
-    mName <- getTorchText
+    hasExtraStringBytes <- getWord16le -- uses these bytes to do a lookup to see if filepath is present
+    mName <- getTorchString
     file <- maybeAction (hasFilePath mType) getTorchString
-    guid <- maybeAction (hasGUID mType) (getWord64le >>= return . fromIntegral)
-             
+    guid <- maybeAction (hasGUID mType) getWord64le
     numVals <- getWord8
-    mValueList <- replicateM (fromIntegral numVals) getFloat
-    mUnknown1 <- getTorchText
+    mValueList <- replicateM (fromIntegral numVals) getWord32le
+    mUnknown1 <- getTorchText -- This is always 00 00??
     mEffectIndex <- getWord32le
-    mDmgType <- getWord32le >>= return . damageTypeLookup
-    mDescType <- getWord32le >>= return . descTypeLookup
+    mDmgType <- getWord32le
+    mDescType <- getWord32le
     mItemLevel <- getWord32le
-    mDuration <- getFloat
+    mDuration <- getWord32le
     mUnknown3 <- getWord32le
-    mValue <- getFloat
+    mValue <- getWord32le
     listLinkValue <- getWord32le
     extraString <- maybeAction (hasExtraString hasExtraStringBytes) getTorchString1Byte
-    let dispName = lkupSkill mName >>= lkupVar vDISPLAYNAME >>= stringVar
-        effect = Effect mType dispName file mValueList mEffectIndex mDmgType mDescType
-                  mItemLevel mDuration mValue text prec guid extraString
-        text = effectDescription env effect
-        prec = effectPrecisionVal env effect
-        
-    return (effect, listLinkValue)
+    return $ EffectBytes mType mName file guid numVals mValueList mEffectIndex mDmgType mDescType
+                         mItemLevel mDuration mValue listLinkValue extraString
 
+getEffectList = do
+    effList <- getListOf getEffect
+    if length effList == 0 then
+        return ([], False)
+        else do
+            let lastEffInList = last effList
+                eatExtraByte = if 0x804a == (eBytesType lastEffInList)
+                               then getWord32le >> return () -- consume the extra byte
+                               else return ()
+                anotherListNext = eBytesLink lastEffInList == 0x03
+            eatExtraByte
+            return (effList, anotherListNext)
+
+getEffectLists :: Get [[EffectBytes]]
+getEffectLists = do
+    (thisList, hasNext) <- getEffectList
+    if not hasNext then
+        return [thisList]
+        else do
+            remainingLists <- getEffectLists 
+            return $ (thisList:remainingLists)
 
 hasFilePath 0x8141 = True
 hasFilePath 0x8140 = True
@@ -195,6 +208,7 @@ hasFilePath 0xa041 = False
 hasFilePath 0x8041 = False
 hasFilePath 0x8050 = False
 hasFilePath 0x0041 = False
+hasFilePath 0x8440 = False -- this is on the +5% poison dmg enchant
 hasFilePath _ = False
 
 hasGUID 0xA141 = True
@@ -206,166 +220,29 @@ hasExtraString 0x02 = True
 hasExtraString _    = False
 
 
-getListOf (getter) = getWord32le >>= return . fromIntegral >>= flip replicateM getter
+-- Parsing the TRIGGERABLES (like counters on kill).  This is usually empty.
 
-getEffectList env = do
-    effectCount <- getWord32le
-    effectLinkPairs <- replicateM (fromIntegral effectCount) (getEffect env)
-    if length effectLinkPairs == 0 then
-        return ([], False)
-        else do
-            let finalLinkVal = last $ map snd effectLinkPairs
-                effectsOnly = map fst effectLinkPairs
-                eatExtraByte = if 0x804a == (effectType $ last effectsOnly)
-                               then getWord32le >> return ()
-                               else return ()
-                anotherListNext = finalLinkVal == 0x03
-            eatExtraByte
-            return (effectsOnly, anotherListNext)
+newtype TriggerableBytes = TriggerableBytes String deriving (Eq, Ord)
 
-getEffectLists :: Env -> Get [[Effect]]
-getEffectLists env = do
-    (thisList, hasNext) <- getEffectList env
-    if not hasNext then
-        return [thisList]
-        else do
-            remainingLists <- getEffectLists env 
-            return $ (thisList:remainingLists)
---    modCount <- getWord32le
---    if (modCount == 0) then
---        return []
---        else do
---            thisListPair <- replicateM (fromIntegral modCount) (getEffect env)
---            remainingLists <- getEffectLists env
---            return $ ((map fst thisListPair):remainingLists)
+getTriggerableBytes = TriggerableBytes <$> getTorchString
 
-getTriggerable = Triggerable <$> getTorchString
 
-getStat = Stat <$> (getWord64le >>= return . fromIntegral) <*> getByteString 4
+-- Parsing the STATS related to item, like special kill count. This is usually empty.
 
-data Triggerable = Triggerable String deriving (Eq, Ord)
-instance Show Triggerable where
-    show (Triggerable a) = a
-
-data Stat = Stat
-    { statGUID :: Int64
+data StatBytes = StatBytes
+    { statGUID :: Word64
     , statBytes :: BS.ByteString -- Keep raw data because we only know data type
                                  -- after we do a lookup by GUID
     } deriving (Eq, Ord)
 
-instance Show Stat where
-    show (Stat i b) = show i ++ ":" ++ show b  
-
-damageTypeLookup 0x00 = Physical
-damageTypeLookup 0x02 = Fire
-damageTypeLookup 0x03 = Ice
-damageTypeLookup 0x04 = Electric
-damageTypeLookup 0x05 = Poison
-damageTypeLookup 0x06 = All
-damageTypeLookup _ = Unknown
-
-descTypeLookup 0x00 = GOODDES
-descTypeLookup 0x01 = GOODDES
-descTypeLookup 0x02 = GOODDESOT
-descTypeLookup 0x03 = BADDES  -- This is just a guess
-descTypeLookup 0x04 = BADDESOT -- This is also a guess
-
+getStatBytes = StatBytes <$> getWord64le <*> getByteString 4
 
 -- TODO look out! I think only item data in the shared stash file is prefixed by its length
-putItem :: Env -> Item -> Put
-putItem env item = do
-    let data1 = itemLeadData item
-        data2 = itemTrailData item
-        dataLength = BS.length data1 + BS.length data2 + 4
+putPartition :: LocationBytes -> Partition -> Put
+putPartition locBytes (Partition {..}) = do
+    let dataLength = BS.length pBeforeLocation + BS.length pAfterLocation + 4
     putWord32le $ fromIntegral dataLength
-    putByteString data1
-    putLocation env $ itemLocation item
-    putByteString data2
+    putByteString pBeforeLocation
+    putLocationBytes locBytes
+    putByteString pAfterLocation
 
-
-itemAsBS env item = runPut (putItem env item)
-
-getIconName env guid =
-    let lkupID = lkupItemGUID env -- looks up an item by Int64 GUID
-        lkupPath = lkupItemPath env
-        findIcon guid =
-            let item = lkupID guid
-                maybeIcon = item >>= lkupVar vICON >>= stringVar
-                baseItemID = fromJust $ item >>=
-                                        lkupVar vBASEFILE >>=
-                                        textVar >>= lkupPath >>=
-                                        lkupVar vUNIT_GUID >>= stringVar >>= return . read
-            in  case maybeIcon of
-                Nothing -> findIcon baseItemID
-                Just icon -> icon
-    in findIcon guid
-
-instance Translate Effect where
-    translateMarkup (Effect{..}) markup =
-        let prec = stringPrecision effectPrecision
-            r = roundAt effectPrecision
-            dispVal = prec . show . r
-        in case markup of
-            "VALUE"     -> "VALUE" -- leave VALUE unchanged so we can store in DB smarter
-            "DURATION"  -> dispVal effectDuration
-            "DMGTYPE"   -> show effectDamageType
-            "VALUE1"    -> dispVal $ (flip (!!) 0) effectValueList
-            "VALUE2"    -> dispVal $ (flip (!!) 1) effectValueList
-            "VALUE3"    -> dispVal $ (flip (!!) 2) effectValueList
-            "VALUE4"    -> dispVal $ (flip (!!) 3) effectValueList
-            "VALUE3AND4" -> dispVal $ (flip (!!) 3) effectValueList
-            "NAME"      -> maybe ("?Name?") id effectSkillName
-            _           -> "???"
-            
-
-instance Show Item where
-    show i = unlines
-        ["GUID: " <> (show $ (fromIntegral $ itemGUID i::Int64)),
-         "Full name: " <> itemName i,
-         "Icon: " <> itemIcon i,
-         "Location: " <> show (itemLocation i),
-         "Num Enchants: " <> show (itemNumEnchants i),
-         "Item level: " <> show (itemLevel i),
-         "Used Sockets: " <> (show $ (length . itemGems) i) <> "/" <> (show $ itemNumSockets i),
-         "Dmg/Armor: " <> (show $ itemPoints i),
-         "Num elements: " <> (show $ (length . itemDamageTypes) i),
-         "Effects: " ,"", showListString show $ itemEffects i,
-         "Gems: " <> (showListString show $ itemGems i),
-         "", ""]
-
-effectDescription env (effect@Effect {..}) =
-    let effectNode = lkupEffect env effectIndex
-        descType = case effectDescriptionType of
-            GOODDES     -> vGOODDES
-            GOODDESOT   -> vGOODDESOT
-            BADDES      -> vBADDES
-            BADDESOT    -> vBADDESOT
-        maybeSentence = (effectNode >>= lkupVar descType >>= stringVar)
-    in case maybeSentence of
-        Just sentence -> translateSentence effect sentence
-        Nothing -> effectDataDump effect
-
-effectDataDump (Effect {..}) =
-    unlines
-    ["","Type: " <> (intToHex . fromIntegral $ effectType),
-     "Name: " <> (show effectSkillName),
-     "Values: " <> (showListString (\x -> (show x) <> ", ") effectValueList),
-     "EffectIndex: " <> show effectIndex,
-     "DmgType: " <> show effectDamageType,
-     "ItemLevel: " <> show effectItemLevel,
-     "Duration: " <> show effectDuration,
-     "Value: " <> show effectValue,
-     ""]
-
-effectPrecisionVal env effect =
-    let effectNode = (lkupEffect env) (effectIndex effect)
-        maybePrecision = (effectNode >>= lkupVar vDISPLAYPRECISION >>= intVar)
-    in maybe 1 id maybePrecision
-
-roundAt prec val = ((fromIntegral . ceiling) (val*10^prec)) / 10^prec
-
-stringPrecision prec string =
-    let (preDecimal, postDecimal) = break (== '.') string
-    in if prec == 0
-        then preDecimal
-        else preDecimal ++ (take (prec+1) postDecimal)
