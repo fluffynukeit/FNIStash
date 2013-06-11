@@ -39,9 +39,14 @@ makePopUp (Item{..}) = do
     newIcon (iBaseIcon iBase) #. "popicon" #+ container
     new #. "poptitle" #= iName #+ container
     new #. "poppoints" #= show iPoints #+ container
+    
     forM_ iEffects $ \mod -> 
         new #. "popeffect" #= show mod #+ container
-    new #. "popenchant" #= "Num enchants: " ++ show (length iEnchantments) #+ container
+
+    when (length iEnchantments > 0) $ do
+        new #. "popenchant" #= "Enchantments: " ++ show (length iEnchantments) #+ container
+        forM_ iEnchantments $ \mod ->
+            new #. "popenchant" #= show mod #+ container
 
     -- Stat reqs
     forM_ (iBaseStatReqs iBase) $ \req ->

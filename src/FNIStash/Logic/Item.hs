@@ -14,6 +14,7 @@
 
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module FNIStash.Logic.Item
     ( getItem
@@ -36,8 +37,10 @@ import Control.Applicative
 import Data.List.Utils
 import Data.Binary.Put
 import Data.Maybe
+import Data.Convertible
 import qualified Data.Text as T
 import qualified Data.ByteString as BS
+import qualified Data.List as L
 
 ------ GENERAL STUFF
 
@@ -68,7 +71,7 @@ data ItemBase = ItemBase
 --    , iBaseQuality :: Quality
 --    , iBaseClass :: ItemClass
     , iBaseStatReqs :: [StatReq]
-    , iBaseSpeed :: Maybe Int
+    , iBaseSpeed :: Maybe Float
     , iBaseRange :: Maybe Float
     , iBaseMaxSockets :: Maybe Int
     , iBaseRarity :: Maybe Int
@@ -137,11 +140,20 @@ encodeLocationBytes (Env {..}) loc = do
 
 ----- MODIFIER STUFF
 
+data ModType = Effect | Enchantment deriving (Eq, Ord)
+
 data Mod = Mod
-    { mDescription :: EffectDescription
+    { mType :: ModType
+    , mDescription :: EffectDescription
     , mValue :: Float
     , mDisplayPrecision :: Int
     } deriving (Eq, Ord)
+
+isEnchantment (Mod Enchantment _ _ _) = True
+isEnchantment (Mod _ _ _ _) = False
+
+isEffect (Mod Effect _ _ _) = True
+isEffect (Mod _ _ _ _) = False
 
 descTypeLookup 0x00 = GOODDES
 descTypeLookup 0x01 = GOODDES
@@ -214,7 +226,13 @@ decodeEffectBytes (Env{..}) (eff@EffectBytes {..}) =
         precision = effectPrecisionVal effNode
         skillname = lkupSkill (T.pack eBytesName) >>= vDISPLAYNAME
         description = effectDescription precision skillname effNode eff
-    in Mod description value precision
+        mType = if null eBytesName then Enchantment else Effect
+    in Mod mType description value precision
+
+instance Convertible AddedDamageBytes EffectBytes where
+    safeConvert (AddedDamageBytes{..}) = Right $
+        EffectBytes 0 "" Nothing Nothing 0 [] 0x0a dBytesDamageType 0 0 0 dBytesFromEnchant 0 Nothing
+
 
 
 instance Show Mod where
@@ -267,21 +285,31 @@ decodePoints 0xFFFFFFFF a = ArmorVal $ fromIntegral a
 --data AddedDamage = AddedDamage
 --decodeAddedDamage (AddedDamageBytes {..}) =
 
-decodeItemBytes env (ItemBytes {..}) = Item
-    iBytesName
-    iBytesRandomID
-    (decodeIdentified iBytesIdentified)
-    (decodeLocationBytes env iBytesLocation)
-    (fromIntegral iBytesLevel)
-    (fromIntegral iBytesQuantity)
-    (fromIntegral iBytesNumSockets)
-    (map (decodeItemBytes env) iBytesGems)
-    (decodePoints iBytesDamage iBytesArmor)
-    (map (decodeEffectBytes env) (iBytesEffects ++ iBytesEffects2))
-    []
-    []
-    iBytesPartition
-    (getItemBase env (ItemGUID $ fromIntegral iBytesGUID))
+decodeItemBytes env (ItemBytes {..}) =
+    let allMods = (map (decodeEffectBytes env) (iBytesEffects ++ iBytesEffects2))
+        enchantAdditions = filter ((/=) 0 . dBytesFromEnchant) iBytesAddedDamages
+        (normalMods, enchantMods) = L.partition isEffect allMods
+        numEnchMods = fromIntegral iBytesNumEnchants - (length enchantAdditions)
+        (useEnchantsEffects, backToNormal) = L.splitAt numEnchMods enchantMods
+        useNormal = backToNormal ++ normalMods
+        convertedAdditions = map (decodeEffectBytes env . convert) enchantAdditions
+        useEnchants = convertedAdditions ++ useEnchantsEffects
+    in
+        Item
+        iBytesName
+        iBytesRandomID
+        (decodeIdentified iBytesIdentified)
+        (decodeLocationBytes env iBytesLocation)
+        (fromIntegral iBytesLevel)
+        (fromIntegral iBytesQuantity)
+        (fromIntegral iBytesNumSockets)
+        (map (decodeItemBytes env) iBytesGems)
+        (decodePoints iBytesDamage iBytesArmor)
+        useNormal
+        useEnchants
+        []
+        iBytesPartition
+        (getItemBase env (ItemGUID $ fromIntegral iBytesGUID))
 
 
 
