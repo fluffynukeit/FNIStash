@@ -182,8 +182,10 @@ effectPrecisionVal effectNode =
     let maybePrecision = effectNode >>= vDISPLAYPRECISION
     in maybe 1 id maybePrecision
 
+roundAt prec val = ((fromIntegral . ceiling) (val*10^prec)) / 10^prec
+
 showPrecision prec showable =
-    let (preDecimal, postDecimal) = break (== '.') (show showable)
+    let (preDecimal, postDecimal) = break (== '.') (show . roundAt prec $ showable)
     in if prec == 0
         then preDecimal
         else preDecimal ++ (take (prec+1) postDecimal)
@@ -214,7 +216,7 @@ effectTranslator precVal maybeSkillName (eff@EffectBytes{..}) markup =
         "VALUE3"    -> fromList 3
         "VALUE4"    -> fromList 4
         "VALUE3AND4"-> fromList 3
-        "VALUE_OT"  -> dispVal $ fromIntegral (ceiling $ wordToFloat eBytesValue)  * (wordToFloat eBytesDuration)
+        "VALUE_OT"  -> dispVal $ (roundAt precVal $ wordToFloat eBytesValue)  * (wordToFloat eBytesDuration)
         "NAME"      -> maybe ("?Name?") id maybeSkillName
         _           -> "???"
             
