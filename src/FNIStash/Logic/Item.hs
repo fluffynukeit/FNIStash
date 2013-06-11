@@ -17,8 +17,12 @@
 
 module FNIStash.Logic.Item
     ( getItem
-    , Item(..)
     , putItem
+    , Item(..)
+    , ItemBase(..)
+    , Location(..)
+    , Partition(..)
+    , Mod(..)
     ) where
 
 -- This file is for decodeing raw bytes of items into useables types and useable information
@@ -32,6 +36,7 @@ import Control.Applicative
 import Data.List.Utils
 import Data.Binary.Put
 import qualified Data.Text as T
+import qualified Data.ByteString as BS
 
 ------ GENERAL STUFF
 
@@ -132,7 +137,7 @@ encodeLocationBytes (Env {..}) loc = do
 ----- MODIFIER STUFF
 
 data Mod = Mod
-    { mDescription :: String
+    { mDescription :: EffectDescription
     , mValue :: Float
     , mDisplayPrecision :: Int
     } deriving (Eq, Ord)
@@ -154,10 +159,11 @@ effectDescription prec skill effectNode (eff@EffectBytes {..}) =
                 vUnknown (EffectDescription UnknownDescriptionType $
                     "!Effect (type, index): " ++ show (eBytesType, eBytesIndex))
         maybeSentence = (effectNode >>= descType)
-    in case effDesc <$> maybeSentence of
-        Just sentence -> translateSentence (effectTranslator prec skill eff) sentence
-        Nothing ->  "!No description of " ++ show eBytesDescriptionType ++
-                        " for index " ++ show eBytesIndex
+    in case maybeSentence of
+        Just (EffectDescription a sentence) -> EffectDescription a $
+                            translateSentence (effectTranslator prec skill eff) sentence
+        Nothing -> EffectDescription UnknownDescriptionType $
+                    "!No description of " ++ show eBytesDescriptionType ++ " for index " ++ show eBytesIndex
 
 effectPrecisionVal effectNode =
     let maybePrecision = effectNode >>= vDISPLAYPRECISION
@@ -186,13 +192,16 @@ effectTranslator precVal maybeSkillName (eff@EffectBytes{..}) markup =
         fromList i = dispVal $ wordToFloat $ (flip (!!) i) eBytesValueList 
     in case markup of
         "VALUE"     -> "VALUE" -- leave VALUE unchanged so we can store in DB smarter
-        "DURATION"  -> dispVal (wordToFloat eBytesDuration)
+        "DURATION"  -> let val = dispVal (wordToFloat eBytesDuration)
+                           suffix = if val == "1" then " second" else " seconds"
+                       in val ++ suffix
         "DMGTYPE"   -> show (damageTypeLookup eBytesDamageType)
-        "VALUE1"    -> fromList 0
-        "VALUE2"    -> fromList 1
-        "VALUE3"    -> fromList 2
-        "VALUE4"    -> fromList 3
-        "VALUE3AND4" -> fromList 4
+        "VALUE1"    -> fromList 1
+        "VALUE2"    -> fromList 2
+        "VALUE3"    -> fromList 3
+        "VALUE4"    -> fromList 4
+        "VALUE3AND4"-> fromList 3
+        "VALUE_OT"  -> dispVal $ fromIntegral (ceiling $ wordToFloat eBytesValue)  * (wordToFloat eBytesDuration)
         "NAME"      -> maybe ("?Name?") id maybeSkillName
         _           -> "???"
             
@@ -208,23 +217,36 @@ decodeEffectBytes (Env{..}) (eff@EffectBytes {..}) =
 
 
 instance Show Mod where
-    show (Mod{..}) = replace "VALUE" (showPrecision mDisplayPrecision mValue) mDescription
+    show (Mod{..}) =
+        let nominal = replace "VALUE" (showPrecision mDisplayPrecision mValue) $ effDesc mDescription
+        in case effDescType mDescription of
+            GOODDES ->  nominal
+            BADDES ->   nominal
+            GOODDESOT -> "Conveys " ++ nominal
+            BADDESOT ->  "Conveys " ++ nominal
+            UnknownDescriptionType -> "!!" ++ nominal
 
 
+----- FOR DEALING WITH POINT VALUES LIKE DAMAGE AND ARMOR
+data PointValue = DamageVal Int | ArmorVal Int | NoVal deriving (Eq, Ord)
 
+instance Show PointValue where
+    show (DamageVal v) = show v ++ " damage"
+    show (ArmorVal v)  = show v ++ " armor"
+    show NoVal         = ""
 
 ---- COMPLETE ITEM STUFF
 
 data Item = Item
     { iName :: String
+    , iRandomID :: BS.ByteString
     , iIdentified :: Bool
     , iLocation :: Location
     , iLevel :: Int
     , iQuantity :: Int
     , iNumSockets :: Int
     , iGems :: [Item]
-    , iDamage :: Maybe Int
-    , iArmor :: Maybe Int
+    , iPoints :: PointValue
     , iEffects :: [Mod]
     , iEnchantments :: [Mod]
     , iTriggerables :: [Mod]
@@ -237,21 +259,23 @@ getItem env bs = decodeItemBytes env <$> getItemBytes bs
 decodeIdentified 0x00 = False
 decodeIdentified _ = True
 
-decodePoints 0xFFFFFFFF = Nothing
-decodePoints x = Just $ fromIntegral x
+decodePoints 0xFFFFFFFF 0xFFFFFFFF = NoVal
+decodePoints a 0xFFFFFFFF = DamageVal $ fromIntegral a
+decodePoints 0xFFFFFFFF a = ArmorVal $ fromIntegral a
 
 --data AddedDamage = AddedDamage
 --decodeAddedDamage (AddedDamageBytes {..}) =
 
 decodeItemBytes env (ItemBytes {..}) = Item
-    iBytesName (decodeIdentified iBytesIdentified)
+    iBytesName
+    iBytesRandomID
+    (decodeIdentified iBytesIdentified)
     (decodeLocationBytes env iBytesLocation)
     (fromIntegral iBytesLevel)
     (fromIntegral iBytesQuantity)
     (fromIntegral iBytesNumSockets)
     (map (decodeItemBytes env) iBytesGems)
-    (decodePoints iBytesDamage)
-    (decodePoints iBytesArmor)
+    (decodePoints iBytesDamage iBytesArmor)
     (map (decodeEffectBytes env) (iBytesEffects ++ iBytesEffects2))
     []
     []
@@ -263,13 +287,6 @@ decodeItemBytes env (ItemBytes {..}) = Item
 
 putItem env (Item {..}) = putPartition (encodeLocationBytes env iLocation) iPartition
 itemAsBS env item = runPut $ putItem env item
-
-
-
-
-moveTo loc (Item {..}) =
-    Item iName iIdentified loc iLevel iQuantity iNumSockets iGems iDamage
-         iArmor iEffects iEnchantments iTriggerables iPartition iBase
 
 
 

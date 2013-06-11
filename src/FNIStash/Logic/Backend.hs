@@ -13,6 +13,7 @@
 -----------------------------------------------------------------------------
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module FNIStash.Logic.Backend (
     ensurePaths,
@@ -75,7 +76,7 @@ backend msg appRoot guiRoot = handle (sendErrIO msg) $ handleDB (sendErrDB msg) 
 dumpItemLocs messages sharedStash =
     let itemErrors = lefts sharedStash
         goodItems = rights sharedStash
-        locContents = map (\i -> (itemLocation i, Just i)) goodItems
+        locContents = map (\(i@Item{..}) -> (iLocation, Just i)) goodItems
         locMsg = LocationContents locContents
     in do
         writeBMessage messages locMsg
@@ -88,7 +89,7 @@ dumpItemLocs messages sharedStash =
 dumpRegistrations env messages sharedStash = do
 
     registeredItems <- registerStash env sharedStash
-    let locations = map itemLocation registeredItems
+    let locations = map iLocation registeredItems
     writeBMessage messages $ Notice $ Info $ "Newly registered items: " ++ (show $ length locations)
 
 -- Tries to register all non-registered items into the DB.  Retuns list of newly

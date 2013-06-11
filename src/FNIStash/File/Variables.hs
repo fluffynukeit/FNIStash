@@ -20,6 +20,7 @@ import Data.Endian
 import Data.Word
 import Data.Int
 
+
 -- This file defines values for different VariableID's that are useful
 
 grab k = lkupVar (swapEndian k::VarID)
@@ -29,6 +30,7 @@ grab k = lkupVar (swapEndian k::VarID)
 newtype ItemGUID = ItemGUID
     { itemGUIDVal ::Int64
     } deriving (Eq, Ord)
+
 
 vUNIT_GUID d = grab 0x06aad3ed d >>= stringVar >>= return . ItemGUID . read
 vNAME d = grab 0xe50d6600 d >>= textVar
@@ -42,11 +44,11 @@ vUnknown a d = Just a
 
 -- Descriptions of effects
 
-data DescriptionType = GOODDES | GOODDESOT | BADDES | BADDESOT | UnknownDescriptionType
+data DescriptionType = GOODDES | GOODDESOT | BADDES | BADDESOT | UnknownDescriptionType deriving (Eq, Ord)
 data EffectDescription = EffectDescription
     { effDescType ::DescriptionType
     , effDesc :: String
-    }
+    } deriving (Eq, Ord)
 
 mkEffDes typ v d = grab v d >>= stringVar >>= return . (EffectDescription typ)
 

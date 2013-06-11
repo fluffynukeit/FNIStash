@@ -23,6 +23,7 @@ module FNIStash.UI.Layout
 import FNIStash.UI.Icon
 import FNIStash.Comm.Messages
 import FNIStash.UI.Effects
+import FNIStash.Logic.Item
 
 import Graphics.UI.Threepenny.Browser
 import Graphics.UI.Threepenny.Elements
