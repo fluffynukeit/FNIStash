@@ -35,6 +35,7 @@ import FNIStash.Logic.Env
 import Control.Applicative
 import Data.List.Utils
 import Data.Binary.Put
+import Data.Maybe
 import qualified Data.Text as T
 import qualified Data.ByteString as BS
 
@@ -61,26 +62,16 @@ translateSentence translateMarkup sent =
 
 ------ BASE ITEM STUFF
 
-data Quality = Normal | Magic | Unique | UnknownQuality deriving (Eq, Ord)
-
-data ItemClass = Axe2H | Mace2H | Sword2H | Axe1H | Bow | Cannon | Crossbow | Fist | Mace1H
-               | Pistol | Polearm | Rifle | Shield | Staff | Sword1H | Wand | Necklace | Belt
-               | Boots | ChestArmor | Collar | Gloves | Helmet | Pants | Ring | ShoulderArmor
-               | Stud | Socketable | UnknownClass
-
 data ItemBase = ItemBase
     { iBaseGUID :: ItemGUID
     , iBaseIcon :: FilePath
 --    , iBaseQuality :: Quality
 --    , iBaseClass :: ItemClass
---    , iBaseStrReq :: Maybe Int
---    , iBaseDexReq :: Maybe Int
---    , iBaseMagReq :: Maybe Int
---    , iBaseVitReq :: Maybe Int
---    , iBaseSpeed :: Maybe Int
---    , iBaseRange :: Maybe Float
---    , iBaseMaxSockets :: Maybe Int
---    , iBaseRarity :: Int
+    , iBaseStatReqs :: [StatReq]
+    , iBaseSpeed :: Maybe Int
+    , iBaseRange :: Maybe Float
+    , iBaseMaxSockets :: Maybe Int
+    , iBaseRarity :: Maybe Int
     } deriving (Eq, Ord)
 
 searchAncestryFor (env@Env{..}) findMeVar itemDat =
@@ -96,6 +87,16 @@ getItemBase (env@Env{..}) guid =
         find k = searchAncestryFor env k item
         Just icon = find vICON
     in ItemBase guid icon
+        (catMaybes
+        [ find vSTRENGTH_REQUIRED
+        , find vDEXTERITY_REQUIRED
+        , find vMAGIC_REQUIRED
+        , find vDEFENSE_REQUIRED
+        ])
+        (find vSPEED)
+        (find vRANGE)
+        (find vMAX_SOCKETS)
+        (find vRARITY)
 
 
 

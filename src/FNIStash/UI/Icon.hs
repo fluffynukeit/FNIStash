@@ -42,6 +42,11 @@ makePopUp (Item{..}) = do
     forM_ iEffects $ \mod -> 
         new #. "popeffect" #= show mod #+ container
     new #. "popenchant" #= "Num enchants: " ++ show (length iEnchantments) #+ container
+
+    -- Stat reqs
+    forM_ (iBaseStatReqs iBase) $ \req ->
+        new #. "popstatreq" #= "Required " ++ show req #+ container
+
     forM_ iTriggerables $ \trig -> 
         new #. "poptriggerable" #= show trig #+ container
     return container #+ body # unit

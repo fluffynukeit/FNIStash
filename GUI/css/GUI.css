@@ -143,8 +143,13 @@
     }
 
 .popenchant {
-	font-size :12pt;
+	font-size:12pt;
 	color: green;
+	}
+	
+.popstatreq {
+	font-size: 12pt;
+	color: white;
 	}
 /* Message window stuff */
 
