@@ -23,9 +23,9 @@ module FNIStash.Logic.DB
 )
 where
 
-import FNIStash.File.Item
+import FNIStash.Logic.Item
 import FNIStash.Logic.Env
-import FNIStash.Logic.Translate
+import FNIStash.File.Variables
 
 import Database.HDBC
 import Database.HDBC.Sqlite3
@@ -42,6 +42,12 @@ import Filesystem.Path.CurrentOS
 import Filesystem
 
 import Debug.Trace
+
+---- Define conversion to/from db
+
+instance Convertible ItemGUID SqlValue where
+    safeConvert (ItemGUID{..}) = safeConvert itemGUIDVal
+
 
 handleDB = handleSql
 
@@ -90,7 +96,7 @@ locsKeywordStatus env keywordList = do
 
 
 isRegistered env (Item {..}) = do
-    matchingGuys <- quickQuery' (dbConn env) "select RANDOM_ID from ITEMS where RANDOM_ID = ?" [toSql itemRandomID]
+    matchingGuys <- quickQuery' (dbConn env) "select RANDOM_ID from ITEMS where RANDOM_ID = ?" [toSql iRandomID]
     if length matchingGuys == 0 then return False else return True
 
 addItemToDB env item@(Item {..}) = let c  = dbConn env in withTransaction c $ \_ -> do
@@ -99,10 +105,10 @@ addItemToDB env item@(Item {..}) = let c  = dbConn env in withTransaction c $ \_
     itemID <- insertItem env item trailID
     -- First collect all the descriptors for the item
     let descriptorList =
-            [ mkDesc Name itemName 0
-            , mkDesc Level "Level VALUE" $ fromIntegral itemLevel
+            [ mkDesc Name iName 0
+            , mkDesc Level "Level VALUE" $ fromIntegral iLevel
             ] ++
-            L.map (\d -> mkDesc Effect (translateSentence d $ effectText d) (effectValue d)) itemEffects
+            L.map (\(Mod{..}) -> mkDesc Effect (effDesc mDescription) mValue) iEffects
     
     descListWithValue <- forM descriptorList $ \(descType, exp, val) -> insertDescriptor env descType exp val 
 
@@ -130,19 +136,19 @@ stringTuple strings = "(" <> (L.intercalate "," strings) <> ")"
 
 insertTrailData :: Env -> Item -> IO (ID TrailData)
 insertTrailData (Env {..}) item@(Item {..}) =
-    ensureExists dbConn "TRAIL_DATA" [("DATA", toSql $ itemTrailData item)]
+    ensureExists dbConn "TRAIL_DATA" [("DATA", toSql $ pAfterLocation iPartition)]
 
 insertItem :: Env -> Item -> ID TrailData -> IO (ID Items)
 insertItem (Env {..}) item@(Item {..}) trailDataID = do
     zonedTime <- getZonedTime
     let localTime = zonedTimeToLocalTime zonedTime
 
-    ensureExists dbConn "ITEMS" [ ("RANDOM_ID", toSql itemRandomID)
-                                , ("GUID", toSql itemGUID)
-                                , ("CONTAINER", toSql $ locContainer itemLocation)
-                                , ("SLOT", toSql $ locSlot itemLocation)
-                                , ("POSITION", toSql $ locIndex itemLocation)
-                                , ("LEAD_DATA", toSql $ itemLeadData item)
+    ensureExists dbConn "ITEMS" [ ("RANDOM_ID", toSql iRandomID)
+                                , ("GUID", toSql $ iBaseGUID iBase)
+                                , ("CONTAINER", toSql $ locContainer iLocation)
+                                , ("SLOT", toSql $ locSlot iLocation)
+                                , ("POSITION", toSql $ locIndex iLocation)
+                                , ("LEAD_DATA", toSql $ pBeforeLocation iPartition)
                                 , ("FK_TRAIL_DATA_ID", toSql trailDataID)
                                 , ("DATE", toSql localTime)]
 

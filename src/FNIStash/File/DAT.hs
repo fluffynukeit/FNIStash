@@ -13,18 +13,18 @@
 -----------------------------------------------------------------------------
 {-# LANGUAGE OverloadedStrings #-}
 
-module FNIStash.File.DAT (
-    getDAT,
-    -- textDAT,
-    searchNodeTree,
-    searchNodeTreeWith,
-    lkupVar,
-    subNodeAt,
-    intVar, floatVar, doubleVar, word32Var, textVar, boolVar, int64Var, stringVar,
-    readDATFiles,
-    lkupDATFile,
-    DATNode(..)
-) where
+module FNIStash.File.DAT
+    ( getDAT
+    , searchNodeTree
+    , searchNodeTreeWith
+    , lkupVar
+    , subNodeAt
+    , intVar, floatVar, doubleVar, word32Var, textVar, boolVar, int64Var, stringVar
+    , readDATFiles
+    , lkupDATFile
+    , DATNode(..)
+    , VarID
+    ) where
 
 -- This file defines parsing functions for reading TL2's DAT file format.  One thing that might
 -- be confusing is that VarIDs are used to identify both individual variables and the nodes that
@@ -33,7 +33,6 @@ module FNIStash.File.DAT (
 
 -- Based on the DAT2TXT Python program by cienislaw.
 import FNIStash.File.General
-import FNIStash.File.Variables
 import FNIStash.File.PAK
 
 import qualified Data.Binary.Strict.Get as SG
@@ -47,6 +46,8 @@ import Data.Maybe
 import Data.Word
 import Data.Monoid
 import Data.Int
+
+
 
 -- Functions for searching DAT records
 
@@ -108,6 +109,8 @@ int64Var _ = Nothing
 -- Data declarations
 
 type TextID = Word32
+type VarID = Word32
+
 
 type DATDict = [(TextID, T.Text)]
 type DATVars = [(VarID, DATVar)]

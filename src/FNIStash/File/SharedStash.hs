@@ -15,15 +15,15 @@
 
 module FNIStash.File.SharedStash (
     parseSharedStash,
-    showSharedStash,
     putSharedStash,
     SharedStash(..),
-    module FNIStash.File.Item
+    module FNIStash.Logic.Item
 ) where
 
-import FNIStash.File.Item
+import FNIStash.Logic.Item
 import FNIStash.File.General
 import FNIStash.Logic.Env
+import FNIStash.Logic.Item
 
 import qualified Data.ByteString as BS
 import Data.Binary.Strict.Get
@@ -66,9 +66,5 @@ getSharedStash :: Env -> Get SharedStash
 getSharedStash env = do
     parts <- getSharedStashPartitions
     return $ map (\bs -> runGetWithFail "Could not parse item!" (getItem env bs) bs) parts
+    
 
-showSharedStash :: SharedStash -> String
-showSharedStash s = foldl (\a b -> a <> showItemResult b) "" s
-
-showItemResult (Left error) = unlines ["", error, ""]
-showItemResult (Right item) = show item

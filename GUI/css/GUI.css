@@ -132,11 +132,20 @@
 	font-family: huge;
     }
 
-.popmod {
+.poppoints {
+	font-size:12pt;
+	color: white;
+	}
+	
+.popeffect {
     font-size: 12pt;
     color: blue;
     }
 
+.popenchant {
+	font-size :12pt;
+	color: green;
+	}
 /* Message window stuff */
 
 #msgwindow {

@@ -12,7 +12,9 @@
 --
 -----------------------------------------------------------------------------
 
-module FNIStash.Logic.Items (
+{-# LANGUAGE RecordWildCards #-}
+
+module FNIStash.Logic.Operations (
     moveContents,
     saveItems
 ) where
@@ -22,6 +24,13 @@ import FNIStash.File.Crypto
 import Data.List
 import Data.Binary.Put
 import qualified Data.ByteString.Lazy as BS
+
+
+
+moveTo loc (Item {..}) =
+    Item iName iRandomID iIdentified loc iLevel iQuantity iNumSockets iGems iPoints
+         iEffects iEnchantments iTriggerables iPartition iBase
+
 
 -- Tries to add an item to the shared stash.  If an item at the desired location already
 -- exists, that item is swapped.  Return is both the updated shared stash as well as
@@ -36,7 +45,7 @@ updateSharedStash loc Nothing stash =
 updateSharedStash newLoc (Just item) stash =
     let matchDestination = findMatchingItem newLoc stash
         matchSource = findMatchingItem oldLoc stash
-        oldLoc = itemLocation item
+        oldLoc = iLocation item
         -- TODO handle cases where dest and src are the same
 
     in case matchDestination of
@@ -55,7 +64,7 @@ updateSharedStash newLoc (Just item) stash =
                 Nothing ->( Right (moveTo newLoc item) : delete rDestItem stash,
                             [(newLoc, Just item)])
 
-findMatchingItem loc = find $ \x -> (isRight x) && loc == itemLocation (fromRight x)
+findMatchingItem loc = find $ \x -> (isRight x) && loc == iLocation (fromRight x)
 
 
 isRight (Right _) = True

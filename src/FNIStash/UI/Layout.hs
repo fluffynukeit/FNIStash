@@ -21,9 +21,9 @@ module FNIStash.UI.Layout
 ) where
 
 import FNIStash.UI.Icon
-import FNIStash.File.Location
 import FNIStash.Comm.Messages
 import FNIStash.UI.Effects
+import FNIStash.Logic.Item
 
 import Graphics.UI.Threepenny.Browser
 import Graphics.UI.Threepenny.Elements

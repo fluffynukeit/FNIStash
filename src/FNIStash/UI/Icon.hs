@@ -12,6 +12,8 @@
 --
 -----------------------------------------------------------------------------
 
+{-# LANGUAGE RecordWildCards #-}
+
 module FNIStash.UI.Icon
 where
 
@@ -22,28 +24,26 @@ import Graphics.UI.Threepenny.Browser
 
 import Control.Monad
 
-newItemIcon item = do
-    i <- newIcon (itemIcon item)
+newItemIcon (item@Item {..}) = do
+    i <- newIcon (iBaseIcon iBase)
         #. "item"
         # allowDrag
     onHover i $ \_ -> makePopUp item
     onBlur i $ \_ -> killPopUp
     return i
 
-makePopUp item = do
+makePopUp (Item{..}) = do
     body <- getBody
     container <- new #. "itempopup" ## "itempopup"
-    new #. "poplevel" #= "Level " ++ (show.itemLevel) item #+ container
-    newIcon (itemIcon item) #. "popicon" #+ container
-    new #. "poptitle" #= itemName item #+ container
-    new #. "poppoints" #= (show.itemPoints) item #+ container
-    forM_ (itemEffects item) $ \eff -> do
-        new #. "popeffect" #= show eff #+ container
-    new #. "popenchant" #= "Num enchants: " ++ ((show.itemNumEnchants) item) #+ container
-    forM_ (itemTriggerables item) $ \trig -> do
+    new #. "poplevel" #= "Level " ++ show iLevel #+ container
+    newIcon (iBaseIcon iBase) #. "popicon" #+ container
+    new #. "poptitle" #= iName #+ container
+    new #. "poppoints" #= show iPoints #+ container
+    forM_ iEffects $ \mod -> 
+        new #. "popeffect" #= show mod #+ container
+    new #. "popenchant" #= "Num enchants: " ++ show (length iEnchantments) #+ container
+    forM_ iTriggerables $ \trig -> 
         new #. "poptriggerable" #= show trig #+ container
-    forM_ (itemStats item) $ \stat -> do
-        new #. "popstat" #= show stat #+ container
     return container #+ body # unit
 
 

@@ -15,7 +15,7 @@
 module FNIStash.Comm.Messages where
 
 import Control.Concurrent
-import FNIStash.File.Item
+import FNIStash.Logic.Item
 
 data BMessage = Initializing InitEvent
               | LocationContents [(Location, Maybe Item)]

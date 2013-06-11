@@ -14,27 +14,59 @@
 
 module FNIStash.File.Variables where
 
+import FNIStash.File.DAT
+
 import Data.Endian
 import Data.Word
+import Data.Int
+
 
 -- This file defines values for different VariableID's that are useful
 
-type VarID = Word32
+grab k = lkupVar (swapEndian k::VarID)
 
--- Variables that are particularly useful.
-vUNIT_GUID = swapEndian 0x06aad3ed::VarID
-vEFFECTLIST = swapEndian 0x15ca47c3::VarID
-vEFFECT = swapEndian 0x351c420e::VarID
-vGOODDES = swapEndian 0xda18d35a::VarID
-vGOODDESOT = swapEndian 0xdfa0624c::VarID
-vBADDES = swapEndian 0xf2183300::VarID
-vBADDESOT = swapEndian 0xb4cf63cc::VarID
-vNAME = swapEndian 0xe50d6600::VarID
-vDISPLAYPRECISION = swapEndian 0xcceda5e5::VarID
-vSLOTNAME = swapEndian 0x6e07669b::VarID
-vSLOT = swapEndian 0xb4b96800::VarID
-vSLOTS = swapEndian 0xd336170f::VarID
-vUNIQUEID = swapEndian 0xdf973b17::VarID
-vICON = swapEndian 0xae856500::VarID
-vBASEFILE = swapEndian 0xc52772e2::VarID
-vDISPLAYNAME = swapEndian 0x767c2f83::VarID
+-- General lookup stuff
+
+newtype ItemGUID = ItemGUID
+    { itemGUIDVal ::Int64
+    } deriving (Eq, Ord)
+
+
+vUNIT_GUID d = grab 0x06aad3ed d >>= stringVar >>= return . ItemGUID . read
+vNAME d = grab 0xe50d6600 d >>= textVar
+vBASEFILE d = grab 0xc52772e2 d >>= textVar
+vDISPLAYNAME d = grab 0x767c2f83 d >>= stringVar
+vICON d = grab 0xae856500 d >>= stringVar
+
+
+-- Multiuse failure "lookup"
+vUnknown a d = Just a
+
+-- Descriptions of effects
+
+data DescriptionType = GOODDES | GOODDESOT | BADDES | BADDESOT | UnknownDescriptionType deriving (Eq, Ord)
+data EffectDescription = EffectDescription
+    { effDescType ::DescriptionType
+    , effDesc :: String
+    } deriving (Eq, Ord)
+
+mkEffDes typ v d = grab v d >>= stringVar >>= return . (EffectDescription typ)
+
+vGOODDES = mkEffDes GOODDES 0xda18d35a
+vGOODDESOT = mkEffDes GOODDESOT 0xdfa0624c 
+vBADDES = mkEffDes BADDES 0xf2183300
+vBADDESOT = mkEffDes BADDESOT 0xb4cf63cc
+
+vDISPLAYPRECISION d = grab 0xcceda5e5 d >>= intVar
+
+-- Lookup stuff for inventory and item lookups
+newtype SlotID = SlotID
+    { slotIDVal :: Word16
+    } deriving (Eq, Ord)
+newtype ContainerID = ContainerID
+    { containerIDVal :: Word16
+    } deriving (Eq, Ord)
+
+vUNIQUEID d = grab 0xdf973b17 d >>= word32Var >>= return . fromIntegral
+vSlotID d = vUNIQUEID d >>= return . SlotID . fromIntegral
+vContainerID d = vUNIQUEID d >>= return . ContainerID . fromIntegral
