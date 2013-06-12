@@ -266,7 +266,8 @@ readPAKPrefixes cfg prefs = do
     pakFiles subMan pakFileBinary
 
 -- PAK file path prefixes that contain game data needed to build the data lookup environment
-envPrefixes = ["MEDIA/EFFECTSLIST.DAT", "MEDIA/UNITS/ITEMS", "MEDIA/SKILLS", "MEDIA/INVENTORY"]
+envPrefixes = [ "MEDIA/EFFECTSLIST.DAT", "MEDIA/UNITS/ITEMS", "MEDIA/SKILLS", "MEDIA/INVENTORY"
+              , "MEDIA/GRAPHS/STATS"]
 
 
 

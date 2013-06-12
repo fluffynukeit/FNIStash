@@ -77,14 +77,14 @@ vContainerID d = vUNIQUEID d >>= return . ContainerID . fromIntegral
 data Quality = NormalQ | MagicQ | UniqueQ | LegendaryQ | UnknownQuality deriving (Eq, Ord)
 
 data StatReq = StatReq Stat Int deriving (Eq, Ord)
-data Stat = Strength | Dexterity | Magic | Vitality deriving (Eq, Ord, Show)
+data Stat = Strength | Dexterity | Focus | Vitality deriving (Eq, Ord, Show)
 
 check0 0 = Nothing
 check0 k = Just k
 
 vSTRENGTH_REQUIRED d = grab 0x6b29dd27 d >>= intVar >>= check0 >>= return . (StatReq Strength)
 vDEXTERITY_REQUIRED d = grab 0xea6869a2 d >>= intVar >>= check0 >>= return . (StatReq Dexterity)
-vMAGIC_REQUIRED d = grab 0x7bfed9d5 d >>= intVar >>= check0 >>= return . (StatReq Magic)
+vMAGIC_REQUIRED d = grab 0x7bfed9d5 d >>= intVar >>= check0 >>= return . (StatReq Focus)
 vDEFENSE_REQUIRED d = grab 0xad0c2391 d >>= intVar >>= check0 >>= return . (StatReq Vitality)
 
 vSPEED d = grab 0xe41c190f d >>= intVar >>= return . (flip (/) 100) . fromIntegral
@@ -93,3 +93,7 @@ vRARITY d = grab 0xd82e3820 d >>= intVar
 vRANGE d = grab 0xa5b0010f d >>= floatVar
 
 vDESCRIPTION d = grab 0xa2dcb313 d >>= stringVar
+
+-- Graphs
+vX d = grab 0x78000000 d >>= floatVar
+vY d = grab 0x79000000 d >>= floatVar

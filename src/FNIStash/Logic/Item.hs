@@ -96,19 +96,19 @@ searchAncestryFor (env@Env{..}) findMeVar itemDat =
     in case foundVar of
         Just var -> foundVar -- we found the data we want!
         Nothing ->
-            itemBase >>= lkupItemPath >>= searchAncestryFor env findMeVar
+            itemBase >>= lkupPath >>= searchAncestryFor env findMeVar
 
-getItemBase (env@Env{..}) guid =
+getItemBase (env@Env{..}) guid itemLevel =
     let Just item = lkupItemGUID guid
         find k = searchAncestryFor env k item
         Just icon = find vICON
     in ItemBase guid icon
         -- Stat reqs
         (catMaybes
-        [ find vSTRENGTH_REQUIRED >>= return . mkStatReq
-        , find vDEXTERITY_REQUIRED >>= return . mkStatReq
-        , find vMAGIC_REQUIRED >>= return . mkStatReq
-        , find vDEFENSE_REQUIRED >>= return . mkStatReq
+        [ find vSTRENGTH_REQUIRED >>= return . mkStatReq . (resolveStat env itemLevel)
+        , find vDEXTERITY_REQUIRED >>= return . mkStatReq . (resolveStat env itemLevel)
+        , find vMAGIC_REQUIRED >>= return . mkStatReq . (resolveStat env itemLevel)
+        , find vDEFENSE_REQUIRED >>= return . mkStatReq . (resolveStat env itemLevel)
         ])
 
         -- Innate stuff
@@ -119,6 +119,14 @@ getItemBase (env@Env{..}) guid =
         (find vMAX_SOCKETS)
         (find vRARITY)
         (find vDESCRIPTION)
+
+resolveStat (Env{..}) itemLevel (StatReq stat val) =
+    let interp = case stat of
+            Strength -> lkupGraph "MEDIA/GRAPHS/STATS/ITEM_STRENGTH_REQUIREMENTS.DAT" (fromIntegral itemLevel)
+            Dexterity-> lkupGraph "MEDIA/GRAPHS/STATS/ITEM_DEXTERITY_REQUIREMENTS.DAT" (fromIntegral itemLevel)
+            Focus    -> lkupGraph "MEDIA/GRAPHS/STATS/ITEM_MAGIC_REQUIREMENTS.DAT" (fromIntegral itemLevel)
+            Vitality -> lkupGraph "MEDIA/GRAPHS/STATS/ITEM_DEFENSE_REQUIREMENTS.DAT" (fromIntegral itemLevel)
+    in StatReq stat (floor $fromIntegral val * interp/100)
 
 mkStatReq (StatReq stat val) = Descriptor ("Required " ++ show stat ++ " " ++ "[VALUE]") (fromIntegral val) 0
 mkSpeed speed | speed < 0.8 = Descriptor "Very Fast Attack Speed ([VALUE] seconds)" speed 2
@@ -331,7 +339,7 @@ decodeItemBytes env (ItemBytes {..}) =
         useEnchants
         []
         iBytesPartition
-        (getItemBase env (ItemGUID $ fromIntegral iBytesGUID))
+        (getItemBase env (ItemGUID $ fromIntegral iBytesGUID) iBytesLevel)
 
 
 

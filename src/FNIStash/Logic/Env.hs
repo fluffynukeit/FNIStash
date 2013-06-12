@@ -38,6 +38,7 @@ import Data.Binary.Get
 import Data.Word
 import Data.Int
 import qualified Data.Map as M
+import qualified Data.List as L
 import Database.HDBC.Sqlite3
 
 -- Env is the lookup environment we pass around manually.  (I suppose we could use a Reader monad
@@ -48,7 +49,8 @@ data Env = Env
     , lkupLocNodes :: LocationBytes -> (DATNode, Maybe DATNode) -- location, containerID -> Container node, slot node
     , lkupLocIDs :: String -> String -> (Maybe SlotID, Maybe ContainerID)
     , lkupItemGUID :: ItemGUID -> Maybe DATNode
-    , lkupItemPath :: T.Text -> Maybe DATNode
+    , lkupPath :: T.Text -> Maybe DATNode
+    , lkupGraph :: T.Text -> Float -> Float
     , totalItems :: Int
     , dbConn :: Connection
     }
@@ -64,8 +66,10 @@ buildEnv pak conn =
         skills = skillLookup pak
         (bytesToNodesFxn, nodesToBytesFxn) = locLookup pak
         (itemsGUID, totalItems) = itemLookupGUID pak
-        itemsPath = itemLookupPath pak
-    in  Env effects skills bytesToNodesFxn nodesToBytesFxn itemsGUID itemsPath totalItems conn
+        byPath = lookupPath pak
+        graph = graphLookup byPath
+    in  Env effects skills bytesToNodesFxn nodesToBytesFxn itemsGUID byPath graph
+        totalItems conn
 
 -- Each of the functions below returns a lookup function.  This is how we can keep the loaded PAK
 -- handy for repeated lookups since we cannot have a global.  The PAK stays on the stack.
@@ -74,7 +78,7 @@ itemLookupGUID pak =
         dat = readDATFiles pak "MEDIA/UNITS/ITEMS" guidFinder -- p is pak
     in (\idInt64 -> lkupDATFile dat idInt64, M.size dat)
 
-itemLookupPath pak =
+lookupPath pak =
     let ffp p = T.replace "\\" "/" p -- fix file path
     in \name -> lkupPAKFile (ffp name) pak >>= return . (runGetSuppress getDAT)
 
@@ -136,4 +140,30 @@ locLookup pak =
     in (locBytesToSlotCont, slotContToLocBytesContID)
 
 
+interp sortedPairs val
+   | (not . isJust) topEndFind = snd $ last sortedPairs
+   | (not . isJust) lowEndFind = snd $ head sortedPairs
+   | otherwise = interpVal
+   where
+    topEndFind = L.find (\(x,y) -> x > val) sortedPairs
+    lowEndFind = L.find (\(x,y) -> x <= val) $ reverse sortedPairs
+    pointA = fromJust lowEndFind
+    pointB = fromJust topEndFind
+    yOf = snd
+    xOf = fst
+    rise = yOf pointB - (yOf pointA)
+    run  = xOf pointB - (xOf pointA)
+    interpVal = yOf pointA + (rise/run * (val - xOf pointA))
 
+getPoints byPathFxn file =
+    let Just dat = byPathFxn file
+        pointNodes = datSubNodes dat
+        mkPair pointNode = (fromJust $ vX pointNode, fromJust $ vY pointNode)
+        points = map mkPair pointNodes
+        sortFxn (x,y) (x',y') = compare x x'
+        sortedPoints = L.sortBy sortFxn points
+    in sortedPoints
+
+graphLookup byPathFxn =
+    (\graphFile value -> interp (getPoints byPathFxn graphFile) value)
+    
