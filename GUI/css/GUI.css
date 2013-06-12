@@ -108,7 +108,7 @@
 
 /* Item display popup */
 .itempopup {
-    max-width: 200px;
+    max-width: 350px;
     position: absolute;
     top: 65px;
     left: 530px;
@@ -132,7 +132,7 @@
 	font-family: huge;
     }
 
-.poppoints {
+.popinnate {
 	font-size:12pt;
 	color: white;
 	}
@@ -144,7 +144,7 @@
 
 .popenchant {
 	font-size:12pt;
-	color: green;
+	color: #00FF99;
 	}
 	
 .popstatreq {
@@ -152,6 +152,11 @@
 	color: white;
 	}
 /* Message window stuff */
+
+.popdescription {
+	font-size: 12pt;
+	color: #00FF00;
+	}
 
 #msgwindow {
 	width: 95%;

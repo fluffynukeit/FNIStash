@@ -65,16 +65,29 @@ translateSentence translateMarkup sent =
 
 ------ BASE ITEM STUFF
 
+data Descriptor = Descriptor
+    { descriptorString :: String
+    , descriptorValue :: Float
+    , descriptorPrec :: Int
+    } deriving (Eq, Ord)
+
+descriptorTranslator prec value "VALUE" = showPrecision prec value
+descriptorTranslator prec value _       = "???"
+
+instance Show Descriptor where
+    show (Descriptor{..}) = translateSentence (descriptorTranslator descriptorPrec descriptorValue) descriptorString
+
 data ItemBase = ItemBase
     { iBaseGUID :: ItemGUID
     , iBaseIcon :: FilePath
 --    , iBaseQuality :: Quality
 --    , iBaseClass :: ItemClass
-    , iBaseStatReqs :: [StatReq]
-    , iBaseSpeed :: Maybe Float
+    , iBaseStatReqs :: [Descriptor]
+    , iBaseInnates :: [Descriptor]
     , iBaseRange :: Maybe Float
     , iBaseMaxSockets :: Maybe Int
     , iBaseRarity :: Maybe Int
+    , iBaseDescription :: Maybe String
     } deriving (Eq, Ord)
 
 searchAncestryFor (env@Env{..}) findMeVar itemDat =
@@ -90,20 +103,29 @@ getItemBase (env@Env{..}) guid =
         find k = searchAncestryFor env k item
         Just icon = find vICON
     in ItemBase guid icon
+        -- Stat reqs
         (catMaybes
-        [ find vSTRENGTH_REQUIRED
-        , find vDEXTERITY_REQUIRED
-        , find vMAGIC_REQUIRED
-        , find vDEFENSE_REQUIRED
+        [ find vSTRENGTH_REQUIRED >>= return . mkStatReq
+        , find vDEXTERITY_REQUIRED >>= return . mkStatReq
+        , find vMAGIC_REQUIRED >>= return . mkStatReq
+        , find vDEFENSE_REQUIRED >>= return . mkStatReq
         ])
-        (find vSPEED)
+
+        -- Innate stuff
+        (catMaybes
+        [ find vSPEED >>= return . mkSpeed
+        ])
         (find vRANGE)
         (find vMAX_SOCKETS)
         (find vRARITY)
+        (find vDESCRIPTION)
 
-
-
-
+mkStatReq (StatReq stat val) = Descriptor ("Required " ++ show stat ++ " " ++ "[VALUE]") (fromIntegral val) 0
+mkSpeed speed | speed < 0.8 = Descriptor "Very Fast Attack Speed ([VALUE] seconds)" speed 2
+              | speed < 0.96 = Descriptor "Fast Attack Speed ([VALUE] seconds)" speed 2
+              | speed < 1.04 = Descriptor "Average Attack Speed ([VALUE] seconds)" speed 2
+              | speed <= 1.2 = Descriptor "Slow Attack Speed ([VALUE] seconds)" speed 2
+              | otherwise    = Descriptor "Very Slow Attack Speed ([VALUE] seconds)" speed 2
 
 ----- LOCATION STUFF
 
@@ -140,20 +162,18 @@ encodeLocationBytes (Env {..}) loc = do
 
 ----- MODIFIER STUFF
 
-data ModType = Effect | Enchantment deriving (Eq, Ord)
-
 data Mod = Mod
-    { mType :: ModType
+    { mIsPossibleEnchant :: Bool
     , mDescription :: EffectDescription
     , mValue :: Float
     , mDisplayPrecision :: Int
     } deriving (Eq, Ord)
-
-isEnchantment (Mod Enchantment _ _ _) = True
-isEnchantment (Mod _ _ _ _) = False
-
-isEffect (Mod Effect _ _ _) = True
-isEffect (Mod _ _ _ _) = False
+--
+--isEnchantment (Mod Enchantment _ _ _) = True
+--isEnchantment (Mod _ _ _ _) = False
+--
+--isEffect (Mod Effect _ _ _) = True
+--isEffect (Mod _ _ _ _) = False
 
 descTypeLookup 0x00 = GOODDES
 descTypeLookup 0x01 = GOODDES
@@ -228,7 +248,7 @@ decodeEffectBytes (Env{..}) (eff@EffectBytes {..}) =
         precision = effectPrecisionVal effNode
         skillname = lkupSkill (T.pack eBytesName) >>= vDISPLAYNAME
         description = effectDescription precision skillname effNode eff
-        mType = if null eBytesName then Enchantment else Effect
+        mType = null eBytesName
     in Mod mType description value precision
 
 instance Convertible AddedDamageBytes EffectBytes where
@@ -290,7 +310,7 @@ decodePoints 0xFFFFFFFF a = ArmorVal $ fromIntegral a
 decodeItemBytes env (ItemBytes {..}) =
     let allMods = (map (decodeEffectBytes env) (iBytesEffects ++ iBytesEffects2))
         enchantAdditions = filter ((/=) 0 . dBytesFromEnchant) iBytesAddedDamages
-        (normalMods, enchantMods) = L.partition isEffect allMods
+        (normalMods, enchantMods) = L.partition (not.mIsPossibleEnchant) allMods
         numEnchMods = fromIntegral iBytesNumEnchants - (length enchantAdditions)
         (useEnchantsEffects, backToNormal) = L.splitAt numEnchMods enchantMods
         useNormal = backToNormal ++ normalMods

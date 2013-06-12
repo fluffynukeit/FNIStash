@@ -23,6 +23,7 @@ import Graphics.UI.Threepenny
 import Graphics.UI.Threepenny.Browser
 
 import Control.Monad
+import Data.Maybe
 
 newItemIcon (item@Item {..}) = do
     i <- newIcon (iBaseIcon iBase)
@@ -38,7 +39,9 @@ makePopUp (Item{..}) = do
     new #. "poplevel" #= "Level " ++ show iLevel #+ container
     newIcon (iBaseIcon iBase) #. "popicon" #+ container
     new #. "poptitle" #= iName #+ container
-    new #. "poppoints" #= show iPoints #+ container
+
+    forM_ (iBaseInnates iBase) $ \inn ->
+        new #. "popinnate" #= show inn #+ container
     
     forM_ iEffects $ \mod -> 
         new #. "popeffect" #= show mod #+ container
@@ -48,14 +51,16 @@ makePopUp (Item{..}) = do
         forM_ iEnchantments $ \mod ->
             new #. "popenchant" #= show mod #+ container
 
-    -- Stat reqs
-    forM_ (iBaseStatReqs iBase) $ \req ->
-        new #. "popstatreq" #= "Required " ++ show req #+ container
-
     forM_ iTriggerables $ \trig -> 
         new #. "poptriggerable" #= show trig #+ container
     return container #+ body # unit
 
+    -- Stat reqs
+    forM_ (iBaseStatReqs iBase) $ \req ->
+        new #. "popstatreq" #= "Required " ++ show req #+ container
+
+    when (isJust $ iBaseDescription iBase) $
+        new #. "popdescription" #= (show $ fromJust $ iBaseDescription iBase) #+ container # unit
 
 
 killPopUp :: MonadTP m => m ()
