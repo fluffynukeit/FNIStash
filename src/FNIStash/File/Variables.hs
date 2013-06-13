@@ -94,6 +94,35 @@ vRANGE d = grab 0xa5b0010f d >>= floatVar
 
 vDESCRIPTION d = grab 0xa2dcb313 d >>= stringVar
 
+data DamageType = Physical | Fire | Electric | Ice | Poison | All | UnknownDamageType
+    deriving (Ord, Show, Eq)
+
+data Damage = Damage
+    { dType :: DamageType
+    , dLow :: Float
+    , dHigh :: Float
+    } deriving (Eq, Ord)
+
+vMINDAMAGE d = grab 0xfee3360c d >>= intVar
+vMAXDAMAGE d = grab 0xbbe3368c d >>= intVar
+
+getDamage varID dType Nothing high d = Nothing
+getDamage varID dType low Nothing d = Nothing
+getDamage varID dType (Just low) (Just high) d =
+    grab varID d >>= intVar >>= check0 >>=
+    \x -> return $ Damage dType (fromIntegral x * low/100) (fromIntegral x * high/100)
+
+vDAMAGE_PHYSICAL = getDamage 0x78108146 Physical
+vDAMAGE_POISON   = getDamage 0x8fa06905 Poison
+vDAMAGE_FIRE     = getDamage 0x1c414a4b Fire
+vDAMAGE_ICE      = getDamage 0x5d6f5eca Ice
+vDAMAGE_ELECTRIC = getDamage 0xded58f7f Electric
+
+getMod v d = grab v d >>= intVar >>= return . (/100) . fromIntegral :: Maybe Float
+
+vSPEED_DMG_MOD    = getMod 0x525b4287
+vRARITY_DMG_MOD   = getMod 0x6d6570a6
+vSPECIAL_DMG_MOD  = getMod 0x29bff2ee
 -- Graphs
 vX d = grab 0x78000000 d >>= floatVar
 vY d = grab 0x79000000 d >>= floatVar

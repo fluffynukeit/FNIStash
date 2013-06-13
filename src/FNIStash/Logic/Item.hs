@@ -102,6 +102,13 @@ getItemBase (env@Env{..}) guid itemLevel =
     let Just item = lkupItemGUID guid
         find k = searchAncestryFor env k item
         Just icon = find vICON
+        minDmg = find vMINDAMAGE >>= return . (resolveDmg env itemLevel) . fromIntegral >>= return . applyDmgMods
+        maxDmg = find vMAXDAMAGE >>= return . (resolveDmg env itemLevel) . fromIntegral >>= return . applyDmgMods
+        spdDmgMod = maybe (fromIntegral 1) id (find vSPEED_DMG_MOD)
+        rareDmgMod = maybe (fromIntegral 1) id (find vRARITY_DMG_MOD)
+        specDmgMod = maybe (fromIntegral 1) id (find vSPECIAL_DMG_MOD)
+        dmgMods = [rareDmgMod, spdDmgMod, specDmgMod]
+        applyDmgMods = \x -> fromIntegral . floor $ L.foldl (\acc mod -> acc * mod) x dmgMods
     in ItemBase guid icon
         -- Stat reqs
         (catMaybes
@@ -114,11 +121,18 @@ getItemBase (env@Env{..}) guid itemLevel =
         -- Innate stuff
         (catMaybes
         [ find vSPEED >>= return . mkSpeed
+        , vDAMAGE_PHYSICAL minDmg maxDmg item >>= return . mkDmg
+        , vDAMAGE_POISON minDmg maxDmg item >>= return . mkDmg
+        , vDAMAGE_ELECTRIC minDmg maxDmg item >>= return . mkDmg
+        , vDAMAGE_ICE minDmg maxDmg item >>= return . mkDmg
+        , vDAMAGE_FIRE minDmg maxDmg item >>= return . mkDmg
         ])
         (find vRANGE)
         (find vMAX_SOCKETS)
         (find vRARITY)
         (find vDESCRIPTION)
+
+-- Stat calculations
 
 resolveStat (Env{..}) itemLevel (StatReq stat val) =
     let interp = case stat of
@@ -126,7 +140,7 @@ resolveStat (Env{..}) itemLevel (StatReq stat val) =
             Dexterity-> lkupGraph "MEDIA/GRAPHS/STATS/ITEM_DEXTERITY_REQUIREMENTS.DAT" (fromIntegral itemLevel)
             Focus    -> lkupGraph "MEDIA/GRAPHS/STATS/ITEM_MAGIC_REQUIREMENTS.DAT" (fromIntegral itemLevel)
             Vitality -> lkupGraph "MEDIA/GRAPHS/STATS/ITEM_DEFENSE_REQUIREMENTS.DAT" (fromIntegral itemLevel)
-    in StatReq stat (floor $fromIntegral val * interp/100)
+    in StatReq stat (floor $ fromIntegral val * interp/100)
 
 mkStatReq (StatReq stat val) = Descriptor ("Required " ++ show stat ++ " " ++ "[VALUE]") (fromIntegral val) 0
 mkSpeed speed | speed < 0.8 = Descriptor "Very Fast Attack Speed ([VALUE] seconds)" speed 2
@@ -134,6 +148,16 @@ mkSpeed speed | speed < 0.8 = Descriptor "Very Fast Attack Speed ([VALUE] second
               | speed < 1.04 = Descriptor "Average Attack Speed ([VALUE] seconds)" speed 2
               | speed <= 1.2 = Descriptor "Slow Attack Speed ([VALUE] seconds)" speed 2
               | otherwise    = Descriptor "Very Slow Attack Speed ([VALUE] seconds)" speed 2
+
+-- Damage calculations
+
+resolveDmg (Env{..}) itemLevel dmgVal =
+    let multiplierPercent = lkupGraph "MEDIA/GRAPHS/STATS/BASE_WEAPON_DAMAGE.DAT" (fromIntegral itemLevel)
+    in dmgVal * multiplierPercent/100
+
+mkDmg (Damage dType low high) =
+    Descriptor (show dType ++ " Damage: " ++ "[VALUE]-" ++ (showPrecision 0 high))
+    low 0
 
 ----- LOCATION STUFF
 
@@ -217,10 +241,6 @@ showPrecision prec showable =
     in if prec == 0
         then preDecimal
         else preDecimal ++ (take (prec+1) postDecimal)
-
-
-data DamageType = Physical | Fire | Electric | Ice | Poison | All | UnknownDamageType
-    deriving (Ord, Show, Eq)
 
 damageTypeLookup 0x00 = Physical
 damageTypeLookup 0x02 = Fire
