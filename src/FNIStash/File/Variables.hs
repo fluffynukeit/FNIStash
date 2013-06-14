@@ -19,7 +19,7 @@ import FNIStash.File.DAT
 import Data.Endian
 import Data.Word
 import Data.Int
-
+import qualified Data.List.Utils as L
 
 -- This file defines values for different VariableID's that are useful
 
@@ -74,7 +74,7 @@ vContainerID d = vUNIQUEID d >>= return . ContainerID . fromIntegral
 -- Information about an item
 
 
-data Quality = NormalQ | MagicQ | UniqueQ | LegendaryQ | UnknownQuality deriving (Eq, Ord)
+data Quality = NormalQ | MagicQ | UniqueQ | LegendaryQ | NoneQ | UnknownQuality deriving (Eq, Ord)
 
 data StatReq = StatReq Stat Int deriving (Eq, Ord)
 data Stat = Strength | Dexterity | Focus | Vitality deriving (Eq, Ord, Show)
@@ -123,6 +123,30 @@ getMod v d = grab v d >>= intVar >>= return . (/100) . fromIntegral :: Maybe Flo
 vSPEED_DMG_MOD    = getMod 0x525b4287
 vRARITY_DMG_MOD   = getMod 0x6d6570a6
 vSPECIAL_DMG_MOD  = getMod 0x29bff2ee
+
+data UnitType = UnitType
+    { uQuality :: Quality
+    , uType :: String
+    } deriving (Eq, Ord)
+
+vUNITTYPE d = grab 0xfe646b17 d >>= stringVar >>= return . parseType
+
+parseType typeString =
+    let usReplaced = L.replace "_" " " typeString
+        pieces = words usReplaced
+        justOneWord = length pieces == 1
+        quality = case pieces !! 0 of
+            "NORMAL"    -> NormalQ
+            "MAGIC"     -> MagicQ
+            "LEGENDARY" -> LegendaryQ
+            "UNIQUE"    -> UniqueQ
+            _           -> if justOneWord then NoneQ else UnknownQuality
+        itemType = if justOneWord then pieces !! 0 else concat $ tail pieces
+    in UnitType quality itemType
+
+
+vLEVEL_REQUIRED d = grab 0x791e689d d >>= intVar
+
 -- Graphs
 vX d = grab 0x78000000 d >>= floatVar
 vY d = grab 0x79000000 d >>= floatVar

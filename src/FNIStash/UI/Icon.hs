@@ -55,9 +55,15 @@ makePopUp (Item{..}) = do
         new #. "poptriggerable" #= show trig #+ container
     return container #+ body # unit
 
+    -- Level req
+    new #. "popstatreq" #= show (iBaseLevelReq iBase) #+ container
+
+    when (length (iBaseStatReqs iBase) > 0) $
+        new #. "popstatreq" #= "   Or" #+ container # unit
+
     -- Stat reqs
     forM_ (iBaseStatReqs iBase) $ \req ->
-        new #. "popstatreq" #= "Required " ++ show req #+ container
+        new #. "popstatreq" #= show req #+ container
 
     when (isJust $ iBaseDescription iBase) $
         new #. "popdescription" #= (show $ fromJust $ iBaseDescription iBase) #+ container # unit

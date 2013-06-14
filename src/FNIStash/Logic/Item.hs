@@ -80,9 +80,9 @@ instance Show Descriptor where
 data ItemBase = ItemBase
     { iBaseGUID :: ItemGUID
     , iBaseIcon :: FilePath
---    , iBaseQuality :: Quality
---    , iBaseClass :: ItemClass
+    , iUnitType :: UnitType
     , iBaseStatReqs :: [Descriptor]
+    , iBaseLevelReq :: Descriptor
     , iBaseInnates :: [Descriptor]
     , iBaseRange :: Maybe Float
     , iBaseMaxSockets :: Maybe Int
@@ -109,7 +109,10 @@ getItemBase (env@Env{..}) guid itemLevel =
         specDmgMod = maybe (fromIntegral 1) id (find vSPECIAL_DMG_MOD)
         dmgMods = [rareDmgMod, spdDmgMod, specDmgMod]
         applyDmgMods = \x -> fromIntegral . floor $ L.foldl (\acc mod -> acc * mod) x dmgMods
+        unitType = fromJust $ find vUNITTYPE
     in ItemBase guid icon
+        unitType
+
         -- Stat reqs
         (catMaybes
         [ find vSTRENGTH_REQUIRED >>= return . mkStatReq . (resolveStat env itemLevel)
@@ -117,6 +120,9 @@ getItemBase (env@Env{..}) guid itemLevel =
         , find vMAGIC_REQUIRED >>= return . mkStatReq . (resolveStat env itemLevel)
         , find vDEFENSE_REQUIRED >>= return . mkStatReq . (resolveStat env itemLevel)
         ])
+
+        -- Level req
+        (mkLvlReq $ maybe (resolveLvlReq env itemLevel unitType) id (find vLEVEL_REQUIRED))
 
         -- Innate stuff
         (catMaybes
@@ -142,7 +148,7 @@ resolveStat (Env{..}) itemLevel (StatReq stat val) =
             Vitality -> lkupGraph "MEDIA/GRAPHS/STATS/ITEM_DEFENSE_REQUIREMENTS.DAT" (fromIntegral itemLevel)
     in StatReq stat (floor $ fromIntegral val * interp/100)
 
-mkStatReq (StatReq stat val) = Descriptor ("Required " ++ show stat ++ " " ++ "[VALUE]") (fromIntegral val) 0
+mkStatReq (StatReq stat val) = Descriptor ("Requires " ++ show stat ++ " " ++ "[VALUE]") (fromIntegral val) 0
 mkSpeed speed | speed < 0.8 = Descriptor "Very Fast Attack Speed ([VALUE] seconds)" speed 2
               | speed < 0.96 = Descriptor "Fast Attack Speed ([VALUE] seconds)" speed 2
               | speed < 1.04 = Descriptor "Average Attack Speed ([VALUE] seconds)" speed 2
@@ -159,6 +165,14 @@ mkDmg (Damage dType low high) =
     Descriptor (show dType ++ " Damage: " ++ "[VALUE]-" ++ (showPrecision 0 high))
     low 0
 
+-- Lvl Requirement
+
+resolveLvlReq (Env{..}) itemLevel (UnitType {..})
+    | uType == "SOCKETABLE" = floor $ lkupGraph "MEDIA/GRAPHS/STATS/ITEM_LEVEL_REQUIREMENTS_SOCKETABLE.DAT" $ fromIntegral itemLevel
+    | uQuality /= NormalQ && uQuality /= NoneQ = floor $ lkupGraph "MEDIA/GRAPHS/STATS/ITEM_LEVEL_REQUIREMENTS.DAT" $ fromIntegral itemLevel
+    | otherwise = floor $ lkupGraph "MEDIA/GRAPHS/STATS/ITEM_LEVEL_REQUIREMENTS_NORMAL.DAT" $ fromIntegral itemLevel
+
+mkLvlReq i = Descriptor "Requires Level [VALUE]" (fromIntegral i) 0
 ----- LOCATION STUFF
 
 data Location = Location
