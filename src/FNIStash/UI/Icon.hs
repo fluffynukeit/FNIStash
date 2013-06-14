@@ -51,6 +51,10 @@ makePopUp (Item{..}) = do
 
     forM_ (iBaseInnates iBase) $ \inn ->
         new #. "popinnate" #= show inn #+ container
+
+    forM_ [1..(iNumSockets - length iGems)] $ \_ -> makeEmptySocket container
+
+    -- Item effects
     
     forM_ iEffects $ \mod -> 
         new #. "popeffect" #= show mod #+ container
@@ -77,6 +81,12 @@ makePopUp (Item{..}) = do
     when (isJust $ iBaseDescription iBase) $
         new #. "popdescription" #= (show $ fromJust $ iBaseDescription iBase) #+ container # unit
 
+
+makeEmptySocket container = do
+    line <- new #. "popemptysocket"
+    newIcon "socket_empty" #. "popemptysocketicon" #+ line
+    new #. "popemptysockettext" #= "Empty Socket" #+ line
+    return line #+ container
 
 killPopUp :: MonadTP m => m ()
 killPopUp = do

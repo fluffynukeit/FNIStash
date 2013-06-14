@@ -169,13 +169,24 @@
 	font-size: 12pt;
 	color: white;
 	}
-/* Message window stuff */
 
 .popdescription {
 	font-size: 12pt;
 	color: #00FF00;
 	}
 
+.popemptysocket {
+	font-size: 12pt;
+	color: #747474;
+}
+.popemptysocketicon {
+	float: left;
+	}
+.popemptysockettext {
+	font-size: inherit;
+	}
+
+/* Message window stuff */
 #msgwindow {
 	width: 95%;
 	margin-left: auto;
