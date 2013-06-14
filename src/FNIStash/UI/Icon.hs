@@ -29,6 +29,7 @@ newItemIcon (item@Item {..}) = do
     i <- newIcon (iBaseIcon iBase)
         #. "item"
         # allowDrag
+    killPopUp
     onHover i $ \_ -> makePopUp item
     onBlur i $ \_ -> killPopUp
     return i
