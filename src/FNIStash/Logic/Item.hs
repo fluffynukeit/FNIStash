@@ -24,6 +24,8 @@ module FNIStash.Logic.Item
     , Location(..)
     , Partition(..)
     , Mod(..)
+    , UnitType(..)
+    , Quality(..)
     ) where
 
 -- This file is for decodeing raw bytes of items into useables types and useable information
@@ -80,7 +82,7 @@ instance Show Descriptor where
 data ItemBase = ItemBase
     { iBaseGUID :: ItemGUID
     , iBaseIcon :: FilePath
-    , iUnitType :: UnitType
+    , iBaseUnitType :: UnitType
     , iBaseStatReqs :: [Descriptor]
     , iBaseLevelReq :: Descriptor
     , iBaseInnates :: [Descriptor]

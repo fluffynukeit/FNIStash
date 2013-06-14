@@ -38,7 +38,15 @@ makePopUp (Item{..}) = do
     container <- new #. "itempopup" ## "itempopup"
     new #. "poplevel" #= "Level " ++ show iLevel #+ container
     newIcon (iBaseIcon iBase) #. "popicon" #+ container
-    new #. "poptitle" #= iName #+ container
+
+    let qualityClass = case (uQuality . iBaseUnitType $ iBase) of
+            NormalQ     -> "popnormal"
+            MagicQ      -> "popmagic"
+            UniqueQ     -> "popunique"
+            LegendaryQ  -> "poplegendary"
+            _           -> "popnormal"
+    
+    new #. qualityClass #= iName #+ container
 
     forM_ (iBaseInnates iBase) $ \inn ->
         new #. "popinnate" #= show inn #+ container
