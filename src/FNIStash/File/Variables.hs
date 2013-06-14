@@ -24,6 +24,7 @@ import qualified Data.List.Utils as L
 -- This file defines values for different VariableID's that are useful
 
 grab k = lkupVar (swapEndian k::VarID)
+search k = searchNodeTree (swapEndian k::VarID)
 
 -- General lookup stuff
 
@@ -71,10 +72,8 @@ vUNIQUEID d = grab 0xdf973b17 d >>= word32Var >>= return . fromIntegral
 vSlotID d = vUNIQUEID d >>= return . SlotID . fromIntegral
 vContainerID d = vUNIQUEID d >>= return . ContainerID . fromIntegral
 
--- Information about an item
 
-
-data Quality = NormalQ | MagicQ | UniqueQ | LegendaryQ | NoneQ | UnknownQuality deriving (Eq, Ord)
+-- Item requirements
 
 data StatReq = StatReq Stat Int deriving (Eq, Ord)
 data Stat = Strength | Dexterity | Focus | Vitality deriving (Eq, Ord, Show)
@@ -82,10 +81,17 @@ data Stat = Strength | Dexterity | Focus | Vitality deriving (Eq, Ord, Show)
 check0 0 = Nothing
 check0 k = Just k
 
+
 vSTRENGTH_REQUIRED d = grab 0x6b29dd27 d >>= intVar >>= check0 >>= return . (StatReq Strength)
 vDEXTERITY_REQUIRED d = grab 0xea6869a2 d >>= intVar >>= check0 >>= return . (StatReq Dexterity)
 vMAGIC_REQUIRED d = grab 0x7bfed9d5 d >>= intVar >>= check0 >>= return . (StatReq Focus)
 vDEFENSE_REQUIRED d = grab 0xad0c2391 d >>= intVar >>= check0 >>= return . (StatReq Vitality)
+
+vLEVEL_REQUIRED d = grab 0x791e689d d >>= intVar
+
+vREQ_CLASS d = search 0x0f7e16fa d >>= vUNITTYPE
+
+-- Information about an item
 
 vSPEED d = grab 0xe41c190f d >>= intVar >>= return . (flip (/) 100) . fromIntegral
 vMAX_SOCKETS d = grab 0x3fe4a85e d >>= intVar
@@ -93,6 +99,8 @@ vRARITY d = grab 0xd82e3820 d >>= intVar
 vRANGE d = grab 0xa5b0010f d >>= floatVar
 
 vDESCRIPTION d = grab 0xa2dcb313 d >>= stringVar
+
+-- Damage stuff
 
 data DamageType = Physical | Fire | Electric | Ice | Poison | All | UnknownDamageType
     deriving (Ord, Show, Eq)
@@ -124,6 +132,10 @@ vSPEED_DMG_MOD    = getMod 0x525b4287
 vRARITY_DMG_MOD   = getMod 0x6d6570a6
 vSPECIAL_DMG_MOD  = getMod 0x29bff2ee
 
+-- Unit type stuff
+
+data Quality = NormalQ | MagicQ | UniqueQ | LegendaryQ | NoneQ | UnknownQuality deriving (Eq, Ord)
+
 data UnitType = UnitType
     { uQuality :: Quality
     , uType :: String
@@ -145,7 +157,6 @@ parseType typeString =
     in UnitType quality itemType
 
 
-vLEVEL_REQUIRED d = grab 0x791e689d d >>= intVar
 
 -- Graphs
 vX d = grab 0x78000000 d >>= floatVar

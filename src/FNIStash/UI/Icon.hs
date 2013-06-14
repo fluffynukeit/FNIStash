@@ -67,11 +67,11 @@ makePopUp (Item{..}) = do
     -- Level req
     new #. "popstatreq" #= show (iBaseLevelReq iBase) #+ container
 
-    when (length (iBaseStatReqs iBase) > 0) $
+    when (length (iBaseOtherReqs iBase) > 0) $
         new #. "popstatreq" #= "   Or" #+ container # unit
 
-    -- Stat reqs
-    forM_ (iBaseStatReqs iBase) $ \req ->
+    -- Stat reqs and other reqs
+    forM_ (iBaseOtherReqs iBase) $ \req ->
         new #. "popstatreq" #= show req #+ container
 
     when (isJust $ iBaseDescription iBase) $

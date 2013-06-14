@@ -15,6 +15,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module FNIStash.Logic.Item
     ( getItem
@@ -83,7 +84,7 @@ data ItemBase = ItemBase
     { iBaseGUID :: ItemGUID
     , iBaseIcon :: FilePath
     , iBaseUnitType :: UnitType
-    , iBaseStatReqs :: [Descriptor]
+    , iBaseOtherReqs :: [Descriptor]
     , iBaseLevelReq :: Descriptor
     , iBaseInnates :: [Descriptor]
     , iBaseRange :: Maybe Float
@@ -115,12 +116,13 @@ getItemBase (env@Env{..}) guid itemLevel =
     in ItemBase guid icon
         unitType
 
-        -- Stat reqs
+        -- Other reqs
         (catMaybes
         [ find vSTRENGTH_REQUIRED >>= return . mkStatReq . (resolveStat env itemLevel)
         , find vDEXTERITY_REQUIRED >>= return . mkStatReq . (resolveStat env itemLevel)
         , find vMAGIC_REQUIRED >>= return . mkStatReq . (resolveStat env itemLevel)
         , find vDEFENSE_REQUIRED >>= return . mkStatReq . (resolveStat env itemLevel)
+        , find vREQ_CLASS >>= return . resolveClassReq
         ])
 
         -- Level req
@@ -175,6 +177,14 @@ resolveLvlReq (Env{..}) itemLevel (UnitType {..})
     | otherwise = floor $ lkupGraph "MEDIA/GRAPHS/STATS/ITEM_LEVEL_REQUIREMENTS_NORMAL.DAT" $ fromIntegral itemLevel
 
 mkLvlReq i = Descriptor "Requires Level [VALUE]" (fromIntegral i) 0
+
+-- Class requirement
+resolveClassReq (uType -> "RAILMAN")   = Descriptor "Requires Class: Engineer" 0 0
+resolveClassReq (uType -> "OUTLANDER") = Descriptor "Requires Class: Outlander" 0 0
+resolveClassReq (uType -> "BERSERKER") = Descriptor "Requires Class: Berserker" 0 0
+resolveClassReq (uType -> "EMBERMAGE") = Descriptor "Requires Class: Embermage" 0 0
+resolveClassReq _                      = Descriptor "Requires Class: Unknown Class" 0 0
+
 ----- LOCATION STUFF
 
 data Location = Location
