@@ -27,6 +27,7 @@ module FNIStash.Logic.Item
     , Mod(..)
     , UnitType(..)
     , Quality(..)
+    , PointValue(..)
     ) where
 
 -- This file is for decodeing raw bytes of items into useables types and useable information
@@ -41,6 +42,7 @@ import Data.List.Utils
 import Data.Binary.Put
 import Data.Maybe
 import Data.Convertible
+import Data.Bits
 import qualified Data.Text as T
 import qualified Data.ByteString as BS
 import qualified Data.List as L
@@ -59,9 +61,9 @@ translateSentence translateMarkup sent =
         (markup, post2) = breakOn ']' (drop 1 post1)
         suffix = drop 1 post2
         translatedMarkup = translateMarkup markup
-        newSent = pref ++ translatedMarkup ++ suffix
+        newSent = pref ++ translatedMarkup
     in if null post1 then sent -- nothing left to translate
-       else translateSentence translateMarkup newSent
+       else newSent ++ translateSentence translateMarkup suffix
 
 
 
@@ -74,7 +76,7 @@ data Descriptor = Descriptor
     , descriptorPrec :: Int
     } deriving (Eq, Ord)
 
-descriptorTranslator prec value "VALUE" = showPrecision prec value
+descriptorTranslator prec value "*" = showPrecision prec value
 descriptorTranslator prec value _       = "???"
 
 instance Show Descriptor where
@@ -90,7 +92,7 @@ data ItemBase = ItemBase
     , iBaseRange :: Maybe Float
     , iBaseMaxSockets :: Maybe Int
     , iBaseRarity :: Maybe Int
-    , iBaseDescription :: Maybe String
+    , iBaseDescription :: Maybe [Descriptor] -- 1 descriptor per line of description
     } deriving (Eq, Ord)
 
 searchAncestryFor (env@Env{..}) findMeVar itemDat =
@@ -140,7 +142,7 @@ getItemBase (env@Env{..}) guid itemLevel =
         (find vRANGE)
         (find vMAX_SOCKETS)
         (find vRARITY)
-        (find vDESCRIPTION)
+        (find vDESCRIPTION >>= return . resolveDesc)
 
 -- Stat calculations
 
@@ -152,12 +154,12 @@ resolveStat (Env{..}) itemLevel (StatReq stat val) =
             Vitality -> lkupGraph "MEDIA/GRAPHS/STATS/ITEM_DEFENSE_REQUIREMENTS.DAT" (fromIntegral itemLevel)
     in StatReq stat (floor $ fromIntegral val * interp/100)
 
-mkStatReq (StatReq stat val) = Descriptor ("Requires " ++ show stat ++ " " ++ "[VALUE]") (fromIntegral val) 0
-mkSpeed speed | speed < 0.8 = Descriptor "Very Fast Attack Speed ([VALUE] seconds)" speed 2
-              | speed < 0.96 = Descriptor "Fast Attack Speed ([VALUE] seconds)" speed 2
-              | speed < 1.04 = Descriptor "Average Attack Speed ([VALUE] seconds)" speed 2
-              | speed <= 1.2 = Descriptor "Slow Attack Speed ([VALUE] seconds)" speed 2
-              | otherwise    = Descriptor "Very Slow Attack Speed ([VALUE] seconds)" speed 2
+mkStatReq (StatReq stat val) = Descriptor ("Requires " ++ show stat ++ " " ++ "[*]") (fromIntegral val) 0
+mkSpeed speed | speed < 0.8 = Descriptor "Very Fast Attack Speed ([*] seconds)" speed 2
+              | speed < 0.96 = Descriptor "Fast Attack Speed ([*] seconds)" speed 2
+              | speed < 1.04 = Descriptor "Average Attack Speed ([*] seconds)" speed 2
+              | speed <= 1.2 = Descriptor "Slow Attack Speed ([*] seconds)" speed 2
+              | otherwise    = Descriptor "Very Slow Attack Speed ([*] seconds)" speed 2
 
 -- Damage calculations
 
@@ -166,7 +168,7 @@ resolveDmg (Env{..}) itemLevel dmgVal =
     in dmgVal * multiplierPercent/100
 
 mkDmg (Damage dType low high) =
-    Descriptor (show dType ++ " Damage: " ++ "[VALUE]-" ++ (showPrecision 0 high))
+    Descriptor (show dType ++ " Damage: " ++ "[*]-" ++ (showPrecision 0 high))
     low 0
 
 -- Lvl Requirement
@@ -176,7 +178,7 @@ resolveLvlReq (Env{..}) itemLevel (UnitType {..})
     | uQuality /= NormalQ && uQuality /= NoneQ = floor $ lkupGraph "MEDIA/GRAPHS/STATS/ITEM_LEVEL_REQUIREMENTS.DAT" $ fromIntegral itemLevel
     | otherwise = floor $ lkupGraph "MEDIA/GRAPHS/STATS/ITEM_LEVEL_REQUIREMENTS_NORMAL.DAT" $ fromIntegral itemLevel
 
-mkLvlReq i = Descriptor "Requires Level [VALUE]" (fromIntegral i) 0
+mkLvlReq i = Descriptor "Requires Level [*]" (fromIntegral i) 0
 
 -- Class requirement
 resolveClassReq (uType -> "RAILMAN")   = Descriptor "Requires Class: Engineer" 0 0
@@ -221,10 +223,8 @@ encodeLocationBytes (Env {..}) loc = do
 ----- MODIFIER STUFF
 
 data Mod = Mod
-    { mIsPossibleEnchant :: Bool
-    , mDescription :: EffectDescription
-    , mValue :: Float
-    , mDisplayPrecision :: Int
+    { mIsEnchant :: Bool
+    , mDescriptor :: Descriptor
     } deriving (Eq, Ord)
 --
 --isEnchantment (Mod Enchantment _ _ _) = True
@@ -280,7 +280,7 @@ effectTranslator precVal maybeSkillName (eff@EffectBytes{..}) markup =
     let dispVal = showPrecision precVal
         fromList i = dispVal $ wordToFloat $ (flip (!!) i) eBytesValueList 
     in case markup of
-        "VALUE"     -> "VALUE" -- leave VALUE unchanged so we can store in DB smarter
+        "VALUE"     -> "[*]" -- leave VALUE unchanged so we can store in DB smarter
         "DURATION"  -> let val = dispVal (wordToFloat eBytesDuration)
                            suffix = if val == "1" then " second" else " seconds"
                        in val ++ suffix
@@ -302,24 +302,27 @@ decodeEffectBytes (Env{..}) (eff@EffectBytes {..}) =
         precision = effectPrecisionVal effNode
         skillname = lkupSkill (T.pack eBytesName) >>= vDISPLAYNAME
         description = effectDescription precision skillname effNode eff
-        mType = null eBytesName
-    in Mod mType description value precision
+        ench = isEnchant eff
+    in Mod ench $ Descriptor (mkModDescriptor description) value precision
+
+mkModDescriptor (EffectDescription {..}) =
+    let nominal = effDesc
+    in case effDescType of
+        GOODDES ->  nominal
+        BADDES ->   nominal
+        GOODDESOT -> "Conveys " ++ nominal
+        BADDESOT ->  "Conveys " ++ nominal
+        UnknownDescriptionType -> "!!" ++ nominal
+
+
+isEnchant (EffectBytes{..}) =
+    let byteTest = eBytesType .&. 0x0000FF00
+        notEnchant = [0x8000, 0x8100, 0xA000] -- list of bytes for nameless skills but NOT enchants
+    in null eBytesName && all (byteTest /=) notEnchant
 
 instance Convertible AddedDamageBytes EffectBytes where
     safeConvert (AddedDamageBytes{..}) = Right $
         EffectBytes 0 "" Nothing Nothing 0 [] 0x0a dBytesDamageType 0 0 0 dBytesFromEnchant 0 Nothing
-
-
-
-instance Show Mod where
-    show (Mod{..}) =
-        let nominal = replace "VALUE" (showPrecision mDisplayPrecision mValue) $ effDesc mDescription
-        in case effDescType mDescription of
-            GOODDES ->  nominal
-            BADDES ->   nominal
-            GOODDESOT -> "Conveys " ++ nominal
-            BADDESOT ->  "Conveys " ++ nominal
-            UnknownDescriptionType -> "!!" ++ nominal
 
 
 ----- FOR DEALING WITH POINT VALUES LIKE DAMAGE AND ARMOR
@@ -329,6 +332,11 @@ instance Show PointValue where
     show (DamageVal v) = show v ++ " damage"
     show (ArmorVal v)  = show v ++ " armor"
     show NoVal         = ""
+
+
+-- For dealing with description strings
+resolveDesc = map (\s -> Descriptor s 0 0 ) . lines . fixNewLines
+    where fixNewLines = replace "\\n" "\n"
 
 ---- COMPLETE ITEM STUFF
 
@@ -342,8 +350,8 @@ data Item = Item
     , iNumSockets :: Int
     , iGems :: [Item]
     , iPoints :: PointValue
-    , iEffects :: [Mod]
-    , iEnchantments :: [Mod]
+    , iEffects :: [Descriptor]
+    , iEnchantments :: [Descriptor]
     , iTriggerables :: [Mod]
     , iPartition :: Partition
     , iBase :: ItemBase
@@ -361,15 +369,21 @@ decodePoints 0xFFFFFFFF a = ArmorVal $ fromIntegral a
 --data AddedDamage = AddedDamage
 --decodeAddedDamage (AddedDamageBytes {..}) =
 
-decodeItemBytes env (ItemBytes {..}) =
+selectModEnchants env (ItemBytes{..}) =
     let allMods = (map (decodeEffectBytes env) (iBytesEffects ++ iBytesEffects2))
         enchantAdditions = filter ((/=) 0 . dBytesFromEnchant) iBytesAddedDamages
-        (normalMods, enchantMods) = L.partition (not.mIsPossibleEnchant) allMods
-        numEnchMods = fromIntegral iBytesNumEnchants - (length enchantAdditions)
-        (useEnchantsEffects, backToNormal) = L.splitAt numEnchMods enchantMods
-        useNormal = backToNormal ++ normalMods
+        (enchantMods, normalMods) = L.partition (mIsEnchant) allMods
+
         convertedAdditions = map (decodeEffectBytes env . convert) enchantAdditions
-        useEnchants = convertedAdditions ++ useEnchantsEffects
+        enchantLabel = if iBytesNumEnchants > 0
+            then [Descriptor "Enchantments: [*]" (fromIntegral iBytesNumEnchants) 0]
+            else []
+        useEnchants = enchantLabel ++ (map mDescriptor $ convertedAdditions ++ enchantMods)
+        useNormal = map mDescriptor normalMods
+    in (useNormal, useEnchants)
+
+decodeItemBytes env (item@ItemBytes {..}) =
+    let (useNormal, useEnchants) = selectModEnchants env item
     in
         Item
         iBytesName
