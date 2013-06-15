@@ -335,8 +335,20 @@ instance Show PointValue where
 
 
 -- For dealing with description strings
+
 resolveDesc = map (\s -> Descriptor s 0 0 ) . lines . fixNewLines
     where fixNewLines = replace "\\n" "\n"
+
+
+-- for getting description of gem effects
+getGemDesc mainPoints (Item{..}) =
+    let effect = case mainPoints of
+            DamageVal _ -> iEffects !! 0
+            ArmorVal _  -> if length iEffects > 1 then iEffects !! 1 else iEffects !! 0
+            -- NoVal       -> what to use here if NoVal is encountered?
+        title = Descriptor iName 0 0
+        icon = iBaseIcon iBase
+    in (icon, title, effect)
 
 ---- COMPLETE ITEM STUFF
 
@@ -348,7 +360,7 @@ data Item = Item
     , iLevel :: Int
     , iQuantity :: Int
     , iNumSockets :: Int
-    , iGems :: [Item]
+    , iGems :: [(FilePath, Descriptor, Descriptor)] -- (icon, title, desc) triplet for each gem
     , iPoints :: PointValue
     , iEffects :: [Descriptor]
     , iEnchantments :: [Descriptor]
@@ -384,6 +396,7 @@ selectModEnchants env (ItemBytes{..}) =
 
 decodeItemBytes env (item@ItemBytes {..}) =
     let (useNormal, useEnchants) = selectModEnchants env item
+        points = decodePoints iBytesDamage iBytesArmor
     in
         Item
         iBytesName
@@ -393,8 +406,8 @@ decodeItemBytes env (item@ItemBytes {..}) =
         (fromIntegral iBytesLevel)
         (fromIntegral iBytesQuantity)
         (fromIntegral iBytesNumSockets)
-        (map (decodeItemBytes env) iBytesGems)
-        (decodePoints iBytesDamage iBytesArmor)
+        (map (getGemDesc points . decodeItemBytes env) iBytesGems)
+        points
         useNormal
         useEnchants
         []

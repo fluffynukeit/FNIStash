@@ -54,7 +54,7 @@ makePopUp (Item{..}) = do
         new #. "popinnate" #= show inn #+ container
 
     -- Sockets
-    forM_ iGems $ \gem -> makeFullSocket iPoints gem container
+    forM_ iGems $ \gem -> makeFullSocket gem container
 
     forM_ [1..(iNumSockets - length iGems)] $ \_ -> makeEmptySocket container
 
@@ -92,18 +92,12 @@ makeEmptySocket container = do
     new #. "popemptysockettext" #= "Empty Socket" #+ line
     return line #+ container
 
-makeFullSocket mainPoints (item@Item{..}) container = do
+makeFullSocket (icon, name, effect) container = do
     line <- new #. "popfullsocket"
-    newIcon (iBaseIcon iBase) #. "popfullsocketicon" #+ line
-    new #. "popfullsockettext" #= iName #+ line
-    new #. "popfullsocketeffect" #= getSocketEffect mainPoints item #+ line
+    newIcon icon #. "popfullsocketicon" #+ line
+    new #. "popfullsockettext" #= show name #+ line
+    new #. "popfullsocketeffect" #= show effect #+ line
     return line #+ container
-
-getSocketEffect _ (iEffects -> []) = ""
-getSocketEffect mainPoints (Item{..}) = case mainPoints of
-    DamageVal _ -> show $ iEffects !! 0
-    ArmorVal _  -> show $ if length iEffects > 1 then iEffects !! 1 else iEffects !! 0
-    NoVal       -> "WTF THIS SHOULD NOT GET HERE"
 
 killPopUp :: MonadTP m => m ()
 killPopUp = do
