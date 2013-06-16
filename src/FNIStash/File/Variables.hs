@@ -141,7 +141,7 @@ data UnitType = UnitType
     , uType :: String
     } deriving (Eq, Ord)
 
-vUNITTYPE d = grab 0xfe646b17 d >>= stringVar >>= return . parseType
+vITEMUNITTYPE d = vUNITTYPE d >>= return . parseType
 
 parseType typeString =
     let usReplaced = L.replace "_" " " typeString
@@ -157,6 +157,14 @@ parseType typeString =
     in UnitType quality itemType
 
 
+-- Lookup for gem effects
+nAFFIXES = search 0xdbe845c8
+nEFFECT = search 0x351c420e
+vAFFIX_ARMOR d = nAFFIXES d >>= varAt 1 >>= stringVar
+vAFFIX_WEAPON d = nAFFIXES d >>= varAt 0 >>= stringVar
+vTYPE d = grab 0x456e6b00 d >>= stringVar
+nUNITTYPES = search 0x91bf6ced
+vUNITTYPE d = grab 0xfe646b17 d >>= stringVar
 
 -- Graphs
 vX d = grab 0x78000000 d >>= floatVar

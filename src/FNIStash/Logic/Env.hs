@@ -13,11 +13,13 @@
 -----------------------------------------------------------------------------
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE BangPatterns #-}
 
 module FNIStash.Logic.Env 
     ( buildEnv
     , Env (..)
-    , EffectIndex (..)
+    , EffectKey (..)
+    , AffixKey (..)
     ) where
 
 -- An ENV is the data environment that is passed around by the reader monad.  It has all the reference
@@ -41,10 +43,13 @@ import qualified Data.Map as M
 import qualified Data.List as L
 import Database.HDBC.Sqlite3
 
+import Debug.Trace
+
 -- Env is the lookup environment we pass around manually.  (I suppose we could use a Reader monad
 -- but I tried it out and found it to be more complicated than simple argument passing)
 data Env = Env
-    { lkupEffect :: EffectIndex -> Maybe DATNode
+    { lkupEffect :: EffectKey -> Maybe DATNode
+    , lkupAffix :: AffixKey -> Maybe DATNode
     , lkupSkill :: T.Text -> Maybe DATNode
     , lkupLocNodes :: LocationBytes -> (DATNode, Maybe DATNode) -- location, containerID -> Container node, slot node
     , lkupLocIDs :: String -> String -> (Maybe SlotID, Maybe ContainerID)
@@ -55,10 +60,16 @@ data Env = Env
     , dbConn :: Connection
     }
 
-newtype EffectIndex = EffectIndex
+data EffectKey = EffectIndex
     { effectIndexVal :: Word32
+    }
+    | EffectName
+    { effectName :: String
     } deriving (Eq, Ord)
 
+data AffixKey = AffixName String
+--              | AffixArmor T.Text String
+--              | AffixWeapon T.Text String
 
 -- build the lookup environment needed for app operations
 buildEnv pak conn =
@@ -68,7 +79,8 @@ buildEnv pak conn =
         (itemsGUID, totalItems) = itemLookupGUID pak
         byPath = lookupPath pak
         graph = graphLookup byPath
-    in  Env effects skills bytesToNodesFxn nodesToBytesFxn itemsGUID byPath graph
+        affixes = affixLookup pak
+    in  Env effects affixes skills bytesToNodesFxn nodesToBytesFxn itemsGUID byPath graph
         totalItems conn
 
 -- Each of the functions below returns a lookup function.  This is how we can keep the loaded PAK
@@ -84,7 +96,20 @@ lookupPath pak =
 
 effectLookup pak =
     \effID -> lkupPAKFile "MEDIA/EFFECTSLIST.DAT" pak >>=
-        return . (runGetSuppress getDAT) >>= subNodeAt (effectIndexVal effID)
+        return . (runGetSuppress getDAT) >>= case effID of
+            EffectIndex i -> subNodeAt i
+            EffectName n  -> searchNodeTreeWith (\node ->
+                let mName = return node >>= vNAME
+                in case mName of
+                    Nothing   -> False
+                    Just name -> n == T.unpack name) 
+
+affixLookup pak =
+    let nameFinder = \x -> fromJust $ vNAME x
+        dat = readDATFiles pak "MEDIA/AFFIXES/ITEMS" nameFinder
+    in \searcher -> case searcher of
+        AffixName name            -> lkupDATFile dat (T.pack name)
+
 
 skillLookup pak =
     let nameFinder = \x -> fromJust $ vNAME x >>= return . T.toUpper
