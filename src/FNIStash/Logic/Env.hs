@@ -68,8 +68,8 @@ data EffectKey = EffectIndex
     } deriving (Eq, Ord)
 
 data AffixKey = AffixName String
---              | AffixArmor T.Text String
---              | AffixWeapon T.Text String
+              | AffixArmor T.Text String
+              | AffixWeapon T.Text String
 
 -- build the lookup environment needed for app operations
 buildEnv pak conn =

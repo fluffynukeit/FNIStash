@@ -134,7 +134,7 @@ vSPECIAL_DMG_MOD  = getMod 0x29bff2ee
 
 -- Unit type stuff
 
-data Quality = NormalQ | MagicQ | UniqueQ | LegendaryQ | NoneQ | UnknownQuality deriving (Eq, Ord)
+data Quality = NormalQ | MagicQ | UniqueQ | LegendaryQ | NoneQ deriving (Eq, Ord)
 
 data UnitType = UnitType
     { uQuality :: Quality
@@ -152,16 +152,16 @@ parseType typeString =
             "MAGIC"     -> MagicQ
             "LEGENDARY" -> LegendaryQ
             "UNIQUE"    -> UniqueQ
-            _           -> if justOneWord then NoneQ else UnknownQuality
-        itemType = if justOneWord then pieces !! 0 else concat $ tail pieces
+            _           -> NoneQ
+        itemType = if quality == NoneQ then concat pieces else concat $ tail pieces
     in UnitType quality itemType
 
 
--- Lookup for gem effects
+-- Lookup for gem effects (some might be extraneous)
 nAFFIXES = search 0xdbe845c8
 nEFFECT = search 0x351c420e
-vAFFIX_ARMOR d = nAFFIXES d >>= varAt 1 >>= stringVar
-vAFFIX_WEAPON d = nAFFIXES d >>= varAt 0 >>= stringVar
+vAFFIX_B d = nAFFIXES d >>= varAt 1 >>= stringVar
+vAFFIX_A d = nAFFIXES d >>= varAt 0 >>= stringVar
 vTYPE d = grab 0x456e6b00 d >>= stringVar
 nUNITTYPES = search 0x91bf6ced
 vUNITTYPE d = grab 0xfe646b17 d >>= stringVar

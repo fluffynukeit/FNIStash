@@ -35,6 +35,7 @@ module FNIStash.Logic.Item
 import FNIStash.File.Item
 import FNIStash.File.Variables
 import FNIStash.File.General
+import FNIStash.File.DAT
 import FNIStash.Logic.Env
 
 import Control.Applicative
@@ -342,39 +343,11 @@ resolveDesc = map (\s -> Descriptor s 0 0 ) . lines . fixNewLines
 
 -- For getting description of gem effects
 
-getGemDesc (env@Env{..}) mainPoints (Item{..}, effIndexList) = -- effList should have 2 in them
-    let gemDat = lkupItemGUID (iBaseGUID iBase)
-        effAtIndex = lkupEffect . EffectIndex . ((!!) effIndexList)
-        eff0 = effAtIndex 0
-        eff1 = effAtIndex 1
-        checkAgainstEff x | x == eff0 = Just 0
-                          | x == eff1 = Just 1
-                          | otherwise = Nothing
-        tryFirst a@(Just c) b = a
-        tryFirst Nothing    b = b
-
-        -- This is the code for getting effect from a unique socketable
-        getMatchingTypeBy key d = lkupAffix (key d) >>= nEFFECT >>= vTYPE >>= return . lkupEffect . EffectName
-        armorEffect = gemDat >>= vAFFIX_ARMOR >>= getMatchingTypeBy AffixName
-        weaponEffect = gemDat >>= vAFFIX_WEAPON >>= getMatchingTypeBy AffixName
-
-        armorIndex = armorEffect >>= checkAgainstEff >>= checkValidLength
-        weaponIndex = weaponEffect >>= checkAgainstEff >>= checkValidLength
-        checkValidLength ind = if ind < length iEffects then Just ind else Nothing
-
-        -- This is for a normal socketable
-        normalIndex = return 0 >>= checkValidLength
-
-        -- Now need to figure out which effect belongs to which descriptor index
-        effect = case mainPoints of
-            DamageVal _ -> {- tryFirst weaponIndex -} normalIndex >>= return . (!!) iEffects
-            ArmorVal _  -> {- tryFirst armorIndex -}  normalIndex >>= return . (!!) iEffects
-            -- NoVal       -> what to use here if NoVal is encountered?
-        title = Descriptor iName 0 0
+getGemDesc (env@Env{..}) (Item{..}) =
+    let title = Descriptor iName 0 0
         icon = iBaseIcon iBase
-        armType = case mainPoints of DamageVal _ -> "weapon"; ArmorVal _  -> "armor";
-        failureDescriptor = Descriptor ("!Failure getting socket effect for " ++ armType) 0 0
-    in (icon, title, maybe failureDescriptor id effect)
+        effect = iEffectsRaw !! 0
+    in (icon, title, effect)
 
 
 
@@ -389,7 +362,7 @@ data Item = Item
     , iQuantity :: Int
     , iNumSockets :: Int
     , iGems :: [(FilePath, Descriptor, Descriptor)] -- (icon, title, desc) triplet for each gem
-    , iPoints :: PointValue
+    , iEffectsRaw :: [Descriptor]
     , iEffects :: [Descriptor]
     , iEnchantments :: [Descriptor]
     , iTriggerables :: [Mod]
@@ -423,31 +396,83 @@ selectModEnchants env (ItemBytes{..}) =
     in (useNormal, useEnchants)
 
 
+maybeToBool Nothing = False
+maybeToBool (Just b)  = b
+
+-- This function is mostly used for determining which of two effects on a gem belongs to armor and
+-- which belongs to weapons.  It's not consistent even among unique gems, but might? be consistent
+-- among normal gems?
+makeGemDescriptors env (iEffectsRaw -> []) effIndexList = []
+makeGemDescriptors (env@Env{..}) (Item {..}) effIndexList =
+    let gemDat = lkupItemGUID (iBaseGUID iBase)
+        effAtIndex = lkupEffect . EffectIndex . ((!!) effIndexList)
+        eff0 = effAtIndex 0
+        eff1 = effAtIndex 1
+        checkAgainstEff x | x == eff0 = Just 0
+                          | x == eff1 = Just 1
+                          | otherwise = Nothing
+        tryFirst a@(Just c) b = a
+        tryFirst Nothing    b = b
+        checkValidLength ind = if ind < length iEffectsRaw then Just ind else Nothing
+
+        -- This is the code for getting effect from a unique socketable
+        getMatchingTypeBy key d = nEFFECT d >>= vTYPE >>= return . lkupEffect . EffectName
+        aAffix = gemDat >>= vAFFIX_A >>= lkupAffix . AffixName
+        bAffix = gemDat >>= vAFFIX_B >>= lkupAffix . AffixName
+
+        hasType searchType d = maybeToBool $ d >>= nUNITTYPES >>=
+            return . any (\(_, var) -> searchType == (fromJust $ stringVar var)) . datNodeVars
+
+        armorAffix  = if hasType "ARMOR"  aAffix then aAffix else bAffix
+        weaponAffix = if hasType "WEAPON" aAffix then aAffix else bAffix
+
+        armorEffect  = armorAffix  >>= getMatchingTypeBy AffixName
+        weaponEffect = weaponAffix >>= getMatchingTypeBy AffixName
+
+        armorIndex  = armorEffect  >>= checkAgainstEff >>= checkValidLength
+        weaponIndex = weaponEffect >>= checkAgainstEff >>= checkValidLength
+
+        -- Here is the description for a normal gem
+        normalArmorInd  = return 1 >>= checkValidLength
+        normalWeaponInd = return 0 >>= checkValidLength
+
+        armorDescriptor  = fromJust $ tryFirst armorIndex  normalArmorInd  >>= return . (!!) iEffectsRaw
+        weaponDescriptor = fromJust $ tryFirst weaponIndex normalWeaponInd >>= return . (!!) iEffectsRaw
+        armorSpecifier  = Descriptor "Armor/Trinkets:" 0 0
+        weaponSpecifier = Descriptor "Weapons:" 0 0
+
+        -- Figure out if our item is even a gem or not
+        itemType = uType (iBaseUnitType iBase)
+        socketItemTypes = ["SOCKETABLE", "BLOOD EMBER", "VOID EMBER", "CHAOS EMBER", "IRON EMBER"]
+        isSocket = any (itemType ==) socketItemTypes
+    in if not isSocket then iEffectsRaw -- No change to descriptors
+       else armorSpecifier:armorDescriptor:weaponSpecifier:weaponDescriptor:[]
+
 effectsOf item = iBytesEffects item ++ iBytesEffects2 item
 
-decodeItemBytes env (item@ItemBytes {..}) =
-    let (useNormal, useEnchants) = selectModEnchants env item
-        points = decodePoints iBytesDamage iBytesArmor
+decodeItemBytes env (itemBytes@ItemBytes {..}) =
+    let (useNormal, useEnchants) = selectModEnchants env itemBytes
         gemItems = map (decodeItemBytes env) iBytesGems
-        effectList gem = map (eBytesIndex) $ effectsOf gem
-        matchingEffectIndices = map (effectList) iBytesGems
-    in
-        Item
-        iBytesName
-        iBytesRandomID
-        (decodeIdentified iBytesIdentified)
-        (decodeLocationBytes env iBytesLocation)
-        (fromIntegral iBytesLevel)
-        (fromIntegral iBytesQuantity)
-        (fromIntegral iBytesNumSockets)
-        (map (getGemDesc env points) $ zip gemItems matchingEffectIndices)
-        points
-        useNormal
-        useEnchants
-        []
-        iBytesPartition
-        (getItemBase env (ItemGUID $ fromIntegral iBytesGUID) iBytesLevel)
+        base = getItemBase env (ItemGUID $ fromIntegral iBytesGUID) iBytesLevel
 
+        effectIndexList = map (eBytesIndex) $ effectsOf itemBytes
+
+        item = Item
+               iBytesName
+               iBytesRandomID
+               (decodeIdentified iBytesIdentified)
+               (decodeLocationBytes env iBytesLocation)
+               (fromIntegral iBytesLevel)
+               (fromIntegral iBytesQuantity)
+               (fromIntegral iBytesNumSockets)
+               (map (getGemDesc env) $ gemItems )
+               useNormal
+               (makeGemDescriptors env item effectIndexList)
+               useEnchants
+               []
+               iBytesPartition
+               base
+    in item
 
 
 
