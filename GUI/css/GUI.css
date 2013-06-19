@@ -181,6 +181,12 @@
 	position: relative;
 	top: 15px;
     }
+
+.popinnatedeficon {
+	max-height: 18px;
+	height: 18px;
+	float: left;
+	}
 	
 .popinnate {
 	font-size:12pt;

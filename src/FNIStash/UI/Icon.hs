@@ -70,6 +70,9 @@ makePopUp (Item{..}) = do
     forM_ (iBaseInnates iBase) $ \inn ->
         new #. "popinnate" #= show inn #+ dataArea
 
+    forM_ (iInnateDefs) $ \pair -> makeInnateDef pair dataArea
+
+
     -- Sockets
     forM_ iGems $ \gem -> makeFullSocket gem dataArea
 
@@ -116,6 +119,12 @@ makeFullSocket (icon, name, effect) container = do
     newIcon icon #. "popfullsocketicon" #+ line
     new #. "popfullsockettext" #= show name #+ line
     new #. "popfullsocketeffect" #= show effect #+ line
+    return line #+ container
+
+makeInnateDef (icon, descriptor) container = do
+    line <- new #. "popinnatedef"
+    newIcon icon #. "popinnatedeficon" #+ line
+    new #. "popinnate" #= show descriptor #+ line
     return line #+ container
 
 killPopUp :: MonadTP m => m ()

@@ -225,6 +225,7 @@ encodeLocationBytes (Env {..}) loc = do
 
 data Mod = Mod
     { mIsEnchant :: Bool
+    , mEffectName :: T.Text
     , mDescriptor :: Descriptor
     } deriving (Eq, Ord)
 --
@@ -304,7 +305,8 @@ decodeEffectBytes (Env{..}) (eff@EffectBytes {..}) =
         skillname = lkupSkill (T.pack eBytesName) >>= vDISPLAYNAME
         description = effectDescription precision skillname effNode eff
         ench = isEnchant eff
-    in Mod ench $ Descriptor (mkModDescriptor description) value precision
+        effName = fromJust $ effNode >>= vNAME
+    in Mod ench effName $ Descriptor (mkModDescriptor description) value precision
 
 mkModDescriptor (EffectDescription {..}) =
     let nominal = effDesc
@@ -362,6 +364,7 @@ data Item = Item
     , iQuantity :: Int
     , iNumSockets :: Int
     , iGems :: [(FilePath, Descriptor, Descriptor)] -- (icon, title, desc) triplet for each gem
+    , iInnateDefs :: [(FilePath, Descriptor)]
     , iEffectsRaw :: [Descriptor]
     , iEffects :: [Descriptor]
     , iEnchantments :: [Descriptor]
@@ -382,18 +385,37 @@ decodePoints 0xFFFFFFFF a = ArmorVal $ fromIntegral a
 --data AddedDamage = AddedDamage
 --decodeAddedDamage (AddedDamageBytes {..}) =
 
-selectModEnchants env (ItemBytes{..}) =
+selectSpecialEffects env (ItemBytes{..}) =
     let allMods = (map (decodeEffectBytes env) (iBytesEffects ++ iBytesEffects2))
         enchantAdditions = filter ((/=) 0 . dBytesFromEnchant) iBytesAddedDamages
         (enchantMods, normalMods) = L.partition (mIsEnchant) allMods
+
+        -- First determine enchants
 
         convertedAdditions = map (decodeEffectBytes env . convert) enchantAdditions
         enchantLabel = if iBytesNumEnchants > 0
             then [Descriptor "Enchantments: [*]" (fromIntegral iBytesNumEnchants) 0]
             else []
         useEnchants = enchantLabel ++ (map mDescriptor $ convertedAdditions ++ enchantMods)
-        useNormal = map mDescriptor normalMods
-    in (useNormal, useEnchants)
+
+        -- Out of remaining effects, find those with innate defense
+        innateDefs = [ "INNATE ICE DEFENSE", "INNATE FIRE DEFENSE"
+                     , "INNATE POISON DEFENSE", "INNATE ELECTRIC DEFENSE"]
+
+        (innates, nonInnates) = L.partition (flip elem innateDefs . mEffectName) normalMods
+        useNormal = map (mDescriptor) nonInnates
+
+        -- assign the correct icons to innate defense
+        innateDefDescriptors = map (mDescriptor) innates
+        fileLookup "INNATE ICE DEFENSE"     = "resist_iced"
+        fileLookup "INNATE ELECTRIC DEFENSE" = "resist_electricc"
+        fileLookup "INNATE POISON DEFENSE"  = "resist_poisonc"
+        fileLookup "INNATE FIRE DEFENSE"    = "resist_firec"
+
+        defenseFiles = map (fileLookup . mEffectName) innates
+        useInnateDef = zip defenseFiles innateDefDescriptors
+
+    in (useNormal, useEnchants, useInnateDef)
 
 
 maybeToBool Nothing = False
@@ -451,7 +473,7 @@ makeGemDescriptors (env@Env{..}) (Item {..}) effIndexList =
 effectsOf item = iBytesEffects item ++ iBytesEffects2 item
 
 decodeItemBytes env (itemBytes@ItemBytes {..}) =
-    let (useNormal, useEnchants) = selectModEnchants env itemBytes
+    let (useNormal, useEnchants, innateDef) = selectSpecialEffects env itemBytes
         gemItems = map (decodeItemBytes env) iBytesGems
         base = getItemBase env (ItemGUID $ fromIntegral iBytesGUID) iBytesLevel
 
@@ -466,6 +488,7 @@ decodeItemBytes env (itemBytes@ItemBytes {..}) =
                (fromIntegral iBytesQuantity)
                (fromIntegral iBytesNumSockets)
                (map (getGemDesc env) $ gemItems )
+               innateDef
                useNormal
                (makeGemDescriptors env item effectIndexList)
                useEnchants
