@@ -27,13 +27,28 @@ import Control.Monad
 import Data.Maybe
 
 newItemIcon (item@Item {..}) = do
+    container <- new # setStyle [("position", "relative")]
+    
     i <- newIcon (iBaseIcon iBase)
         #. "item"
         # allowDrag
+    return i #+ container
+
+    -- create full and empty socket icons
+    let numFullSockets = length iGems
+    forM_ [1..numFullSockets] $ \ind ->
+        newIcon "socket_full" #. ("socket" ++ show ind) #+ container
+
+    forM_ [numFullSockets+1..iNumSockets] $ \ind ->
+        newIcon "socket_empty" #. ("socket" ++ show ind) #+ container
+
     killPopUp
-    onHover i $ \_ -> makePopUp item
-    onBlur i $ \_ -> killPopUp
-    return i
+
+    onHover container $ \_ -> makePopUp item
+    onBlur container $ \_ -> killPopUp
+
+    
+    return container
 
 makePopUp (Item{..}) = do
     body <- getBody
