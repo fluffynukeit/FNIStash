@@ -38,8 +38,9 @@ newItemIcon (item@Item {..}) = do
 makePopUp (Item{..}) = do
     body <- getBody
     container <- new #. "itempopup" ## "itempopup"
-    new #. "poplevel" #= "Level " ++ show iLevel #+ container
-    newIcon (iBaseIcon iBase) #. "popicon" #+ container
+    titleArea <- new #. "poptitlearea"
+    new #. "poplevel" #= "Level " ++ show iLevel #+ titleArea
+    newIcon (iBaseIcon iBase) #. "popicon" #+ titleArea
 
     let qualityClass = case (uQuality . iBaseUnitType $ iBase) of
             NormalQ     -> "popnormal"
@@ -48,42 +49,45 @@ makePopUp (Item{..}) = do
             LegendaryQ  -> "poplegendary"
             _           -> "popnormal"
     
-    new #. qualityClass #= iName #+ container
+    new #. qualityClass #= iName #+ titleArea
 
+    dataArea <- new #. "popdataarea"
     forM_ (iBaseInnates iBase) $ \inn ->
-        new #. "popinnate" #= show inn #+ container
+        new #. "popinnate" #= show inn #+ dataArea
 
     -- Sockets
-    forM_ iGems $ \gem -> makeFullSocket gem container
+    forM_ iGems $ \gem -> makeFullSocket gem dataArea
 
-    forM_ [1..(iNumSockets - length iGems)] $ \_ -> makeEmptySocket container
+    forM_ [1..(iNumSockets - length iGems)] $ \_ -> makeEmptySocket dataArea
 
     -- Item effects
     
     forM_ iEffects $ \mod -> 
-        new #. "popeffect" #= show mod #+ container
+        new #. "popeffect" #= show mod #+ dataArea
 
     forM_ iEnchantments $ \mod ->
-        new #. "popenchant" #= show mod #+ container
+        new #. "popenchant" #= show mod #+ dataArea
 
 --    forM_ iTriggerables $ \trig -> 
 --        new #. "poptriggerable" #= show trig #+ container
 
 
     -- Level req
-    new #. "popstatreq" #= show (iBaseLevelReq iBase) #+ container
+    new #. "popstatreq" #= show (iBaseLevelReq iBase) #+ dataArea
 
     when (length (iBaseOtherReqs iBase) > 0) $
-        new #. "popstatreq" #= "   Or" #+ container # unit
+        new #. "popstatreq" #= "   Or" #+ dataArea # unit
 
     -- Stat reqs and other reqs
     forM_ (iBaseOtherReqs iBase) $ \req ->
-        new #. "popstatreq" #= show req #+ container
+        new #. "popstatreq" #= show req #+ dataArea
 
     when (isJust $ iBaseDescription iBase) $
         forM_ (fromJust $ iBaseDescription iBase) $ \line ->
-            new #. "popdescription" #= (show line) #+ container # unit
+            new #. "popdescription" #= (show line) #+ dataArea # unit
 
+    return titleArea #+ container
+    return dataArea #+ container
     return container #+ body # unit
 
 makeEmptySocket container = do
