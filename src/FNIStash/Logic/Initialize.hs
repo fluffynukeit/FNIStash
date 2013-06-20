@@ -267,7 +267,8 @@ readPAKPrefixes cfg prefs = do
 
 -- PAK file path prefixes that contain game data needed to build the data lookup environment
 envPrefixes = [ "MEDIA/EFFECTSLIST.DAT", "MEDIA/UNITS/ITEMS", "MEDIA/SKILLS", "MEDIA/INVENTORY"
-              , "MEDIA/GRAPHS/STATS", "MEDIA/AFFIXES/ITEMS", "MEDIA/AFFIXES/GEMS"]
+              , "MEDIA/GRAPHS/STATS", "MEDIA/AFFIXES/ITEMS", "MEDIA/AFFIXES/GEMS"
+              , "MEDIA/TRIGGERABLES", "MEDIA/STATS", "MEDIA/UNITS/MONSTERS/PETS"]
 
 
 

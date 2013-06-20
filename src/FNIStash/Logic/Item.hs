@@ -242,7 +242,7 @@ descTypeLookup 0x03 = BADDES  -- This is just a guess
 descTypeLookup 0x04 = BADDESOT -- This is also a guess
 descTypeLookup _    = UnknownDescriptionType
 
-effectDescription prec skill effectNode (eff@EffectBytes {..}) =
+effectDescription prec maybeName effectNode (eff@EffectBytes {..}) =
     let descType = case descTypeLookup eBytesDescriptionType of
             GOODDES     -> vGOODDES
             GOODDESOT   -> vGOODDESOT
@@ -254,7 +254,7 @@ effectDescription prec skill effectNode (eff@EffectBytes {..}) =
         maybeSentence = (effectNode >>= descType)
     in case maybeSentence of
         Just (EffectDescription a sentence) -> EffectDescription a $
-                            translateSentence (effectTranslator prec skill eff) sentence
+                            translateSentence (effectTranslator prec maybeName eff) sentence
         Nothing -> EffectDescription UnknownDescriptionType $
                     "!No description of " ++ show eBytesDescriptionType ++ " for index " ++ show eBytesIndex
 
@@ -278,14 +278,13 @@ damageTypeLookup 0x05 = Poison
 damageTypeLookup 0x06 = All
 damageTypeLookup _ = UnknownDamageType
 
-effectTranslator precVal maybeSkillName (eff@EffectBytes{..}) markup =
+effectTranslator precVal maybeName (eff@EffectBytes{..}) markup =
     let dispVal = showPrecision precVal
-        fromList i = dispVal $ wordToFloat $ (flip (!!) i) eBytesValueList 
+        fromList i = dispVal $ wordToFloat $ (flip (!!) i) eBytesValueList
+        makeDurationString valStr = (++) valStr (if valStr == "1" then " second" else " seconds")
     in case markup of
         "VALUE"     -> "[*]" -- leave VALUE unchanged so we can store in DB smarter
-        "DURATION"  -> let val = dispVal (wordToFloat eBytesDuration)
-                           suffix = if val == "1" then " second" else " seconds"
-                       in val ++ suffix
+        "DURATION"  -> makeDurationString $ dispVal (wordToFloat eBytesDuration)
         "DMGTYPE"   -> show (damageTypeLookup eBytesDamageType)
         "VALUE1"    -> fromList 1
         "VALUE2"    -> fromList 2
@@ -293,7 +292,8 @@ effectTranslator precVal maybeSkillName (eff@EffectBytes{..}) markup =
         "VALUE4"    -> fromList 4
         "VALUE3AND4"-> fromList 3
         "VALUE_OT"  -> dispVal $ (roundAt precVal $ wordToFloat eBytesValue)  * (wordToFloat eBytesDuration)
-        "NAME"      -> maybe ("?Name?") id maybeSkillName
+        "NAME"      -> maybe ("?Name?") id maybeName
+        "VALUE1ASDURATION" -> makeDurationString $ fromList 1
         _           -> "???"
             
 
@@ -302,8 +302,10 @@ decodeEffectBytes (Env{..}) (eff@EffectBytes {..}) =
         effNode = lkupEffect effIndex
         value = wordToFloat eBytesValue
         precision = effectPrecisionVal effNode
-        skillname = lkupSkill (T.pack eBytesName) >>= vDISPLAYNAME
-        description = effectDescription precision skillname effNode eff
+        skillname = lkupSkill $ T.pack eBytesName
+        monstername = lkupMonster $ T.pack eBytesName
+        nameToUse = tryFirst skillname monstername >>= vDISPLAYNAME
+        description = effectDescription precision nameToUse effNode eff
         ench = isEnchant eff
         effName = fromJust $ effNode >>= vNAME
     in Mod ench effName $ Descriptor (mkModDescriptor description) value precision
@@ -421,6 +423,9 @@ selectSpecialEffects env (ItemBytes{..}) =
 maybeToBool Nothing = False
 maybeToBool (Just b)  = b
 
+tryFirst a@(Just c) b = a
+tryFirst Nothing    b = b
+
 -- This function is mostly used for determining which of two effects on a gem belongs to armor and
 -- which belongs to weapons.  It's not consistent even among unique gems, but might? be consistent
 -- among normal gems?
@@ -433,14 +438,13 @@ makeGemDescriptors (env@Env{..}) (Item {..}) effIndexList =
         checkAgainstEff x | x == eff0 = Just 0
                           | x == eff1 = Just 1
                           | otherwise = Nothing
-        tryFirst a@(Just c) b = a
-        tryFirst Nothing    b = b
+
         checkValidLength ind = if ind < length iEffectsRaw then Just ind else Nothing
 
         -- This is the code for getting effect from a unique socketable
-        getMatchingTypeBy key d = nEFFECT d >>= vTYPE >>= return . lkupEffect . EffectName
-        aAffix = gemDat >>= vAFFIX_A >>= lkupAffix . AffixName
-        bAffix = gemDat >>= vAFFIX_B >>= lkupAffix . AffixName
+        getMatchingTypeBy d = nEFFECT d >>= vTYPE >>= return . lkupEffect . EffectName
+        aAffix = gemDat >>= vAFFIX_A >>= lkupAffix
+        bAffix = gemDat >>= vAFFIX_B >>= lkupAffix
 
         hasType searchType d = maybeToBool $ d >>= nUNITTYPES >>=
             return . any (\(_, var) -> searchType == (fromJust $ stringVar var)) . datNodeVars
@@ -448,8 +452,8 @@ makeGemDescriptors (env@Env{..}) (Item {..}) effIndexList =
         armorAffix  = if hasType "ARMOR"  aAffix then aAffix else bAffix
         weaponAffix = if hasType "WEAPON" aAffix then aAffix else bAffix
 
-        armorEffect  = armorAffix  >>= getMatchingTypeBy AffixName
-        weaponEffect = weaponAffix >>= getMatchingTypeBy AffixName
+        armorEffect  = armorAffix  >>= getMatchingTypeBy
+        weaponEffect = weaponAffix >>= getMatchingTypeBy
 
         armorIndex  = armorEffect  >>= checkAgainstEff >>= checkValidLength
         weaponIndex = weaponEffect >>= checkAgainstEff >>= checkValidLength

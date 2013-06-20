@@ -19,7 +19,6 @@ module FNIStash.Logic.Env
     ( buildEnv
     , Env (..)
     , EffectKey (..)
-    , AffixKey (..)
     ) where
 
 -- An ENV is the data environment that is passed around by the reader monad.  It has all the reference
@@ -49,8 +48,9 @@ import Debug.Trace
 -- but I tried it out and found it to be more complicated than simple argument passing)
 data Env = Env
     { lkupEffect :: EffectKey -> Maybe DATNode
-    , lkupAffix :: AffixKey -> Maybe DATNode
+    , lkupAffix :: T.Text -> Maybe DATNode
     , lkupSkill :: T.Text -> Maybe DATNode
+    , lkupMonster :: T.Text -> Maybe DATNode
     , lkupLocNodes :: LocationBytes -> (DATNode, Maybe DATNode) -- location, containerID -> Container node, slot node
     , lkupLocIDs :: String -> String -> (Maybe SlotID, Maybe ContainerID)
     , lkupItemGUID :: ItemGUID -> Maybe DATNode
@@ -67,9 +67,6 @@ data EffectKey = EffectIndex
     { effectName :: String
     } deriving (Eq, Ord)
 
-data AffixKey = AffixName String
-              | AffixArmor T.Text String
-              | AffixWeapon T.Text String
 
 -- build the lookup environment needed for app operations
 buildEnv pak conn =
@@ -80,7 +77,8 @@ buildEnv pak conn =
         byPath = lookupPath pak
         graph = graphLookup byPath
         affixes = affixLookup pak
-    in  Env effects affixes skills bytesToNodesFxn nodesToBytesFxn itemsGUID byPath graph
+        monsters = monsterLookup pak
+    in  Env effects affixes skills monsters bytesToNodesFxn nodesToBytesFxn itemsGUID byPath graph
         totalItems conn
 
 -- Each of the functions below returns a lookup function.  This is how we can keep the loaded PAK
@@ -102,19 +100,19 @@ effectLookup pak =
                 let mName = return node >>= vNAME
                 in case mName of
                     Nothing   -> False
-                    Just name -> n == T.unpack name) 
+                    Just name -> n == T.unpack name)
 
-affixLookup pak =
-    let nameFinder = \x -> fromJust $ vNAME x
-        dat = readDATFiles pak "MEDIA/AFFIXES/ITEMS" nameFinder
-    in \searcher -> case searcher of
-        AffixName name            -> lkupDATFile dat (T.pack name)
-
-
-skillLookup pak =
+-- Given a prefix path, makes a lookup table of pak files with NAME as lookup key
+makeLookupByName path pak =
     let nameFinder = \x -> fromJust $ vNAME x >>= return . T.toUpper
-        dat = readDATFiles pak "MEDIA/SKILLS/" nameFinder
-    in (\skillName -> lkupDATFile dat $ T.toUpper skillName)
+        dat = readDATFiles pak path nameFinder
+    in (\name -> lkupDATFile dat $ T.toUpper name)
+
+affixLookup = makeLookupByName "MEDIA/AFFIXES/ITEMS"
+
+skillLookup = makeLookupByName "MEDIA/SKILLS/"
+
+monsterLookup = makeLookupByName "MEDIA/UNITS/MONSTERS/PETS/"
 
 priceIsRightSearch :: LocationBytes -> (DATNode -> SlotID) -> [DATNode] -> DATNode
 --priceIsRightSearch realPrice [] = who knows
@@ -192,3 +190,8 @@ getPoints byPathFxn file =
 graphLookup byPathFxn =
     (\graphFile value -> interp (getPoints byPathFxn graphFile) value)
     
+
+triggerableLookup = makeLookupByName "MEDIA/TRIGGERABLES/"
+
+statLookup = makeLookupByName "MEDIA/STATS/"
+

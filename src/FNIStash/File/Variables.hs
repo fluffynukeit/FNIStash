@@ -160,8 +160,8 @@ parseType typeString =
 -- Lookup for gem effects (some might be extraneous)
 nAFFIXES = search 0xdbe845c8
 nEFFECT = search 0x351c420e
-vAFFIX_B d = nAFFIXES d >>= varAt 1 >>= stringVar
-vAFFIX_A d = nAFFIXES d >>= varAt 0 >>= stringVar
+vAFFIX_B d = nAFFIXES d >>= varAt 1 >>= textVar
+vAFFIX_A d = nAFFIXES d >>= varAt 0 >>= textVar
 vTYPE d = grab 0x456e6b00 d >>= stringVar
 nUNITTYPES = search 0x91bf6ced
 vUNITTYPE d = grab 0xfe646b17 d >>= stringVar
@@ -169,3 +169,6 @@ vUNITTYPE d = grab 0xfe646b17 d >>= stringVar
 -- Graphs
 vX d = grab 0x78000000 d >>= floatVar
 vY d = grab 0x79000000 d >>= floatVar
+
+-- Stats
+vUNIQUE_GUID d = grab 0xf9560fcb d >>= int64Var
