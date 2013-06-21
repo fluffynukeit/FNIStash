@@ -54,6 +54,8 @@ data Env = Env
     , lkupLocNodes :: LocationBytes -> (DATNode, Maybe DATNode) -- location, containerID -> Container node, slot node
     , lkupLocIDs :: String -> String -> (Maybe SlotID, Maybe ContainerID)
     , lkupItemGUID :: ItemGUID -> Maybe DATNode
+    , lkupTriggerable :: T.Text -> Maybe DATNode
+    , lkupStat :: T.Text -> Maybe DATNode
     , lkupPath :: T.Text -> Maybe DATNode
     , lkupGraph :: T.Text -> Float -> Float
     , totalItems :: Int
@@ -78,8 +80,11 @@ buildEnv pak conn =
         graph = graphLookup byPath
         affixes = affixLookup pak
         monsters = monsterLookup pak
-    in  Env effects affixes skills monsters bytesToNodesFxn nodesToBytesFxn itemsGUID byPath graph
-        totalItems conn
+        trigs = triggerableLookup pak
+        stats = statLookup pak
+    in  Env effects affixes skills monsters bytesToNodesFxn
+            nodesToBytesFxn itemsGUID trigs stats byPath graph
+            totalItems conn
 
 -- Each of the functions below returns a lookup function.  This is how we can keep the loaded PAK
 -- handy for repeated lookups since we cannot have a global.  The PAK stays on the stack.

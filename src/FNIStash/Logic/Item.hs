@@ -370,7 +370,7 @@ data Item = Item
     , iEffectsRaw :: [Descriptor]
     , iEffects :: [Descriptor]
     , iEnchantments :: [Descriptor]
-    , iTriggerables :: [Mod]
+    , iTriggerables :: [Descriptor]
     , iPartition :: Partition
     , iBase :: ItemBase
     } deriving (Eq, Ord)
@@ -474,6 +474,14 @@ makeGemDescriptors (env@Env{..}) (Item {..}) effIndexList =
     in if not isSocket then iEffectsRaw -- No change to descriptors
        else armorSpecifier:armorDescriptor:weaponSpecifier:weaponDescriptor:[]
 
+
+getDescrip (Env {..}) (TriggerableBytes name) =
+    lkupTriggerable (T.pack name) >>= vDESCRIPTION >>= \d -> return $ Descriptor d 0 0
+
+-- Make triggerable descriptors
+makeTrigDescriptors env (ItemBytes{..}) = mapMaybe (getDescrip env) iBytesTriggerables
+
+
 effectsOf item = iBytesEffects item ++ iBytesEffects2 item
 
 decodeItemBytes env (itemBytes@ItemBytes {..}) =
@@ -496,7 +504,7 @@ decodeItemBytes env (itemBytes@ItemBytes {..}) =
                useNormal
                (makeGemDescriptors env item effectIndexList)
                useEnchants
-               []
+               (makeTrigDescriptors env itemBytes)
                iBytesPartition
                base
     in item

@@ -86,8 +86,8 @@ makePopUp (Item{..}) = do
     forM_ iEnchantments $ \mod ->
         new #. "popenchant" #= show mod #+ dataArea
 
---    forM_ iTriggerables $ \trig -> 
---        new #. "poptriggerable" #= show trig #+ container
+    forM_ iTriggerables $ \trig -> 
+        new #. "poptriggerable" #= show trig #+ dataArea
 
 
     -- Level req
