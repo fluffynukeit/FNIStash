@@ -119,8 +119,8 @@
 .itempopup {
     max-width: 350px;
     position: absolute;
-    top: 65px;
-    left: 630px;
+    /*top: 65px;
+    left: 630px;*/
     background-color:rgba(0, 0, 0, 0.9);
     border-color: orange;
     border-style: solid;
