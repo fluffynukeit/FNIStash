@@ -22,6 +22,8 @@ module FNIStash.File.Item
     , EffectBytes(..)
     , Partition(..)
     , AddedDamageBytes(..)
+    , TriggerableBytes(..)
+    , StatBytes(..)
     ) where
 
 import FNIStash.File.General

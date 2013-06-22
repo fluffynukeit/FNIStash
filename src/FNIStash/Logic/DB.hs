@@ -45,8 +45,8 @@ import Debug.Trace
 
 ---- Define conversion to/from db
 
-instance Convertible ItemGUID SqlValue where
-    safeConvert (ItemGUID{..}) = safeConvert itemGUIDVal
+instance Convertible GUID SqlValue where
+    safeConvert (GUID{..}) = safeConvert guidVal
 
 
 handleDB = handleSql
@@ -107,8 +107,9 @@ addItemToDB env item@(Item {..}) = let c  = dbConn env in withTransaction c $ \_
     let descriptorList =
             [ mkDesc Name iName 0
             , mkDesc Level "Level VALUE" $ fromIntegral iLevel
-            ] ++
-            L.map (\(Mod{..}) -> mkDesc Effect (effDesc mDescription) mValue) iEffects
+            ]
+            -- ++
+            -- L.map (\(Mod{..}) -> mkDesc Effect (effDesc mDescription) mValue) iEffects
     
     descListWithValue <- forM descriptorList $ \(descType, exp, val) -> insertDescriptor env descType exp val 
 

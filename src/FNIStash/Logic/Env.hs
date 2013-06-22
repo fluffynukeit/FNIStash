@@ -13,11 +13,12 @@
 -----------------------------------------------------------------------------
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE BangPatterns #-}
 
 module FNIStash.Logic.Env 
     ( buildEnv
     , Env (..)
-    , EffectIndex (..)
+    , EffectKey (..)
     ) where
 
 -- An ENV is the data environment that is passed around by the reader monad.  It has all the reference
@@ -38,23 +39,34 @@ import Data.Binary.Get
 import Data.Word
 import Data.Int
 import qualified Data.Map as M
+import qualified Data.List as L
 import Database.HDBC.Sqlite3
+
+import Debug.Trace
 
 -- Env is the lookup environment we pass around manually.  (I suppose we could use a Reader monad
 -- but I tried it out and found it to be more complicated than simple argument passing)
 data Env = Env
-    { lkupEffect :: EffectIndex -> Maybe DATNode
+    { lkupEffect :: EffectKey -> Maybe DATNode
+    , lkupAffix :: T.Text -> Maybe DATNode
     , lkupSkill :: T.Text -> Maybe DATNode
+    , lkupMonster :: T.Text -> Maybe DATNode
     , lkupLocNodes :: LocationBytes -> (DATNode, Maybe DATNode) -- location, containerID -> Container node, slot node
     , lkupLocIDs :: String -> String -> (Maybe SlotID, Maybe ContainerID)
-    , lkupItemGUID :: ItemGUID -> Maybe DATNode
-    , lkupItemPath :: T.Text -> Maybe DATNode
+    , lkupItemGUID :: GUID -> Maybe DATNode
+    , lkupTriggerable :: T.Text -> Maybe DATNode
+    , lkupStat :: T.Text -> Maybe DATNode
+    , lkupPath :: T.Text -> Maybe DATNode
+    , lkupGraph :: T.Text -> Float -> Float
     , totalItems :: Int
     , dbConn :: Connection
     }
 
-newtype EffectIndex = EffectIndex
+data EffectKey = EffectIndex
     { effectIndexVal :: Word32
+    }
+    | EffectName
+    { effectName :: String
     } deriving (Eq, Ord)
 
 
@@ -64,8 +76,15 @@ buildEnv pak conn =
         skills = skillLookup pak
         (bytesToNodesFxn, nodesToBytesFxn) = locLookup pak
         (itemsGUID, totalItems) = itemLookupGUID pak
-        itemsPath = itemLookupPath pak
-    in  Env effects skills bytesToNodesFxn nodesToBytesFxn itemsGUID itemsPath totalItems conn
+        byPath = lookupPath pak
+        graph = graphLookup byPath
+        affixes = affixLookup pak
+        monsters = monsterLookup pak
+        trigs = triggerableLookup pak
+        stats = statLookup pak
+    in  Env effects affixes skills monsters bytesToNodesFxn
+            nodesToBytesFxn itemsGUID trigs stats byPath graph
+            totalItems conn
 
 -- Each of the functions below returns a lookup function.  This is how we can keep the loaded PAK
 -- handy for repeated lookups since we cannot have a global.  The PAK stays on the stack.
@@ -74,18 +93,31 @@ itemLookupGUID pak =
         dat = readDATFiles pak "MEDIA/UNITS/ITEMS" guidFinder -- p is pak
     in (\idInt64 -> lkupDATFile dat idInt64, M.size dat)
 
-itemLookupPath pak =
+lookupPath pak =
     let ffp p = T.replace "\\" "/" p -- fix file path
     in \name -> lkupPAKFile (ffp name) pak >>= return . (runGetSuppress getDAT)
 
 effectLookup pak =
     \effID -> lkupPAKFile "MEDIA/EFFECTSLIST.DAT" pak >>=
-        return . (runGetSuppress getDAT) >>= subNodeAt (effectIndexVal effID)
+        return . (runGetSuppress getDAT) >>= case effID of
+            EffectIndex i -> subNodeAt i
+            EffectName n  -> searchNodeTreeWith (\node ->
+                let mName = return node >>= vNAME
+                in case mName of
+                    Nothing   -> False
+                    Just name -> n == T.unpack name)
 
-skillLookup pak =
+-- Given a prefix path, makes a lookup table of pak files with NAME as lookup key
+makeLookupByName path pak =
     let nameFinder = \x -> fromJust $ vNAME x >>= return . T.toUpper
-        dat = readDATFiles pak "MEDIA/SKILLS/" nameFinder
-    in (\skillName -> lkupDATFile dat $ T.toUpper skillName)
+        dat = readDATFiles pak path nameFinder
+    in (\name -> lkupDATFile dat $ T.toUpper name)
+
+affixLookup = makeLookupByName "MEDIA/AFFIXES/ITEMS"
+
+skillLookup = makeLookupByName "MEDIA/SKILLS/"
+
+monsterLookup = makeLookupByName "MEDIA/UNITS/MONSTERS/PETS/"
 
 priceIsRightSearch :: LocationBytes -> (DATNode -> SlotID) -> [DATNode] -> DATNode
 --priceIsRightSearch realPrice [] = who knows
@@ -136,4 +168,35 @@ locLookup pak =
     in (locBytesToSlotCont, slotContToLocBytesContID)
 
 
+interp sortedPairs val
+   | (not . isJust) topEndFind = snd $ last sortedPairs
+   | (not . isJust) lowEndFind = snd $ head sortedPairs
+   | otherwise = interpVal
+   where
+    topEndFind = L.find (\(x,y) -> x > val) sortedPairs
+    lowEndFind = L.find (\(x,y) -> x <= val) $ reverse sortedPairs
+    pointA = fromJust lowEndFind
+    pointB = fromJust topEndFind
+    yOf = snd
+    xOf = fst
+    rise = yOf pointB - (yOf pointA)
+    run  = xOf pointB - (xOf pointA)
+    interpVal = yOf pointA + (rise/run * (val - xOf pointA))
+
+getPoints byPathFxn file =
+    let Just dat = byPathFxn file
+        pointNodes = datSubNodes dat
+        mkPair pointNode = (fromJust $ vX pointNode, fromJust $ vY pointNode)
+        points = map mkPair pointNodes
+        sortFxn (x,y) (x',y') = compare x x'
+        sortedPoints = L.sortBy sortFxn points
+    in sortedPoints
+
+graphLookup byPathFxn =
+    (\graphFile value -> interp (getPoints byPathFxn graphFile) value)
+    
+
+triggerableLookup = makeLookupByName "MEDIA/TRIGGERABLES/"
+
+statLookup = makeLookupByName "MEDIA/STATS/"
 

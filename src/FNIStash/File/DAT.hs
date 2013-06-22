@@ -12,6 +12,7 @@
 --
 -----------------------------------------------------------------------------
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module FNIStash.File.DAT
     ( getDAT
@@ -19,6 +20,7 @@ module FNIStash.File.DAT
     , searchNodeTreeWith
     , lkupVar
     , subNodeAt
+    , varAt
     , intVar, floatVar, doubleVar, word32Var, textVar, boolVar, int64Var, stringVar
     , readDATFiles
     , lkupDATFile
@@ -77,6 +79,11 @@ subNodeAt i d =
     then Just $ datSubNodes d !! fromIntegral i else Nothing
 
 
+varAt :: Word32 -> DATNode -> Maybe DATVar
+varAt i (DATNode{..}) =
+    if i < fromIntegral (length datNodeVars)
+    then Just $ snd $ datNodeVars !! fromIntegral i else Nothing
+
 -- Conversion of DAT types to normal types
 
 intVar (DATInt i) = Just i
@@ -121,7 +128,7 @@ data DATNode = DATNode {
     datNodeVars :: DATVars,
     datSubNodes :: [DATNode]
     }
-    deriving Show
+    deriving (Show, Eq)
 
 data DATVar =
     DATInt Int |
@@ -132,7 +139,7 @@ data DATVar =
     DATBool Bool |
     DATInt64 Int64 |
     DATTranslate T.Text
-    deriving Show
+    deriving (Show, Eq, Ord)
 
 -- Get functions
 

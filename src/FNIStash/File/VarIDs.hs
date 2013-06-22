@@ -1851,7 +1851,6 @@ varIDs = [
     (0x6a7a4a65, "EDITOR_ONLY"),
     (0x586a9df9, "EDITOROBJECT"),
     (0x351c420e, "EFFECT"),
-    (0x351c420e, "EFFECT"),
     (0xecd0e30e, "LEVEL"),
     (0x36da4c69, "EFFECT_BURN"),
     (0xac7e133b, "EFFECT_FREEZE"),
