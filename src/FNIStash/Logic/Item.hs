@@ -80,6 +80,20 @@ data Descriptor = Descriptor
 descriptorTranslator prec value "*" = showPrecision prec value
 descriptorTranslator prec value _       = "???"
 
+findSublistIndex xss xs = L.findIndex (L.isPrefixOf xss) $ L.tails xs
+
+mkDescriptor a =
+    -- do some preprocessing on the description to remove unwanted characters
+    let noU = replace "|u" "" a
+        resolve k = maybe k (\i -> resolve $ take i k ++ drop (i+10) k) (findSublistIndex "|c" k)
+    in Descriptor $ resolve noU
+
+-- For dealing with description strings
+
+fixNewLineDesc = map (\s -> mkDescriptor s 0 0 ) . lines . fixNewLines
+    where fixNewLines = replace "\\n" "\n"
+
+
 instance Show Descriptor where
     show (Descriptor{..}) = translateSentence (descriptorTranslator descriptorPrec descriptorValue) descriptorString
 
@@ -143,7 +157,7 @@ getItemBase (env@Env{..}) guid itemLevel =
         (find vRANGE)
         (find vMAX_SOCKETS)
         (find vRARITY)
-        (find vDESCRIPTION >>= return . resolveDesc)
+        (find vDESCRIPTION >>= return . fixNewLineDesc)
 
 -- Stat calculations
 
@@ -155,12 +169,12 @@ resolveStat (Env{..}) itemLevel (StatReq stat val) =
             Vitality -> lkupGraph "MEDIA/GRAPHS/STATS/ITEM_DEFENSE_REQUIREMENTS.DAT" (fromIntegral itemLevel)
     in StatReq stat (floor $ fromIntegral val * interp/100)
 
-mkStatReq (StatReq stat val) = Descriptor ("Requires " ++ show stat ++ " " ++ "[*]") (fromIntegral val) 0
-mkSpeed speed | speed < 0.8 = Descriptor "Very Fast Attack Speed ([*] seconds)" speed 2
-              | speed < 0.96 = Descriptor "Fast Attack Speed ([*] seconds)" speed 2
-              | speed < 1.04 = Descriptor "Average Attack Speed ([*] seconds)" speed 2
-              | speed <= 1.2 = Descriptor "Slow Attack Speed ([*] seconds)" speed 2
-              | otherwise    = Descriptor "Very Slow Attack Speed ([*] seconds)" speed 2
+mkStatReq (StatReq stat val) = mkDescriptor ("Requires " ++ show stat ++ " " ++ "[*]") (fromIntegral val) 0
+mkSpeed speed | speed < 0.8 = mkDescriptor "Very Fast Attack Speed ([*] seconds)" speed 2
+              | speed < 0.96 = mkDescriptor "Fast Attack Speed ([*] seconds)" speed 2
+              | speed < 1.04 = mkDescriptor "Average Attack Speed ([*] seconds)" speed 2
+              | speed <= 1.2 = mkDescriptor "Slow Attack Speed ([*] seconds)" speed 2
+              | otherwise    = mkDescriptor "Very Slow Attack Speed ([*] seconds)" speed 2
 
 -- Damage calculations
 
@@ -169,7 +183,7 @@ resolveDmg (Env{..}) itemLevel dmgVal =
     in dmgVal * multiplierPercent/100
 
 mkDmg (Damage dType low high) =
-    Descriptor (show dType ++ " Damage: " ++ "[*]-" ++ (showPrecision 0 high))
+    mkDescriptor (show dType ++ " Damage: " ++ "[*]-" ++ (showPrecision 0 high))
     low 0
 
 -- Lvl Requirement
@@ -179,14 +193,14 @@ resolveLvlReq (Env{..}) itemLevel (UnitType {..})
     | uQuality /= NormalQ && uQuality /= NoneQ = floor $ lkupGraph "MEDIA/GRAPHS/STATS/ITEM_LEVEL_REQUIREMENTS.DAT" $ fromIntegral itemLevel
     | otherwise = floor $ lkupGraph "MEDIA/GRAPHS/STATS/ITEM_LEVEL_REQUIREMENTS_NORMAL.DAT" $ fromIntegral itemLevel
 
-mkLvlReq i = Descriptor "Requires Level [*]" (fromIntegral i) 0
+mkLvlReq i = mkDescriptor "Requires Level [*]" (fromIntegral i) 0
 
 -- Class requirement
-resolveClassReq "RAILMAN"   = Descriptor "Requires Class: Engineer" 0 0
-resolveClassReq "OUTLANDER" = Descriptor "Requires Class: Outlander" 0 0
-resolveClassReq "BERSERKER" = Descriptor "Requires Class: Berserker" 0 0
-resolveClassReq "EMBERMAGE" = Descriptor "Requires Class: Embermage" 0 0
-resolveClassReq _                      = Descriptor "Requires Class: Unknown Class" 0 0
+resolveClassReq "RAILMAN"   = mkDescriptor "Requires Class: Engineer" 0 0
+resolveClassReq "OUTLANDER" = mkDescriptor "Requires Class: Outlander" 0 0
+resolveClassReq "BERSERKER" = mkDescriptor "Requires Class: Berserker" 0 0
+resolveClassReq "EMBERMAGE" = mkDescriptor "Requires Class: Embermage" 0 0
+resolveClassReq _                      = mkDescriptor "Requires Class: Unknown Class" 0 0
 
 ----- LOCATION STUFF
 
@@ -308,7 +322,7 @@ decodeEffectBytes (Env{..}) (eff@EffectBytes {..}) =
         description = effectDescription precision nameToUse effNode eff
         ench = isEnchant eff
         effName = fromJust $ effNode >>= vNAME
-    in Mod ench effName $ Descriptor (mkModDescriptor description) value precision
+    in Mod ench effName $ mkDescriptor (mkModDescriptor description) value precision
 
 mkModDescriptor (EffectDescription {..}) =
     let nominal = effDesc
@@ -339,16 +353,10 @@ instance Show PointValue where
     show NoVal         = ""
 
 
--- For dealing with description strings
-
-resolveDesc = map (\s -> Descriptor s 0 0 ) . lines . fixNewLines
-    where fixNewLines = replace "\\n" "\n"
-
-
 -- For getting description of gem effects
 
 getGemDesc (env@Env{..}) (Item{..}) =
-    let title = Descriptor iName 0 0
+    let title = mkDescriptor iName 0 0
         icon = iBaseIcon iBase
         effect = iEffectsRaw !! 0
     in (icon, title, effect)
@@ -396,7 +404,7 @@ selectSpecialEffects env (ItemBytes{..}) =
 
         convertedAdditions = map (decodeEffectBytes env . convert) enchantAdditions
         enchantLabel = if iBytesNumEnchants > 0
-            then [Descriptor "Enchantments: [*]" (fromIntegral iBytesNumEnchants) 0]
+            then [mkDescriptor "Enchantments: [*]" (fromIntegral iBytesNumEnchants) 0]
             else []
         useEnchants = enchantLabel ++ (map mDescriptor $ convertedAdditions ++ enchantMods)
 
@@ -464,8 +472,8 @@ makeGemDescriptors (env@Env{..}) (Item {..}) effIndexList =
 
         armorDescriptor  = fromJust $ tryFirst armorIndex  normalArmorInd  >>= return . (!!) iEffectsRaw
         weaponDescriptor = fromJust $ tryFirst weaponIndex normalWeaponInd >>= return . (!!) iEffectsRaw
-        armorSpecifier  = Descriptor "Armor/Trinkets:" 0 0
-        weaponSpecifier = Descriptor "Weapons:" 0 0
+        armorSpecifier  = mkDescriptor "Armor/Trinkets:" 0 0
+        weaponSpecifier = mkDescriptor "Weapons:" 0 0
 
         -- Figure out if our item is even a gem or not
         itemType = uType (iBaseUnitType iBase)
@@ -476,10 +484,10 @@ makeGemDescriptors (env@Env{..}) (Item {..}) effIndexList =
 
 
 getDescrip (Env {..}) (TriggerableBytes name) =
-    lkupTriggerable (T.pack name) >>= vDESCRIPTION >>= \d -> return $ Descriptor d 0 0
+    lkupTriggerable (T.pack name) >>= vDESCRIPTION >>= return . fixNewLineDesc
 
 -- Make triggerable descriptors
-makeTrigDescriptors env (ItemBytes{..}) = mapMaybe (getDescrip env) iBytesTriggerables
+makeTrigDescriptors env (ItemBytes{..}) = concat $ mapMaybe (getDescrip env) iBytesTriggerables
 
 
 effectsOf item = iBytesEffects item ++ iBytesEffects2 item
