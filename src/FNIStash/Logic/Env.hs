@@ -53,7 +53,7 @@ data Env = Env
     , lkupMonster :: T.Text -> Maybe DATNode
     , lkupLocNodes :: LocationBytes -> (DATNode, Maybe DATNode) -- location, containerID -> Container node, slot node
     , lkupLocIDs :: String -> String -> (Maybe SlotID, Maybe ContainerID)
-    , lkupItemGUID :: ItemGUID -> Maybe DATNode
+    , lkupItemGUID :: GUID -> Maybe DATNode
     , lkupTriggerable :: T.Text -> Maybe DATNode
     , lkupStat :: T.Text -> Maybe DATNode
     , lkupPath :: T.Text -> Maybe DATNode

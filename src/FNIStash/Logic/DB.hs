@@ -45,8 +45,8 @@ import Debug.Trace
 
 ---- Define conversion to/from db
 
-instance Convertible ItemGUID SqlValue where
-    safeConvert (ItemGUID{..}) = safeConvert itemGUIDVal
+instance Convertible GUID SqlValue where
+    safeConvert (GUID{..}) = safeConvert guidVal
 
 
 handleDB = handleSql

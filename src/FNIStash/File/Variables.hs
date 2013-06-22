@@ -28,12 +28,12 @@ search k = searchNodeTree (swapEndian k::VarID)
 
 -- General lookup stuff
 
-newtype ItemGUID = ItemGUID
-    { itemGUIDVal ::Int64
+newtype GUID = GUID
+    { guidVal ::Int64
     } deriving (Eq, Ord)
 
 
-vUNIT_GUID d = grab 0x06aad3ed d >>= stringVar >>= return . ItemGUID . read
+vUNIT_GUID d = grab 0x06aad3ed d >>= stringVar >>= return . GUID . read
 vNAME d = grab 0xe50d6600 d >>= textVar
 vBASEFILE d = grab 0xc52772e2 d >>= textVar
 vDISPLAYNAME d = grab 0x767c2f83 d >>= stringVar

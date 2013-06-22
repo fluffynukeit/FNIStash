@@ -44,6 +44,7 @@ import Data.Binary.Put
 import Data.Maybe
 import Data.Convertible
 import Data.Bits
+import Data.Binary.Strict.Get
 import qualified Data.Text as T
 import qualified Data.ByteString as BS
 import qualified Data.List as L
@@ -98,7 +99,7 @@ instance Show Descriptor where
     show (Descriptor{..}) = translateSentence (descriptorTranslator descriptorPrec descriptorValue) descriptorString
 
 data ItemBase = ItemBase
-    { iBaseGUID :: ItemGUID
+    { iBaseGUID :: GUID
     , iBaseIcon :: FilePath
     , iBaseUnitType :: UnitType
     , iBaseOtherReqs :: [Descriptor]
@@ -483,11 +484,37 @@ makeGemDescriptors (env@Env{..}) (Item {..}) effIndexList =
        else armorSpecifier:armorDescriptor:weaponSpecifier:weaponDescriptor:[]
 
 
-getDescrip (Env {..}) (TriggerableBytes name) =
-    lkupTriggerable (T.pack name) >>= vDESCRIPTION >>= return . fixNewLineDesc
+getDescrip (Env {..}) (bytes@ItemBytes{..}) (TriggerableBytes name) =
+    lkupTriggerable (T.pack name) >>= vDESCRIPTION >>= return . fixNewLineDesc . replaceKeywords
+    where f = L.elemIndex
+          extract a b = drop (a+1) . take b
+          replaceKeywords k =
+            let open = f '<' k; close = f '>' k;
+                colon = L.filter (\i -> i > fromJust open && i < fromJust close) $ L.elemIndices ':' k;
+            in case (open, colon, close) of
+                    (Just op, co:[], Just cl) ->
+                        let typeStr = extract op co k
+                            keyStr  = extract co cl k
+                            replacement = case typeStr of
+                                "stat" -> getMatchingStatString bytes $ lkupStat (T.pack keyStr)
+                                _      -> "!!Unknown stat type"
+                        in take op k ++ replacement ++ drop (cl+1) k
+                    _ -> k
+
+getMatchingStatString (ItemBytes{..}) datFile =
+    let statType = datFile >>= vTYPE
+        guid = datFile >>= vUNIQUE_GUID
+        guidMatch = guid >>= \g -> L.find ((==) g . fromIntegral . statGUID) iBytesStats
+        matchingString = case (statType, guidMatch) of
+            (Just "TYPE_INT", Just (StatBytes _ bs)) -> show $
+                runGetSuppress (getWord32le >>= return . fromIntegral ::Get Int) bs
+            _ -> "0"
+    in matchingString
+
+
 
 -- Make triggerable descriptors
-makeTrigDescriptors env (ItemBytes{..}) = concat $ mapMaybe (getDescrip env) iBytesTriggerables
+makeTrigDescriptors env (bytes@ItemBytes{..}) = concat $ mapMaybe (getDescrip env bytes) iBytesTriggerables
 
 
 effectsOf item = iBytesEffects item ++ iBytesEffects2 item
@@ -495,7 +522,7 @@ effectsOf item = iBytesEffects item ++ iBytesEffects2 item
 decodeItemBytes env (itemBytes@ItemBytes {..}) =
     let (useNormal, useEnchants, innateDef) = selectSpecialEffects env itemBytes
         gemItems = map (decodeItemBytes env) iBytesGems
-        base = getItemBase env (ItemGUID $ fromIntegral iBytesGUID) iBytesLevel
+        base = getItemBase env (GUID $ fromIntegral iBytesGUID) iBytesLevel
 
         effectIndexList = map (eBytesIndex) $ effectsOf itemBytes
 
