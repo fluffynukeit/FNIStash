@@ -21,31 +21,37 @@ where
 import FNIStash.File.SharedStash
 
 import Graphics.UI.Threepenny
-import Graphics.UI.Threepenny.Browser
 
 import Control.Monad
 import Data.Maybe
 
+for = flip map
+
 newItemIcon (item@Item {..}) = do
-    container <- new # setStyle [("position", "relative")]
+    container <- new # set style [("position", "relative")]
     
     i <- newIcon (iBaseIcon iBase)
         #. "item"
-        # allowDrag
-    return i #+ container
+        # set draggable True
+    element container #+ [element i]
 
     -- create full and empty socket icons
     let numFullSockets = length iGems
-    forM_ [1..numFullSockets] $ \ind ->
-        newIcon "socket_full" #. ("socket" ++ show ind) #+ container
+    element container #+ (for [1..numFullSockets] $ \ind -> 
+        newIcon "socket_full" #. ("socket" ++ show ind) )
 
-    forM_ [numFullSockets+1..iNumSockets] $ \ind ->
-        newIcon "socket_empty" #. ("socket" ++ show ind) #+ container
+    element container #+ (for [numFullSockets+1..iNumSockets] $ \ind ->
+        newIcon "socket_empty" #. ("socket" ++ show ind) )
 
-    killPopUp
+    w <- liftM getWindow (element container)
 
-    onHover container $ \_ -> killPopUp >> makePopUp item >> setAttr "onmousemove" moveScript container # unit
-    onBlur container $ \_ -> killPopUp
+    on hover container $ \_ -> do
+        killPopUp w
+        body <- getBody w
+        element body #+ [popUp item]
+        set (attr "onmousemove") moveScript (element container)
+
+    on blur container $ \_ -> killPopUp w
     
     return container
 
@@ -54,12 +60,13 @@ moveScript = "if (event.clientX < document.body.clientWidth/2) \
              \else {document.getElementById(\"itempopup\").style.right=(document.body.clientWidth - event.clientX)+\"px\";}\
              \document.getElementById(\"itempopup\").style.top=(event.clientY+5)+\"px\""
 
-makePopUp (Item{..}) = do
-    body <- getBody
-    container <- new #. "itempopup" ## "itempopup"
+
+popUp (Item{..}) = do
+
+    container <- new #. "itempopup" # set (attr "id") "itempopup"
     titleArea <- new #. "poptitlearea"
-    new #. "poplevel" #= "Level " ++ show iLevel #+ titleArea
-    newIcon (iBaseIcon iBase) #. "popicon" #+ titleArea
+    element titleArea #+ [ new #. "poplevel" # set text ("Level " ++ show iLevel)
+                         , newIcon (iBaseIcon iBase) #. "popicon"]
 
     let qualityClass = case (uQuality . iBaseUnitType $ iBase) of
             NormalQ     -> "popnormal"
@@ -68,11 +75,11 @@ makePopUp (Item{..}) = do
             LegendaryQ  -> "poplegendary"
             _           -> "popnormal"
     
-    new #. qualityClass #= iName #+ titleArea
+    element titleArea #+ [new #. qualityClass # set text iName]
 
     dataArea <- new #. "popdataarea"
-    forM_ (iBaseInnates iBase) $ \inn ->
-        new #. "popinnate" #= show inn #+ dataArea
+    element dataArea #+ (for (iBaseInnates iBase) $ \inn ->
+        new #. "popinnate" # set text (show inn))
 
     forM_ (iInnateDefs) $ \pair -> makeInnateDef pair dataArea
 
@@ -84,67 +91,69 @@ makePopUp (Item{..}) = do
 
     -- Item effects
     
-    forM_ iEffects $ \mod -> 
-        new #. "popeffect" #= show mod #+ dataArea
+    element dataArea #+ (for iEffects $ \mod -> 
+        new #. "popeffect" # set text (show mod))
 
-    forM_ iEnchantments $ \mod ->
-        new #. "popenchant" #= show mod #+ dataArea
+    element dataArea #+ (for iEnchantments $ \mod ->
+        new #. "popenchant" # set text (show mod))
 
-    forM_ iTriggerables $ \trig -> 
-        new #. "poptriggerable" #= show trig #+ dataArea
+    element dataArea #+ (for iTriggerables $ \trig -> 
+        new #. "poptriggerable" # set text (show trig))
 
 
     -- Level req
-    new #. "popstatreq" #= show (iBaseLevelReq iBase) #+ dataArea
+    element dataArea #+ [new #. "popstatreq" # set text (show (iBaseLevelReq iBase))]
 
     when (length (iBaseOtherReqs iBase) > 0) $
-        new #. "popstatreq" #= "   Or" #+ dataArea # unit
+        element dataArea #+ [new #. "popstatreq" # set text "Or"] >> return ()
 
     -- Stat reqs and other reqs
-    forM_ (iBaseOtherReqs iBase) $ \req ->
-        new #. "popstatreq" #= show req #+ dataArea
+    element dataArea #+ (for (iBaseOtherReqs iBase) $ \req ->
+        new #. "popstatreq" # set text (show req))
 
-    when (isJust $ iBaseDescription iBase) $
-        forM_ (fromJust $ iBaseDescription iBase) $ \line ->
-            new #. "popdescription" #= (show line) #+ dataArea # unit
+    when (isJust $ iBaseDescription iBase) $ void $
+        element dataArea #+ (for (fromJust $ iBaseDescription iBase) $ \line ->
+            new #. "popdescription" # set text (show line))
 
-    return titleArea #+ container
-    return dataArea #+ container
-    return container #+ body # unit
+    element container #+ [ element titleArea
+                         , element dataArea]
+
+    return container
 
 makeEmptySocket container = do
     line <- new #. "popemptysocket"
-    newIcon "socket_empty" #. "popemptysocketicon" #+ line
-    new #. "popemptysockettext" #= "Empty Socket" #+ line
-    return line #+ container
+    element line #+ [ newIcon "socket_empty" #. "popemptysocketicon"
+                    , new #. "popemptysockettext" # set text "Empty Socket"]
+    element container #+ [element line]
 
 makeFullSocket (icon, name, effect) container = do
     line <- new #. "popfullsocket"
-    newIcon icon #. "popfullsocketicon" #+ line
-    new #. "popfullsockettext" #= show name #+ line
-    new #. "popfullsocketeffect" #= show effect #+ line
-    return line #+ container
+    element line #+ [ newIcon icon #. "popfullsocketicon"
+                    , new #. "popfullsockettext" # set text (show name)
+                    , new #. "popfullsocketeffect" # set text (show effect)]
+    element container #+ [element line]
 
 makeInnateDef (icon, descriptor) container = do
     line <- new #. "popinnatedef"
-    newIcon icon #. "popinnatedeficon" #+ line
-    new #. "popinnate" #= show descriptor #+ line
-    return line #+ container
+    element line #+ [ newIcon icon #. "popinnatedeficon"
+                    , new #. "popinnate" # set text (show descriptor)]
+    element container #+ [element line]
 
-killPopUp :: MonadTP m => m ()
-killPopUp = do
-    maybeP <- getElementById "itempopup"
+
+killPopUp w = do
+    
+    maybeP <- getElementById w "itempopup"
     case maybeP of
         Nothing -> return ()
         Just p -> delete p
 
 
-newIcon src =
-    newImg
+newIcon src = 
+    img
     # setSrc src
 
-setSrc src = \x -> set "src" ("static/GUIAssets/" ++ src ++ ".png") x # set "alt" src
+setSrc src = \x -> set (attr "src") ("static/GUIAssets/" ++ src ++ ".png") x # set (attr "alt") src
 
-setZ int = set "style" ("z-index:" ++ show int ++ ";")
+setZ int = set style [("z-index", show int)]
 
 

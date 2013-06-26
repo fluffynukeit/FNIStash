@@ -31,15 +31,13 @@ main = do
     setWorkingDirectory "C:\\Users\\Dan\\My Code\\FNIStash" -- only for testing
     (appRoot, guiRoot) <- ensurePaths
     
-    serve Config
+    startGUI Config
         { tpPort = 10001
-        , tpRun = runTP
-        , tpWorker = launchAll appRoot guiRoot
-        , tpInitHTML = Just "GUI.html"
+        , tpCustomHTML = Just "GUI.html"
         , tpStatic = encodeString guiRoot
-        }
+        } $ launchAll appRoot guiRoot
 
-launchAll appRoot guiRoot = do
+launchAll appRoot guiRoot window = do
     messages <- liftIO newMessages
     liftIO $ forkIO $ backend messages appRoot guiRoot
-    frontend messages
+    frontend messages window

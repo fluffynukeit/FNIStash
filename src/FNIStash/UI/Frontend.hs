@@ -23,7 +23,6 @@ import FNIStash.UI.Icon
 import FNIStash.UI.Effects
 
 import Graphics.UI.Threepenny
-import Graphics.UI.Threepenny.Browser
 
 import Control.Monad.Trans
 import Control.Monad
@@ -32,46 +31,51 @@ import System.Random
 import Debug.Trace
 import Data.Maybe
 
-frontend :: Messages -> TP ()
-frontend messages = do
-    forkTP handleEvents -- start the event handler.
-    setTitle "FNIStash"
-    body <- getBody
-    (overlay, overlayMsg) <- overlay
-    return overlay #+ body
-    underlay <- new ## "underlay" #+ body
-    frame <- new ## "frame" #+ underlay
-    msgWindow <- controls messages frame
+--frontend :: Messages -> Window -> Dom (IO ())
+frontend messages w = do
+    
+    set title "FNIStash" (return w)
+    body <- getBody w
+    
+    (overlay, overlayMsg) <- withWindow w $ overlay
+    element body #+ [element overlay]
+    underlay <- withWindow w $ new # set (attr "id") "underlay"
+    element body #+ [element underlay]
+    frame <- withWindow w $ new # set (attr "id") "frame"
+    element underlay #+ [element frame]
+    msgWindow <- withWindow w $ controls messages (element frame)
     msgList <- liftIO $ onlyBMessages messages
     
     forM_ msgList $ \x -> do
         case x of
-            Initializing AssetsComplete -> stash messages #+ frame # unit
+            Initializing AssetsComplete -> void $ withWindow w $ stash messages #+ [element frame]
             Initializing Complete -> do
                 assignRandomBackground underlay
                 crossFade overlay underlay 350
-            Initializing x -> handleInit x overlayMsg
                 
-            LocationContents locItemsList -> withLocVals locItemsList updateItem
-            Notice notice -> noticeDisplay notice # addTo msgWindow >> scrollToBottom msgWindow
-            Visibility idStatusList -> withLocVals idStatusList $ \e v _ -> setVis v e # unit
+            Initializing x -> void $ handleInit x overlayMsg
+                
+            LocationContents locItemsList -> withLocVals w locItemsList (updateItem)
+            Notice notice -> void $ withWindow w $ noticeDisplay notice # appendTo msgWindow >> return (scrollToBottom msgWindow)
+            Visibility idStatusList -> withLocVals w idStatusList $ \e v _ -> setVis v (element e)
                                  
 noticeDisplay notice = do
     msgDisp <- new #. "notice"
-    case notice of
-        Error msg   -> new #. "error" #= msg #+ msgDisp # unit
-        Info msg    -> new #. "info" #= msg #+ msgDisp # unit
-        Saved path  -> new #. "saved" #= "Shared stash saved to " ++ path #+ msgDisp # unit
+    let k = case notice of
+            Error msg   -> new #. "error" # set text msg
+            Info msg    -> new #. "info" # set text msg
+            Saved path  -> new #. "saved" # set text ("Shared stash saved to " ++ path)
+    element msgDisp #+ [k]
     return msgDisp
 
 assignRandomBackground el = do
     let suffs = ["","2","3","4","5","6"]; -- screen 7 doesn't look good with it
-    roll <- liftIO $ getStdRandom (randomR (0,5)) :: TP (Int)
+    roll <- liftIO $ getStdRandom (randomR (0,5))
     let url = "url('/static/GUIAssets/SCREENS" ++ (suffs !! roll) ++ ".png')"
-    return el # setStyle [("backgroundImage", url)] # unit
+    return el # set style [("backgroundImage", url)] 
 
 
-initMsg msg overlayMsg = return overlayMsg #= msg # unit
+initMsg msg overlayMsg = return overlayMsg # set text msg
 
 handleInit CfgStart = initMsg "Reading configuration file..."
 handleInit DBStart  = initMsg "Instantiating database..."
