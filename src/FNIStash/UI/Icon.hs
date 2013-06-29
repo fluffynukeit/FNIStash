@@ -58,7 +58,7 @@ makePopUp (Item{..}) = do
     body <- getBody
     container <- new #. "itempopup" ## "itempopup"
     titleArea <- new #. "poptitlearea"
-    new #. "poplevel" #= "Level " ++ show iLevel #+ titleArea
+    new #. "poplevel" #= show iLevel #+ titleArea
     newIcon (iBaseIcon iBase) #. "popicon" #+ titleArea
 
     let qualityClass = case (uQuality . iBaseUnitType $ iBase) of
@@ -68,7 +68,7 @@ makePopUp (Item{..}) = do
             LegendaryQ  -> "poplegendary"
             _           -> "popnormal"
     
-    new #. qualityClass #= iName #+ titleArea
+    new #. qualityClass #= show iName #+ titleArea
 
     dataArea <- new #. "popdataarea"
     forM_ (iBaseInnates iBase) $ \inn ->
@@ -104,9 +104,8 @@ makePopUp (Item{..}) = do
     forM_ (iBaseOtherReqs iBase) $ \req ->
         new #. "popstatreq" #= show req #+ dataArea
 
-    when (isJust $ iBaseDescription iBase) $
-        forM_ (fromJust $ iBaseDescription iBase) $ \line ->
-            new #. "popdescription" #= (show line) #+ dataArea # unit
+    forM_ (iBaseDescription iBase) $ \line ->
+        new #. "popdescription" #= (show line) #+ dataArea # unit
 
     return titleArea #+ container
     return dataArea #+ container

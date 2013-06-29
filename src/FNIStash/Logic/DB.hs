@@ -104,14 +104,9 @@ addItemToDB env item@(Item {..}) = let c  = dbConn env in withTransaction c $ \_
     trailID <- insertTrailData env item
     itemID <- insertItem env item trailID
     -- First collect all the descriptors for the item
-    let descriptorList =
-            [ mkDesc Name iName 0
-            , mkDesc Level "Level VALUE" $ fromIntegral iLevel
-            ]
-            -- ++
-            -- L.map (\(Mod{..}) -> mkDesc Effect (effDesc mDescription) mValue) iEffects
+    let descriptorList = allDescriptorsOf item
     
-    descListWithValue <- forM descriptorList $ \(descType, exp, val) -> insertDescriptor env descType exp val 
+    descListWithValue <- forM descriptorList $ insertDescriptor env  
 
     -- Then insert them into the db
     insertDescriptorSet env itemID descListWithValue
@@ -153,10 +148,9 @@ insertItem (Env {..}) item@(Item {..}) trailDataID = do
                                 , ("FK_TRAIL_DATA_ID", toSql trailDataID)
                                 , ("DATE", toSql localTime)]
 
-insertDescriptor :: Show a => Env -> DescriptorType -> String -> a -> IO (ID Descriptors, String)
-insertDescriptor (Env {..}) descType desc val = do
-    id <- ensureExists dbConn "DESCRIPTORS" [("EXPRESSION", toSql $ (desc::String))
-                                            , ("TYPE", toSql descType)]
+insertDescriptor :: Env -> Descriptor -> IO (ID Descriptors, String)
+insertDescriptor (Env {..}) (Descriptor desc val _) = do
+    id <- ensureExists dbConn "DESCRIPTORS" [("EXPRESSION", toSql $ (desc::String))]
     return (id, show val)
 
 insertDescriptorSet :: Env -> ID Items -> [(ID Descriptors, String)] -> IO ()
@@ -171,10 +165,6 @@ setUpAllTables conn =
     forM_ [setUpDescriptors, setUpTrailData, setUpItems, setUpDescriptorSets]
         (\q -> run conn q [])
 
-type Descriptor = (DescriptorType, String, Float)
-
-mkDesc :: DescriptorType -> String -> Float -> Descriptor
-mkDesc a b c = (a, b, c)
 
 data DescriptorType = Innate | Effect | Socket | Enchant | RequiredLevel | Level | StatReq
                     | Description | EmptySocket | Name | ItemType deriving (Show, Enum)
@@ -207,9 +197,8 @@ data DescriptorSets = DescriptorSets
 setUpDescriptors =
     "create table DESCRIPTORS \
     \( ID integer primary key not null \
-    \, TYPE integer not null\
     \, EXPRESSION text not null \
-    \, unique (type, expression));"
+    \, unique (expression));"
 
 setUpTrailData =
     "create table TRAIL_DATA \
