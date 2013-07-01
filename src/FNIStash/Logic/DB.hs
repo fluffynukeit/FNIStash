@@ -255,7 +255,7 @@ keywordQuery condString =
     "select CONTAINER, SLOT, POSITION, " ++ condString ++ " \
     \ from ( \
         \ select i.CONTAINER, i.SLOT, i.POSITION, \
-        \ group_concat(replace(d.EXPRESSION, 'VALUE', s.VALUE), char(10)) as FD \
+        \ group_concat(replace(d.EXPRESSION, '[*]', s.VALUE), char(10)) as FD \
         \ from DESCRIPTORS d \
         \ inner join DESCRIPTOR_SETS s \
         \ on s.FK_DESCRIPTOR_ID = d.ID \
