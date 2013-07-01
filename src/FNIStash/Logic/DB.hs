@@ -14,6 +14,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module FNIStash.Logic.DB
 ( handleDB
@@ -33,10 +35,12 @@ import Data.Monoid
 import Data.Time.LocalTime
 import Data.Maybe
 import Control.Monad
-import Control.Applicative
+import Control.Applicative ((<$>), (<*>))
 import qualified Data.List as L
+import qualified Data.Text as T
 import Data.Convertible.Base
 import GHC.Float
+import Text.Parsec
 
 import Filesystem.Path.CurrentOS
 import Filesystem
@@ -81,8 +85,9 @@ register env items = do
             
     return succItems
 
-locsKeywordStatus :: Env -> [String] -> IO [(Location, Bool)]
-locsKeywordStatus env keywordList = do
+locsKeywordStatus :: Env -> String -> IO (Either String [(Location, Bool)])
+locsKeywordStatus env (parseKeywords -> Left error) = return . Left . show $ error
+locsKeywordStatus env (parseKeywords -> Right keywordList) = do
     let keywords = if length keywordList > 0 then keywordList else [""]
         conn = dbConn env
         keywordExpr = L.intercalate " and " $ replicate (length keywords) "FD like ?"
@@ -92,8 +97,27 @@ locsKeywordStatus env keywordList = do
     let returnList = map (\row -> (Location (fromSql $ row !! 0) (fromSql $ row !! 1) (fromSql $ row !! 2)
                                   , fromSql $ row !! 3))
                     idStrings
-    return $ returnList
+    return . Right $ returnList
 
+parseKeywords :: String -> Either ParseError [String]
+parseKeywords (deblank -> s) = parse keywordParser "" s
+
+deblank = T.unpack . T.strip . T.pack
+
+keywordParser :: (Stream s m Char) => ParsecT s u m [String]
+keywordParser = do
+    words <- sepBy (quoted <|> normalWord) spaces
+    return words
+
+quoted :: (Stream s m Char) => ParsecT s u m String
+quoted = do
+    char '"'
+    content <- many (noneOf "\"")
+    char '"' <?> "closing quote."
+    return content
+
+normalWord :: (Stream s m Char) => ParsecT s u m String
+normalWord = many1 (noneOf " ")
 
 isRegistered env (Item {..}) = do
     matchingGuys <- quickQuery' (dbConn env) "select RANDOM_ID from ITEMS where RANDOM_ID = ?" [toSql iRandomID]
