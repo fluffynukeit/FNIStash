@@ -33,6 +33,7 @@ import Control.Monad.Trans
 import Control.Monad
 import Control.Exception
 import Data.Either
+import Data.List.Split
 
 import Debug.Trace
 
@@ -108,8 +109,10 @@ handleMessages env m cryptoFile sharedStash (msg:rest) = do
                 return a
             Search keywordsString -> do
                 -- writeBMessage m $ Notice $ Info "Searching..."
-                matchStatuses <- locsKeywordStatus env $ words keywordsString
-                writeBMessage m $ Visibility matchStatuses
+                matchStatuses <- locsKeywordStatus env keywordsString
+                writeBMessage m $ case matchStatuses of
+                    Right visibilityUpdates -> Visibility visibilityUpdates
+                    Left  queryError        -> Notice . Error $ "Query parse error " ++ queryError
                 return (sharedStash, [])
     let locMsg = LocationContents updates
     writeBMessage m locMsg

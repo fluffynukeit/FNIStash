@@ -20,6 +20,7 @@
 module FNIStash.Logic.Item
     ( getItem
     , putItem
+    , allDescriptorsOf
     , Item(..)
     , ItemBase(..)
     , Location(..)
@@ -28,6 +29,7 @@ module FNIStash.Logic.Item
     , UnitType(..)
     , Quality(..)
     , PointValue(..)
+    , Descriptor(..)
     ) where
 
 -- This file is for decodeing raw bytes of items into useables types and useable information
@@ -108,7 +110,7 @@ data ItemBase = ItemBase
     , iBaseRange :: Maybe Float
     , iBaseMaxSockets :: Maybe Int
     , iBaseRarity :: Maybe Int
-    , iBaseDescription :: Maybe [Descriptor] -- 1 descriptor per line of description
+    , iBaseDescription :: [Descriptor] -- 1 descriptor per line of description
     } deriving (Eq, Ord)
 
 searchAncestryFor (env@Env{..}) findMeVar itemDat =
@@ -158,7 +160,7 @@ getItemBase (env@Env{..}) guid itemLevel =
         (find vRANGE)
         (find vMAX_SOCKETS)
         (find vRARITY)
-        (find vDESCRIPTION >>= return . fixNewLineDesc)
+        (maybe [] id $ find vDESCRIPTION >>= return . fixNewLineDesc)
 
 -- Stat calculations
 
@@ -357,7 +359,7 @@ instance Show PointValue where
 -- For getting description of gem effects
 
 getGemDesc (env@Env{..}) (Item{..}) =
-    let title = mkDescriptor iName 0 0
+    let title = iName
         icon = iBaseIcon iBase
         effect = iEffectsRaw !! 0
     in (icon, title, effect)
@@ -367,11 +369,11 @@ getGemDesc (env@Env{..}) (Item{..}) =
 ---- COMPLETE ITEM STUFF
 
 data Item = Item
-    { iName :: String
+    { iName :: Descriptor
     , iRandomID :: BS.ByteString
     , iIdentified :: Bool
     , iLocation :: Location
-    , iLevel :: Int
+    , iLevel :: Descriptor
     , iQuantity :: Int
     , iNumSockets :: Int
     , iGems :: [(FilePath, Descriptor, Descriptor)] -- (icon, title, desc) triplet for each gem
@@ -527,11 +529,11 @@ decodeItemBytes env (itemBytes@ItemBytes {..}) =
         effectIndexList = map (eBytesIndex) $ effectsOf itemBytes
 
         item = Item
-               iBytesName
+               (mkDescriptor iBytesName 0 0)
                iBytesRandomID
                (decodeIdentified iBytesIdentified)
                (decodeLocationBytes env iBytesLocation)
-               (fromIntegral iBytesLevel)
+               (Descriptor "Level [*]" (fromIntegral iBytesLevel) 0)
                (fromIntegral iBytesQuantity)
                (fromIntegral iBytesNumSockets)
                (map (getGemDesc env) $ gemItems )
@@ -545,7 +547,16 @@ decodeItemBytes env (itemBytes@ItemBytes {..}) =
     in item
 
 
-
+allDescriptorsOf (Item{..}) =
+    -- first Descriptors from the ItemBase
+     iBaseOtherReqs iBase ++ [iBaseLevelReq iBase] ++ iBaseInnates iBase ++ iBaseDescription iBase
+        ++
+    -- now the binary-specific stuff of Item
+    [iName, iLevel] ++ gems ++ innateDefs ++ iEffects ++ iEnchantments ++ iTriggerables
+    where
+        gems = flip concatMap iGems $ \(_, n, d) -> [n,d]
+        innateDefs = map snd iInnateDefs
+    
 putItem env (Item {..}) = putPartition (encodeLocationBytes env iLocation) iPartition
 itemAsBS env item = runPut $ putItem env item
 

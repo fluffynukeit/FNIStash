@@ -14,6 +14,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module FNIStash.Logic.DB
 ( handleDB
@@ -33,10 +35,12 @@ import Data.Monoid
 import Data.Time.LocalTime
 import Data.Maybe
 import Control.Monad
-import Control.Applicative
+import Control.Applicative ((<$>), (<*>))
 import qualified Data.List as L
+import qualified Data.Text as T
 import Data.Convertible.Base
 import GHC.Float
+import Text.Parsec
 
 import Filesystem.Path.CurrentOS
 import Filesystem
@@ -81,8 +85,9 @@ register env items = do
             
     return succItems
 
-locsKeywordStatus :: Env -> [String] -> IO [(Location, Bool)]
-locsKeywordStatus env keywordList = do
+locsKeywordStatus :: Env -> String -> IO (Either String [(Location, Bool)])
+locsKeywordStatus env (parseKeywords -> Left error) = return . Left . show $ error
+locsKeywordStatus env (parseKeywords -> Right keywordList) = do
     let keywords = if length keywordList > 0 then keywordList else [""]
         conn = dbConn env
         keywordExpr = L.intercalate " and " $ replicate (length keywords) "FD like ?"
@@ -92,8 +97,27 @@ locsKeywordStatus env keywordList = do
     let returnList = map (\row -> (Location (fromSql $ row !! 0) (fromSql $ row !! 1) (fromSql $ row !! 2)
                                   , fromSql $ row !! 3))
                     idStrings
-    return $ returnList
+    return . Right $ returnList
 
+parseKeywords :: String -> Either ParseError [String]
+parseKeywords (deblank -> s) = parse keywordParser "" s
+
+deblank = T.unpack . T.strip . T.pack
+
+keywordParser :: (Stream s m Char) => ParsecT s u m [String]
+keywordParser = do
+    words <- sepBy (quoted <|> normalWord) spaces
+    return words
+
+quoted :: (Stream s m Char) => ParsecT s u m String
+quoted = do
+    char '"'
+    content <- many (noneOf "\"")
+    char '"' <?> "closing quote."
+    return content
+
+normalWord :: (Stream s m Char) => ParsecT s u m String
+normalWord = many1 (noneOf " ")
 
 isRegistered env (Item {..}) = do
     matchingGuys <- quickQuery' (dbConn env) "select RANDOM_ID from ITEMS where RANDOM_ID = ?" [toSql iRandomID]
@@ -104,14 +128,9 @@ addItemToDB env item@(Item {..}) = let c  = dbConn env in withTransaction c $ \_
     trailID <- insertTrailData env item
     itemID <- insertItem env item trailID
     -- First collect all the descriptors for the item
-    let descriptorList =
-            [ mkDesc Name iName 0
-            , mkDesc Level "Level VALUE" $ fromIntegral iLevel
-            ]
-            -- ++
-            -- L.map (\(Mod{..}) -> mkDesc Effect (effDesc mDescription) mValue) iEffects
+    let descriptorList = allDescriptorsOf item
     
-    descListWithValue <- forM descriptorList $ \(descType, exp, val) -> insertDescriptor env descType exp val 
+    descListWithValue <- forM descriptorList $ insertDescriptor env  
 
     -- Then insert them into the db
     insertDescriptorSet env itemID descListWithValue
@@ -153,10 +172,9 @@ insertItem (Env {..}) item@(Item {..}) trailDataID = do
                                 , ("FK_TRAIL_DATA_ID", toSql trailDataID)
                                 , ("DATE", toSql localTime)]
 
-insertDescriptor :: Show a => Env -> DescriptorType -> String -> a -> IO (ID Descriptors, String)
-insertDescriptor (Env {..}) descType desc val = do
-    id <- ensureExists dbConn "DESCRIPTORS" [("EXPRESSION", toSql $ (desc::String))
-                                            , ("TYPE", toSql descType)]
+insertDescriptor :: Env -> Descriptor -> IO (ID Descriptors, String)
+insertDescriptor (Env {..}) (Descriptor desc val _) = do
+    id <- ensureExists dbConn "DESCRIPTORS" [("EXPRESSION", toSql $ (desc::String))]
     return (id, show val)
 
 insertDescriptorSet :: Env -> ID Items -> [(ID Descriptors, String)] -> IO ()
@@ -171,10 +189,6 @@ setUpAllTables conn =
     forM_ [setUpDescriptors, setUpTrailData, setUpItems, setUpDescriptorSets]
         (\q -> run conn q [])
 
-type Descriptor = (DescriptorType, String, Float)
-
-mkDesc :: DescriptorType -> String -> Float -> Descriptor
-mkDesc a b c = (a, b, c)
 
 data DescriptorType = Innate | Effect | Socket | Enchant | RequiredLevel | Level | StatReq
                     | Description | EmptySocket | Name | ItemType deriving (Show, Enum)
@@ -207,9 +221,8 @@ data DescriptorSets = DescriptorSets
 setUpDescriptors =
     "create table DESCRIPTORS \
     \( ID integer primary key not null \
-    \, TYPE integer not null\
     \, EXPRESSION text not null \
-    \, unique (type, expression));"
+    \, unique (expression));"
 
 setUpTrailData =
     "create table TRAIL_DATA \
@@ -242,7 +255,7 @@ keywordQuery condString =
     "select CONTAINER, SLOT, POSITION, " ++ condString ++ " \
     \ from ( \
         \ select i.CONTAINER, i.SLOT, i.POSITION, \
-        \ group_concat(replace(d.EXPRESSION, 'VALUE', s.VALUE), char(10)) as FD \
+        \ group_concat(replace(d.EXPRESSION, '[*]', s.VALUE), char(10)) as FD \
         \ from DESCRIPTORS d \
         \ inner join DESCRIPTOR_SETS s \
         \ on s.FK_DESCRIPTOR_ID = d.ID \
