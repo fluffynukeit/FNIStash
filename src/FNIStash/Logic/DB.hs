@@ -74,7 +74,7 @@ initializeDB appRoot = do
 -- returns the newly registered items in a list
 register env items = do
     let conn = dbConn env
-    succItems <- fmap catMaybes $ forM items $ \item@(Item {..}) -> do
+    succItems <- fmap catMaybes $ withTransaction conn $ const $ forM items $ \item@(Item {..}) -> do
         wasRegistered <- isRegistered env item
 
         if wasRegistered then
@@ -123,7 +123,7 @@ isRegistered env (Item {..}) = do
     matchingGuys <- quickQuery' (dbConn env) "select RANDOM_ID from ITEMS where RANDOM_ID = ?" [toSql iRandomID]
     if length matchingGuys == 0 then return False else return True
 
-addItemToDB env item@(Item {..}) = let c  = dbConn env in withTransaction c $ \_ -> do
+addItemToDB env item@(Item {..}) = do
     -- First register the item data, starting with the Trail data
     trailID <- insertTrailData env item
     itemID <- insertItem env item trailID
