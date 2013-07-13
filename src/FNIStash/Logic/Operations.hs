@@ -28,7 +28,7 @@ import qualified Data.ByteString.Lazy as BS
 
 
 moveTo loc (Item {..}) =
-    Item iName iRandomID iIdentified loc iLevel iQuantity iNumSockets iGems iInnateDefs iEffectsRaw
+    Item iName iRandomID iIdentified loc iLevel iQuantity iNumSockets iGems iGemsAsItems iInnateDefs iEffectsRaw
          iEffects iEnchantments iTriggerables iPartition iBase
 
 

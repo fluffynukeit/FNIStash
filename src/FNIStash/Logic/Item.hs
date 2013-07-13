@@ -377,6 +377,7 @@ data Item = Item
     , iQuantity :: Int
     , iNumSockets :: Int
     , iGems :: [(FilePath, Descriptor, Descriptor)] -- (icon, title, desc) triplet for each gem
+    , iGemsAsItems :: [Item]
     , iInnateDefs :: [(FilePath, Descriptor)]
     , iEffectsRaw :: [Descriptor]
     , iEffects :: [Descriptor]
@@ -537,6 +538,7 @@ decodeItemBytes env (itemBytes@ItemBytes {..}) =
                (fromIntegral iBytesQuantity)
                (fromIntegral iBytesNumSockets)
                (map (getGemDesc env) $ gemItems )
+               gemItems
                innateDef
                useNormal
                (makeGemDescriptors env item effectIndexList)

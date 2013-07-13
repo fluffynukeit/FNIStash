@@ -135,6 +135,9 @@ addItemToDB env item@(Item {..}) = do
     -- Then insert them into the db
     insertDescriptorSet env itemID descListWithValue
 
+    -- Finally, insert any socketed gems into the DB as well
+    forM_ (iGemsAsItems) (addItemToDB env) 
+
 
 -- Use like this: ensureExists conn "ITEMS" ["RANDOM_ID", "GUID"] [toSql itemRandomID, toSql itemGUID]
 -- Tries to do an insert and ignores if constraint is broken.  Returns the ID of the row with
@@ -162,12 +165,15 @@ insertItem :: Env -> Item -> ID TrailData -> IO (ID Items)
 insertItem (Env {..}) item@(Item {..}) trailDataID = do
     zonedTime <- getZonedTime
     let localTime = zonedTimeToLocalTime zonedTime
+        (container, slot, position) = case iLocation of
+            Location a b c -> (a,b,c)
+            Inserted       -> ("INSERTED", "INSERTED", 0)
 
     ensureExists dbConn "ITEMS" [ ("RANDOM_ID", toSql iRandomID)
                                 , ("GUID", toSql $ iBaseGUID iBase)
-                                , ("CONTAINER", toSql $ locContainer iLocation)
-                                , ("SLOT", toSql $ locSlot iLocation)
-                                , ("POSITION", toSql $ locIndex iLocation)
+                                , ("CONTAINER", toSql container)
+                                , ("SLOT", toSql slot)
+                                , ("POSITION", toSql position)
                                 , ("LEAD_DATA", toSql $ pBeforeLocation iPartition)
                                 , ("FK_TRAIL_DATA_ID", toSql trailDataID)
                                 , ("DATE", toSql localTime)]
