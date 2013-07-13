@@ -128,7 +128,10 @@ grid messages r c gen = do
     let rowStarts = [0, c .. r*c-1]
     grid <- new #. "grid"
     mapM (\startId -> gridRow messages startId c gen #+ grid) rowStarts
-    return grid
+
+    cont <- new #. "gridandarchive"
+    return grid #+ cont
+    return cont
 
 gridRow messages startId n gen = do
     let idList = [startId..startId+n-1]

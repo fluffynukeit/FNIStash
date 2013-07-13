@@ -46,6 +46,7 @@ newItemIcon (item@Item {..}) = do
 
     onHover container $ \_ -> killPopUp >> makePopUp item >> setAttr "onmousemove" moveScript container # unit
     onBlur container $ \_ -> killPopUp
+    onDragStart container $ \_ -> killPopUp
     
     return container
 
