@@ -69,7 +69,7 @@ setVisOfMatches matchList = do
     -- then set visibility of archive table rows
     archRows <- getElementsById $ map (show . matchDbID) matchList
     let rowBool = zip archRows $ map matchFlag matchList
-    forM_ rowBool $ \(e, v) -> setVis v e # unit
+    forM_ rowBool $ \(e, d) -> setDisp d e # unit
     
 noticeDisplay notice = do
     msgDisp <- new #. "notice"

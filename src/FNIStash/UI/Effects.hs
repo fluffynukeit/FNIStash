@@ -36,3 +36,8 @@ setVis v = setStyle [("visibility",
         False   -> "hidden"
         )]
 
+setDisp v = setStyle [("display",
+    case v of
+        True    -> "inherit"
+        False   -> "none"
+        )]
