@@ -90,7 +90,7 @@ dumpItemLocs messages sharedStash =
 
 
 dumpArchive env msg = do
-    allItems <- allItemsQuery env
+    allItems <- allItemSummaries env
     writeBMessage msg $ Initializing $ ArchiveData allItems
 
 dumpRegistrations env messages sharedStash = do
@@ -115,7 +115,7 @@ handleMessages env m cryptoFile sharedStash (msg:rest) = do
                 return a
             Search keywordsString -> do
                 -- writeBMessage m $ Notice $ Info "Searching..."
-                matchStatuses <- locsKeywordStatus env keywordsString
+                matchStatuses <- keywordStatus env keywordsString
                 writeBMessage m $ case matchStatuses of
                     Right visibilityUpdates -> Visibility visibilityUpdates
                     Left  queryError        -> Notice . Error $ "Query parse error " ++ queryError

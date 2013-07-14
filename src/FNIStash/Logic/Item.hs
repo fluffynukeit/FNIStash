@@ -31,7 +31,6 @@ module FNIStash.Logic.Item
     , PointValue(..)
     , Descriptor(..)
     , ItemClass(..)
-    , ItemSummary(..)
     ) where
 
 -- This file is for decodeing raw bytes of items into useables types and useable information
@@ -71,15 +70,10 @@ translateSentence translateMarkup sent =
     in if null post1 then sent -- nothing left to translate
        else newSent ++ translateSentence translateMarkup suffix
 
-data ItemClass = Arms | Consumables | Spells deriving (Eq, Show, Ord)
-data ItemSummary = ItemSummary
-    { summaryName :: String
-    , summaryDbID :: Int
-    , summaryItemClass :: ItemClass
-    , summaryStatus :: String
-    } deriving (Eq, Show, Ord)
 
 ------ BASE ITEM STUFF
+
+data ItemClass = Arms | Consumables | Spells deriving (Eq, Show, Ord)
 
 data Descriptor = Descriptor
     { descriptorString :: String
@@ -219,14 +213,14 @@ data Location = Location
     , locSlot :: String
     , locIndex :: Int
     }
-    | Inserted
+    | InsertedInSocket
     | UnknownLocation
     deriving (Eq, Ord, Show)
 
 -- Given the raw bytes for location in the item file, decode from the bytes to a
 -- Location record that has 
 decodeLocationBytes (Env {..}) (locBytes@LocationBytes {..})
-    | lBytesSlotIndex == 0xFFFF && lBytesContainer == 0xFFFF = Inserted
+    | lBytesSlotIndex == 0xFFFF && lBytesContainer == 0xFFFF = InsertedInSocket
     | otherwise = 
         let (slotType, container) = lkupLocNodes locBytes
             Just containerName = container >>= vNAME >>= return . T.unpack

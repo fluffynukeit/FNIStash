@@ -56,8 +56,21 @@ frontend messages = do
                 
             LocationContents locItemsList -> withLocVals locItemsList updateItem
             Notice notice -> noticeDisplay notice # addTo msgWindow >> scrollToBottom msgWindow
-            Visibility idStatusList -> withLocVals idStatusList $ \e v _ -> setVis v e # unit
-                                 
+            Visibility idStatusList -> setVisOfMatches idStatusList
+                
+
+
+matchToLocBool (ItemMatch _ _ Nothing) = Nothing
+matchToLocBool (ItemMatch id flag (Just loc)) = Just (loc, flag)
+
+setVisOfMatches matchList = do
+    -- first set visibility of any items still in stash
+    withLocVals (catMaybes $ map (matchToLocBool) matchList) $ \e v _ -> setVis v e # unit
+    -- then set visibility of archive table rows
+    archRows <- getElementsById $ map (show . matchDbID) matchList
+    let rowBool = zip archRows $ map matchFlag matchList
+    forM_ rowBool $ \(e, v) -> setVis v e # unit
+    
 noticeDisplay notice = do
     msgDisp <- new #. "notice"
     case notice of

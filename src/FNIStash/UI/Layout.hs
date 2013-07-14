@@ -27,7 +27,6 @@ module FNIStash.UI.Layout
 import FNIStash.UI.Icon
 import FNIStash.Comm.Messages
 import FNIStash.UI.Effects
-import FNIStash.Logic.Item
 
 import Graphics.UI.Threepenny.Browser
 import Graphics.UI.Threepenny.Elements
@@ -212,7 +211,7 @@ makeArchiveRow (ItemSummary{..}) = do
     nameCell <- new #. "archivecell namecell"
     locCell  <- new #. "archivecell statuscell"
     return nameCell #= summaryName #+ row
-    return locCell #= summaryStatus #+ row
+    return locCell #= show summaryStatus #+ row
     return row
 
 

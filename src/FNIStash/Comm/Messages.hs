@@ -12,15 +12,31 @@
 --
 -----------------------------------------------------------------------------
 
-module FNIStash.Comm.Messages where
+module FNIStash.Comm.Messages
+( BMessage(..)
+, InitEvent(..)
+, Notice(..)
+, FMessage(..)
+, Messages(..)
+, ItemSummary(..)
+, Location(..)
+, ItemClass(..)
+, ItemMatch(..)
+, newMessages
+, onlyFMessages
+, onlyBMessages
+, writeFMessage
+, writeBMessage
+) where
 
 import Control.Concurrent
 import FNIStash.Logic.Item
+import FNIStash.Logic.DB
 
 data BMessage = Initializing InitEvent
               | LocationContents [(Location, Maybe Item)]
               | Notice Notice
-              | Visibility [(Location, Bool)]
+              | Visibility [ItemMatch]
 
 data InitEvent = CfgStart
                | DBStart

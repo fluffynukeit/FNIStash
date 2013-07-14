@@ -21,8 +21,11 @@ module FNIStash.Logic.DB
 ( handleDB
 , initializeDB
 , register
-, locsKeywordStatus
-, allItemsQuery
+, keywordStatus
+, allItemSummaries
+, ItemClass(..)
+, ItemSummary(..)
+, ItemMatch(..)
 )
 where
 
@@ -54,6 +57,23 @@ import Debug.Trace
 instance Convertible GUID SqlValue where
     safeConvert (GUID{..}) = safeConvert guidVal
 
+
+-- Record types for returning data from DB
+
+data ItemStatus = Stashed | Inserted | Archived deriving (Eq, Show, Read, Ord)
+data ItemSummary = ItemSummary
+    { summaryName :: String
+    , summaryDbID :: Int
+    , summaryItemClass :: ItemClass
+    , summaryStatus :: ItemStatus
+    } deriving (Eq, Show, Ord)
+data ItemMatch = ItemMatch
+    { matchDbID :: Int
+    , matchFlag :: Bool
+    , matchLocation :: Maybe Location -- No location if item is archived or inserted
+    } deriving (Eq, Ord, Show)
+
+-- DB stuff
 
 handleDB = handleSql
 
@@ -87,27 +107,34 @@ register env items = do
             
     return succItems
 
-locsKeywordStatus :: Env -> String -> IO (Either String [(Location, Bool)])
-locsKeywordStatus env (parseKeywords -> Left error) = return . Left . show $ error
-locsKeywordStatus env (parseKeywords -> Right keywordList) = do
+keywordStatus :: Env -> String -> IO (Either String [ItemMatch])
+keywordStatus env (parseKeywords -> Left error) = return . Left . show $ error
+keywordStatus env (parseKeywords -> Right keywordList) = do
     let keywords = if length keywordList > 0 then keywordList else [""]
         conn = dbConn env
         keywordExpr = L.intercalate " and " $ replicate (length keywords) "FD like ?"
         query = (keywordQuery keywordExpr)
         s word = toSql $ "%" ++ word ++ "%"
-    idStrings <- quickQuery' conn query $ map s keywords
-    let returnList = map (\row -> (Location (fromSql $ row !! 0) (fromSql $ row !! 1) (fromSql $ row !! 2)
-                                  , fromSql $ row !! 3))
-                    idStrings
-    return . Right $ returnList
+    qResults <- quickQuery' conn query $ map s keywords
+    let buildMatch row =
+            let dbID = fromSql $ row !! 3
+                status = read . fromSql $ row !! 4
+                matchFlag = fromSql $ row !! 5
+                mLoc = case status of
+                    Archived -> Nothing
+                    Inserted -> Nothing
+                    _        -> Just $ Location (fromSql $ row !! 0) (fromSql $ row !! 1) (fromSql $ row !! 2)
+            in ItemMatch dbID matchFlag mLoc
 
-allItemsQuery :: Env -> IO [ItemSummary]
-allItemsQuery (dbConn -> conn) = do
+    return . Right $ map buildMatch qResults
+
+allItemSummaries :: Env -> IO [ItemSummary]
+allItemSummaries (dbConn -> conn) = do
     let query = "select NAME, CONTAINER, STATUS, ID from ITEMS order by NAME;"
         makeSumm row = ItemSummary  (fromSql $ row !! 0)
                                     (fromSql $ row !! 3)
                                     (contToClass (fromSql $ row !! 1 :: String))
-                                    (fromSql $ row !! 2)
+                                    (read . fromSql $ row !! 2)
     itemData <- quickQuery' conn query []
     return $ map makeSumm itemData
 
@@ -182,8 +209,8 @@ insertItem (Env {..}) item@(Item {..}) trailDataID = do
     zonedTime <- getZonedTime
     let localTime = zonedTimeToLocalTime zonedTime
         (container, slot, position, status) = case iLocation of
-            Location a b c -> (a,b, show c, "In stash"::String)
-            Inserted       -> ("SHARED_STASH_BAG_ARMS", "", "", "Inserted") -- gems always go in Arms
+            Location a b c   -> (a,b, show c, Stashed)
+            InsertedInSocket -> ("SHARED_STASH_BAG_ARMS", "", "", Inserted) -- gems always go in Arms
 
     ensureExists dbConn "ITEMS" [ ("RANDOM_ID", toSql iRandomID)
                                 , ("GUID", toSql $ iBaseGUID iBase)
@@ -191,7 +218,7 @@ insertItem (Env {..}) item@(Item {..}) trailDataID = do
                                 , ("CONTAINER", toSql container)
                                 , ("SLOT", toSql slot)
                                 , ("POSITION", toSql position)
-                                , ("STATUS", toSql status)
+                                , ("STATUS", toSql $ show status)
                                 , ("LEAD_DATA", toSql $ pBeforeLocation iPartition)
                                 , ("FK_TRAIL_DATA_ID", toSql trailDataID)
                                 , ("DATE", toSql localTime)]
@@ -278,9 +305,9 @@ setUpDescriptorSets =
     \, foreign key(FK_DESCRIPTOR_ID) references DESCRIPTORS(ID));"
 
 keywordQuery condString =
-    "select CONTAINER, SLOT, POSITION, " ++ condString ++ " \
+    "select CONTAINER, SLOT, POSITION, ID, STATUS, " ++ condString ++ " \
     \ from ( \
-        \ select i.CONTAINER, i.SLOT, i.POSITION, \
+        \ select i.CONTAINER, i.SLOT, i.POSITION, i.ID, i.STATUS, \
         \ i.NAME || char(10) || group_concat(replace(d.EXPRESSION, '[*]', s.VALUE), char(10)) as FD \
         \ from DESCRIPTORS d \
         \ inner join DESCRIPTOR_SETS s \
