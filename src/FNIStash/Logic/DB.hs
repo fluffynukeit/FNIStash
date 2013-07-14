@@ -22,12 +22,14 @@ module FNIStash.Logic.DB
 , initializeDB
 , register
 , locsKeywordStatus
+, allItemsQuery
 )
 where
 
 import FNIStash.Logic.Item
 import FNIStash.Logic.Env
 import FNIStash.File.Variables
+import FNIStash.File.General
 
 import Database.HDBC
 import Database.HDBC.Sqlite3
@@ -99,6 +101,14 @@ locsKeywordStatus env (parseKeywords -> Right keywordList) = do
                     idStrings
     return . Right $ returnList
 
+allItemsQuery :: Env -> IO [(String, Location)]
+allItemsQuery (dbConn -> conn) = do
+    let query = "select NAME, CONTAINER, SLOT, POSITION from ITEMS order by NAME;"
+        makeTuple row = (fromSql $ row !! 0, Location (fromSql $ row !! 1) (fromSql $ row !! 2) (fromSql $ row !! 3))
+    itemData <- quickQuery' conn query []
+    return $ map makeTuple itemData
+
+
 parseKeywords :: String -> Either ParseError [String]
 parseKeywords (deblank -> s) = parse keywordParser "" s
 
@@ -166,11 +176,12 @@ insertItem (Env {..}) item@(Item {..}) trailDataID = do
     zonedTime <- getZonedTime
     let localTime = zonedTimeToLocalTime zonedTime
         (container, slot, position) = case iLocation of
-            Location a b c -> (a,b,c)
-            Inserted       -> ("INSERTED", "INSERTED", 0)
+            Location a b c -> (a,b, show c)
+            Inserted       -> ("SHARED_STASH_BAG_ARMS", "INSERTED", streamToHex iRandomID) -- gems always go in Arms
 
     ensureExists dbConn "ITEMS" [ ("RANDOM_ID", toSql iRandomID)
                                 , ("GUID", toSql $ iBaseGUID iBase)
+                                , ("NAME", toSql $ descriptorString iName)
                                 , ("CONTAINER", toSql container)
                                 , ("SLOT", toSql slot)
                                 , ("POSITION", toSql position)
@@ -240,9 +251,10 @@ setUpItems =
     \( ID integer primary key not null \
     \, RANDOM_ID blob not null \
     \, GUID integer not null \
+    \, NAME text not null \
     \, CONTAINER text not null\
     \, SLOT text not null\
-    \, POSITION integer not null\
+    \, POSITION string not null\
     \, LEAD_DATA blob not null\
     \, FK_TRAIL_DATA_ID integer not null \
     \, DATE text not null \
@@ -261,7 +273,7 @@ keywordQuery condString =
     "select CONTAINER, SLOT, POSITION, " ++ condString ++ " \
     \ from ( \
         \ select i.CONTAINER, i.SLOT, i.POSITION, \
-        \ group_concat(replace(d.EXPRESSION, '[*]', s.VALUE), char(10)) as FD \
+        \ i.NAME || char(10) || group_concat(replace(d.EXPRESSION, '[*]', s.VALUE), char(10)) as FD \
         \ from DESCRIPTORS d \
         \ inner join DESCRIPTOR_SETS s \
         \ on s.FK_DESCRIPTOR_ID = d.ID \

@@ -99,13 +99,51 @@
     padding: 0 0 0 0;
     overflow:hidden;
     }
-   
+
 .item {
     max-height: 57px;
     display: block;
     cursor:pointer;cursor:hand;
     }
 
+ .archive {
+    top: 360px;
+	left: 40px;
+	position: absolute;
+	width:400px;
+	margin: 0 auto;
+    }
+.archivetitle {
+	font-family: huge;
+	color: white;
+	font-size: 16pt;
+	}
+.archivetablecontainer {
+	height: 250px;
+	overflow-y: scroll;
+	}
+.archivetable {
+	display: table;
+	position: relative;
+	table-layout: fixed;
+	width: 100%;
+	}
+.archiverow {
+	display: table-row;
+	}
+.archivecell {
+	display: table-cell;
+	background-color: white;
+	border-width: 1px;
+	border-style: solid;
+    }
+.namecell {
+	width: 125px;
+	}
+.loccell {
+	width:122px;
+	}
+	
 .socket1 { top: 0px; 	left:  0px; position: absolute; }
 .socket2 { top: 15px; 	left:  0px; position: absolute; }
 .socket3 { top: 0px; 	right: 0px; position: absolute; }

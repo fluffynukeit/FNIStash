@@ -70,6 +70,8 @@ backend msg appRoot guiRoot = handle (sendErrIO msg) $ handleDB (sendErrDB msg) 
             dumpItemLocs msg sharedStash
             writeBMessage msg $ Initializing RegisterStart
             dumpRegistrations env msg sharedStash
+            writeBMessage msg $ Initializing ArchiveDataStart
+            dumpArchive env msg
             writeBMessage msg $ Initializing Complete
             msgList <- liftIO $ onlyFMessages msg
             handleMessages env msg cryptoFile sharedStash msgList
@@ -86,6 +88,10 @@ dumpItemLocs messages sharedStash =
         when (length itemErrors > 0) $ writeBMessage messages $
              Notice $ Error $ "Number items failed: " ++ (show.length) itemErrors
 
+
+dumpArchive env msg = do
+    allItems <- allItemsQuery env
+    writeBMessage msg $ Initializing $ ArchiveData allItems
 
 dumpRegistrations env messages sharedStash = do
 

@@ -30,6 +30,8 @@ data InitEvent = CfgStart
                | RegisterStart
                | Complete
                | InitError String
+               | ArchiveDataStart
+               | ArchiveData [(String, Location)]
 
 data Notice = Error String
             | Info String

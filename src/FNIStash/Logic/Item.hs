@@ -549,12 +549,14 @@ decodeItemBytes env (itemBytes@ItemBytes {..}) =
     in item
 
 
+-- Returns a list of all descriptors for the item.  The Name is not included in
+-- in the returned list
 allDescriptorsOf (Item{..}) =
     -- first Descriptors from the ItemBase
      iBaseOtherReqs iBase ++ [iBaseLevelReq iBase] ++ iBaseInnates iBase ++ iBaseDescription iBase
         ++
     -- now the binary-specific stuff of Item
-    [iName, iLevel] ++ gems ++ innateDefs ++ iEffects ++ iEnchantments ++ iTriggerables
+    [iLevel] ++ gems ++ innateDefs ++ iEffects ++ iEnchantments ++ iTriggerables
     where
         gems = flip concatMap iGems $ \(_, n, d) -> [n,d]
         innateDefs = map snd iInnateDefs

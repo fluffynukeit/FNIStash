@@ -70,8 +70,8 @@ getTorchString1Byte = T.unpack <$> getTorchText1Byte
 getFloat :: SG.Get Float
 getFloat = (SG.getWord32le >>= (return . wordToFloat))
 
-streamToHex :: SBS.ByteString -> T.Text
-streamToHex = T.pack . ("0x" ++) . concatMap ((" "++) . wordToHex) . SBS.unpack
+streamToHex :: SBS.ByteString -> String
+streamToHex = ("0x" ++) . concatMap (wordToHex) . SBS.unpack 
 
 maybeAction bool action = if bool then Just <$> action else return Nothing
 

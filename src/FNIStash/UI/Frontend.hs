@@ -50,6 +50,8 @@ frontend messages = do
             Initializing Complete -> do
                 assignRandomBackground underlay
                 crossFade overlay underlay 350
+            Initializing (ArchiveData pairs) -> populateArchiveTable pairs
+                
             Initializing x -> handleInit x overlayMsg
                 
             LocationContents locItemsList -> withLocVals locItemsList updateItem
@@ -80,4 +82,5 @@ handleInit EnvStart = initMsg "Building lookup environment..."
 handleInit RegisterStart = initMsg "Registering new items..."
 handleInit Complete = initMsg "Startup complete."
 handleInit (InitError s) = initMsg s
+handleInit ArchiveDataStart = initMsg "Retrieving archived items..."
 handleInit _        = initMsg "Unknown initialization event!"

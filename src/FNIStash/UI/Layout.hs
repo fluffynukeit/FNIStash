@@ -12,12 +12,15 @@
 --
 -----------------------------------------------------------------------------
 
+{-# LANGUAGE NoMonomorphismRestriction #-}
+
 module FNIStash.UI.Layout
 ( stash
 , controls
 , overlay
 , updateItem
 , withLocVals
+, populateArchiveTable
 ) where
 
 import FNIStash.UI.Icon
@@ -38,11 +41,11 @@ sharedStashArms = (Location "SHARED_STASH_BAG_ARMS" "BAG_ARMS_SLOT" 0, "ig_inven
 sharedStashCons = (Location "SHARED_STASH_BAG_CONSUMABLES" "BAG_CONSUMABLES_SLOT" 0, "ig_inventorytabs_consumables")
 sharedStashSpells = (Location "SHARED_STASH_BAG_SPELLS" "BAG_SPELL_SLOT" 0, "ig_inventorytabs_spells")
 
-locIdGenerator :: Location -> (Int -> String)
-locIdGenerator loc = \x -> locContainer loc ++ ":" ++ locSlot loc ++ ":" ++ (show $ x)
+locIdGenerator :: Location -> String -> String
+locIdGenerator loc = \x -> locContainer loc ++ ":" ++ x
 
 locToId :: Location -> String
-locToId loc = locIdGenerator loc $ locIndex loc
+locToId loc = locIdGenerator loc $ show $ locIndex loc
 
 idToLoc :: String -> Location
 idToLoc id =
@@ -131,7 +134,20 @@ grid messages r c gen = do
 
     cont <- new #. "gridandarchive"
     return grid #+ cont
+    archiveEl <- archive (gen "ARCHIVE")
+    return archiveEl #+ cont
     return cont
+
+archive bodyID = do
+    archiveEl <- new #. "archive"
+    archiveText <- new #. "archivetitle" #= "Registry"
+    archiveBodyContainer <- new #. "archivetablecontainer"
+    archiveBody <- new #. "archivetable" ## bodyID
+
+    return archiveText #+ archiveEl
+    return archiveBody #+ archiveBodyContainer
+    return archiveBodyContainer #+ archiveEl
+    return archiveEl
 
 gridRow messages startId n gen = do
     let idList = [startId..startId+n-1]
@@ -141,7 +157,7 @@ gridRow messages startId n gen = do
 
 
 gridCell messages id gen = do
-    let idString = gen id
+    let idString = gen (show id)
     d <- new ## idString #. "gridcell" # allowDrop
     onDragEnter d $ \_ -> set "style" "background-color:#ffff99;" d # unit
     onDragLeave d $ \_ -> set "style" "background-color:transparent;" d # unit
@@ -150,6 +166,8 @@ gridCell messages id gen = do
         set "style" "background-color:transparent;" d # unit
         liftIO (notifyMove messages eData idString)
     return d
+
+
 
 notifyMove mes eData toId = do
     let fromId = fromJust $ head eData
@@ -172,3 +190,28 @@ updateItem el mItem id = do
             emptyEl el
             newItemIcon item # setDragData id #+ el # unit
         Nothing     -> emptyEl el # unit
+
+populateArchiveTable pairs =
+    let armsPairs = filter ((== "SHARED_STASH_BAG_ARMS") . locContainer . snd) pairs
+        consPairs = filter ((== "SHARED_STASH_BAG_CONSUMABLES") . locContainer . snd) pairs
+        spellsPairs = filter ((== "SHARED_STASH_BAG_SPELLS") . locContainer . snd) pairs
+    in do
+        (armsTab:consTab:spellsTab:_) <- getElementsById $ map (flip locIdGenerator "ARCHIVE" . fst)
+            [sharedStashArms, sharedStashCons, sharedStashSpells]
+
+        appendArchiveRows armsTab armsPairs
+        appendArchiveRows consTab consPairs
+        appendArchiveRows spellsTab spellsPairs
+
+appendArchiveRows table pairs = forM_ pairs $ \pair -> makeArchiveRow pair #+ table
+
+
+makeArchiveRow (name, location) = do
+    row <- new #. "archiverow"
+    nameCell <- new #. "archivecell namecell"
+    locCell  <- new #. "archivecell loccell"
+    return nameCell #= name #+ row
+    return locCell #= (locSlot location) #+ row
+    return row
+
+
