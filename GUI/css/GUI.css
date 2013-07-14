@@ -136,12 +136,13 @@
 	background-color: white;
 	border-width: 1px;
 	border-style: solid;
+	padding-left: 10px;
     }
 .namecell {
-	width: 125px;
+	width: 175px;
 	}
-.loccell {
-	width:122px;
+.statuscell {
+	width:70px;
 	}
 	
 .socket1 { top: 0px; 	left:  0px; position: absolute; }

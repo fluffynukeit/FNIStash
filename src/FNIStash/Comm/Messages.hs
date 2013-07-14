@@ -31,7 +31,7 @@ data InitEvent = CfgStart
                | Complete
                | InitError String
                | ArchiveDataStart
-               | ArchiveData [(String, Location)]
+               | ArchiveData [ItemSummary]
 
 data Notice = Error String
             | Info String

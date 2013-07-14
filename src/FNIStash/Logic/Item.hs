@@ -30,6 +30,8 @@ module FNIStash.Logic.Item
     , Quality(..)
     , PointValue(..)
     , Descriptor(..)
+    , ItemClass(..)
+    , ItemSummary(..)
     ) where
 
 -- This file is for decodeing raw bytes of items into useables types and useable information
@@ -69,8 +71,13 @@ translateSentence translateMarkup sent =
     in if null post1 then sent -- nothing left to translate
        else newSent ++ translateSentence translateMarkup suffix
 
-
-
+data ItemClass = Arms | Consumables | Spells deriving (Eq, Show, Ord)
+data ItemSummary = ItemSummary
+    { summaryName :: String
+    , summaryDbID :: Int
+    , summaryItemClass :: ItemClass
+    , summaryStatus :: String
+    } deriving (Eq, Show, Ord)
 
 ------ BASE ITEM STUFF
 

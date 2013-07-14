@@ -50,7 +50,7 @@ frontend messages = do
             Initializing Complete -> do
                 assignRandomBackground underlay
                 crossFade overlay underlay 350
-            Initializing (ArchiveData pairs) -> populateArchiveTable pairs
+            Initializing (ArchiveData summs) -> populateArchiveTable summs
                 
             Initializing x -> handleInit x overlayMsg
                 

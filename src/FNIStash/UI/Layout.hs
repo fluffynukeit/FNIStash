@@ -13,6 +13,7 @@
 -----------------------------------------------------------------------------
 
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module FNIStash.UI.Layout
 ( stash
@@ -191,27 +192,27 @@ updateItem el mItem id = do
             newItemIcon item # setDragData id #+ el # unit
         Nothing     -> emptyEl el # unit
 
-populateArchiveTable pairs =
-    let armsPairs = filter ((== "SHARED_STASH_BAG_ARMS") . locContainer . snd) pairs
-        consPairs = filter ((== "SHARED_STASH_BAG_CONSUMABLES") . locContainer . snd) pairs
-        spellsPairs = filter ((== "SHARED_STASH_BAG_SPELLS") . locContainer . snd) pairs
+populateArchiveTable summs =
+    let armsSumms = filter ((== Arms) . summaryItemClass) summs
+        consSumms = filter ((== Consumables) . summaryItemClass) summs
+        spellsSumms = filter ((== Spells) . summaryItemClass) summs
     in do
         (armsTab:consTab:spellsTab:_) <- getElementsById $ map (flip locIdGenerator "ARCHIVE" . fst)
             [sharedStashArms, sharedStashCons, sharedStashSpells]
 
-        appendArchiveRows armsTab armsPairs
-        appendArchiveRows consTab consPairs
-        appendArchiveRows spellsTab spellsPairs
+        appendArchiveRows armsTab armsSumms
+        appendArchiveRows consTab consSumms
+        appendArchiveRows spellsTab spellsSumms
 
 appendArchiveRows table pairs = forM_ pairs $ \pair -> makeArchiveRow pair #+ table
 
 
-makeArchiveRow (name, location) = do
-    row <- new #. "archiverow"
+makeArchiveRow (ItemSummary{..}) = do
+    row <- new #. "archiverow" ## show summaryDbID
     nameCell <- new #. "archivecell namecell"
-    locCell  <- new #. "archivecell loccell"
-    return nameCell #= name #+ row
-    return locCell #= (locSlot location) #+ row
+    locCell  <- new #. "archivecell statuscell"
+    return nameCell #= summaryName #+ row
+    return locCell #= summaryStatus #+ row
     return row
 
 

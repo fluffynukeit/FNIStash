@@ -101,13 +101,19 @@ locsKeywordStatus env (parseKeywords -> Right keywordList) = do
                     idStrings
     return . Right $ returnList
 
-allItemsQuery :: Env -> IO [(String, Location)]
+allItemsQuery :: Env -> IO [ItemSummary]
 allItemsQuery (dbConn -> conn) = do
-    let query = "select NAME, CONTAINER, SLOT, POSITION from ITEMS order by NAME;"
-        makeTuple row = (fromSql $ row !! 0, Location (fromSql $ row !! 1) (fromSql $ row !! 2) (fromSql $ row !! 3))
+    let query = "select NAME, CONTAINER, STATUS, ID from ITEMS order by NAME;"
+        makeSumm row = ItemSummary  (fromSql $ row !! 0)
+                                    (fromSql $ row !! 3)
+                                    (contToClass (fromSql $ row !! 1 :: String))
+                                    (fromSql $ row !! 2)
     itemData <- quickQuery' conn query []
-    return $ map makeTuple itemData
+    return $ map makeSumm itemData
 
+contToClass "SHARED_STASH_BAG_ARMS" = Arms
+contToClass "SHARED_STASH_BAG_CONSUMABLES" = Consumables
+contToClass "SHARED_STASH_BAG_SPELLS" = Spells
 
 parseKeywords :: String -> Either ParseError [String]
 parseKeywords (deblank -> s) = parse keywordParser "" s
@@ -175,9 +181,9 @@ insertItem :: Env -> Item -> ID TrailData -> IO (ID Items)
 insertItem (Env {..}) item@(Item {..}) trailDataID = do
     zonedTime <- getZonedTime
     let localTime = zonedTimeToLocalTime zonedTime
-        (container, slot, position) = case iLocation of
-            Location a b c -> (a,b, show c)
-            Inserted       -> ("SHARED_STASH_BAG_ARMS", "INSERTED", streamToHex iRandomID) -- gems always go in Arms
+        (container, slot, position, status) = case iLocation of
+            Location a b c -> (a,b, show c, "In stash"::String)
+            Inserted       -> ("SHARED_STASH_BAG_ARMS", "", "", "Inserted") -- gems always go in Arms
 
     ensureExists dbConn "ITEMS" [ ("RANDOM_ID", toSql iRandomID)
                                 , ("GUID", toSql $ iBaseGUID iBase)
@@ -185,6 +191,7 @@ insertItem (Env {..}) item@(Item {..}) trailDataID = do
                                 , ("CONTAINER", toSql container)
                                 , ("SLOT", toSql slot)
                                 , ("POSITION", toSql position)
+                                , ("STATUS", toSql status)
                                 , ("LEAD_DATA", toSql $ pBeforeLocation iPartition)
                                 , ("FK_TRAIL_DATA_ID", toSql trailDataID)
                                 , ("DATE", toSql localTime)]
@@ -255,6 +262,7 @@ setUpItems =
     \, CONTAINER text not null\
     \, SLOT text not null\
     \, POSITION string not null\
+    \, STATUS string not null\
     \, LEAD_DATA blob not null\
     \, FK_TRAIL_DATA_ID integer not null \
     \, DATE text not null \
