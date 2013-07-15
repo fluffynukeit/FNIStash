@@ -50,15 +50,15 @@ frontend messages = do
             Initializing Complete -> do
                 assignRandomBackground underlay
                 crossFade overlay underlay 350
-            Initializing (ArchiveData summs) -> populateArchiveTable summs
+            Initializing (ArchiveData summs) -> populateArchiveTable messages summs
                 
-            Initializing x -> handleInit x overlayMsg
+            Initializing x                -> handleInit x overlayMsg
                 
             LocationContents locItemsList -> withLocVals locItemsList updateItem
-            Notice notice -> noticeDisplay notice # addTo msgWindow >> scrollToBottom msgWindow
-            Visibility idStatusList -> setVisOfMatches idStatusList
+            Notice notice                 -> noticeDisplay notice # addTo msgWindow >> scrollToBottom msgWindow
+            Visibility idStatusList       -> setVisOfMatches idStatusList
+            ResponseItem elem item        -> makePopUp item elem
                 
-
 
 matchToLocBool (ItemMatch _ _ Nothing) = Nothing
 matchToLocBool (ItemMatch id flag (Just loc)) = Just (loc, flag)

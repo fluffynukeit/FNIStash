@@ -23,6 +23,7 @@ module FNIStash.Logic.DB
 , register
 , keywordStatus
 , allItemSummaries
+, getItemFromDb
 , ItemClass(..)
 , ItemSummary(..)
 , ItemMatch(..)
@@ -41,11 +42,13 @@ import Data.Time.LocalTime
 import Data.Maybe
 import Control.Monad
 import Control.Applicative ((<$>), (<*>))
+import qualified Data.ByteString as BS
 import qualified Data.List as L
 import qualified Data.Text as T
 import Data.Convertible.Base
 import GHC.Float
 import Text.Parsec
+import Data.Binary.Strict.Get
 
 import Filesystem.Path.CurrentOS
 import Filesystem
@@ -182,6 +185,19 @@ addItemToDB env item@(Item {..}) = do
     forM_ (iGemsAsItems) (addItemToDB env) 
 
 
+getItemFromDb :: Env -> Int -> IO (Either String Item)
+getItemFromDb (env@Env{..}) id = do
+    qResults <- quickQuery' dbConn getItemDataQuery [toSql id]
+    return $ case qResults of
+        []    -> Left $ "No item with ID " ++ show id ++ " was found in DB."
+        ((lead:loc:trail:_):_) ->
+            let bs = fromSql lead `BS.append` fromSql loc `BS.append` fromSql trail
+            in case fst $ runGet (getItem env bs) bs of
+                Left err -> Left $ "Item with ID " ++ show id ++
+                    " was found in DB but binary parsing failed with error: " ++ err
+                Right item -> Right item
+    
+
 -- Use like this: ensureExists conn "ITEMS" ["RANDOM_ID", "GUID"] [toSql itemRandomID, toSql itemGUID]
 -- Tries to do an insert and ignores if constraint is broken.  Returns the ID of the row with
 -- head of cols matching head of values
@@ -288,8 +304,8 @@ setUpItems =
     \, NAME text not null \
     \, CONTAINER text not null\
     \, SLOT text not null\
-    \, POSITION string not null\
-    \, STATUS string not null\
+    \, POSITION text not null\
+    \, STATUS text not null\
     \, LEAD_DATA blob not null\
     \, FK_TRAIL_DATA_ID integer not null \
     \, DATE text not null \
@@ -316,3 +332,9 @@ keywordQuery condString =
         \ on s.FK_ITEM_ID = i.ID \
         \ group by s.FK_ITEM_ID \
     \ );"
+
+getItemDataQuery =
+    "select LEAD_DATA, X'FFFFFFFF', DATA \
+    \ from ITEMS i \
+    \ inner join TRAIL_DATA t on i.FK_TRAIL_DATA_ID = t.ID \
+    \ where i.ID = (?);"

@@ -191,7 +191,7 @@ updateItem el mItem id = do
             newItemIcon item # setDragData id #+ el # unit
         Nothing     -> emptyEl el # unit
 
-populateArchiveTable summs =
+populateArchiveTable m summs =
     let armsSumms = filter ((== Arms) . summaryItemClass) summs
         consSumms = filter ((== Consumables) . summaryItemClass) summs
         spellsSumms = filter ((== Spells) . summaryItemClass) summs
@@ -199,19 +199,24 @@ populateArchiveTable summs =
         (armsTab:consTab:spellsTab:_) <- getElementsById $ map (flip locIdGenerator "ARCHIVE" . fst)
             [sharedStashArms, sharedStashCons, sharedStashSpells]
 
-        appendArchiveRows armsTab armsSumms
-        appendArchiveRows consTab consSumms
-        appendArchiveRows spellsTab spellsSumms
+        appendArchiveRows m armsTab armsSumms
+        appendArchiveRows m consTab consSumms
+        appendArchiveRows m spellsTab spellsSumms
 
-appendArchiveRows table pairs = forM_ pairs $ \pair -> makeArchiveRow pair #+ table
+appendArchiveRows m table pairs = forM_ pairs $ \pair -> makeArchiveRow m pair #+ table
 
 
-makeArchiveRow (ItemSummary{..}) = do
+makeArchiveRow m (ItemSummary{..}) = do
     row <- new #. "archiverow" ## show summaryDbID
     nameCell <- new #. "archivecell namecell"
     locCell  <- new #. "archivecell statuscell"
     return nameCell #= summaryName #+ row
     return locCell #= show summaryStatus #+ row
+
+    -- Set up request and event handling for popup
+    onHover row $ \_ -> killPopUp >> (liftIO $ writeFMessage m $ RequestItem row summaryDbID)
+    onBlur row $ \_ -> killPopUp
+    onDragStart row $ \_ -> killPopUp
     return row
 
 

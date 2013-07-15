@@ -32,11 +32,13 @@ module FNIStash.Comm.Messages
 import Control.Concurrent
 import FNIStash.Logic.Item
 import FNIStash.Logic.DB
+import Graphics.UI.Threepenny
 
 data BMessage = Initializing InitEvent
               | LocationContents [(Location, Maybe Item)]
               | Notice Notice
               | Visibility [ItemMatch]
+              | ResponseItem Element Item
 
 data InitEvent = CfgStart
                | DBStart
@@ -56,6 +58,7 @@ data Notice = Error String
 data FMessage = Move {moveFrom :: Location, moveTo :: Location}
               | Save
               | Search String
+              | RequestItem Element Int
 
 data Messages = Messages
     { fSource :: Chan FMessage

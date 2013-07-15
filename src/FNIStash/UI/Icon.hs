@@ -44,7 +44,7 @@ newItemIcon (item@Item {..}) = do
 
     killPopUp
 
-    onHover container $ \_ -> killPopUp >> makePopUp item >> setAttr "onmousemove" moveScript container # unit
+    onHover container $ \_ -> killPopUp >> makePopUp item container
     onBlur container $ \_ -> killPopUp
     onDragStart container $ \_ -> killPopUp
     
@@ -55,7 +55,10 @@ moveScript = "if (event.clientX < document.body.clientWidth/2) \
              \else {document.getElementById(\"itempopup\").style.right=(document.body.clientWidth - event.clientX)+\"px\";}\
              \document.getElementById(\"itempopup\").style.top=(event.clientY+5)+\"px\""
 
-makePopUp (Item{..}) = do
+
+makePopUp item container = makePopUpBox item >> setAttr "onmousemove" moveScript container # unit
+
+makePopUpBox (Item{..}) = do
     body <- getBody
     container <- new #. "itempopup" ## "itempopup"
     titleArea <- new #. "poptitlearea"

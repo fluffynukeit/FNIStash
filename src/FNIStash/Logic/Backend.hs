@@ -120,6 +120,12 @@ handleMessages env m cryptoFile sharedStash (msg:rest) = do
                     Right visibilityUpdates -> Visibility visibilityUpdates
                     Left  queryError        -> Notice . Error $ "Query parse error " ++ queryError
                 return (sharedStash, [])
+            RequestItem elem id -> do
+                dbResult <- getItemFromDb env id
+                writeBMessage m $ case dbResult of
+                    Left requestErr -> Notice . Error $ requestErr
+                    Right item      -> ResponseItem elem item
+                return (sharedStash, [])
     let locMsg = LocationContents updates
     writeBMessage m locMsg
     handleMessages env m cryptoFile newStash rest
