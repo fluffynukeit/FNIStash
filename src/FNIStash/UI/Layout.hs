@@ -37,9 +37,11 @@ import Control.Monad.Trans
 import Data.Maybe
 import Data.List.Split
 
+import Debug.Trace
+
 sharedStashArms = (Location "SHARED_STASH_BAG_ARMS" "BAG_ARMS_SLOT" 0, "ig_inventorytabs_arms")
 sharedStashCons = (Location "SHARED_STASH_BAG_CONSUMABLES" "BAG_CONSUMABLES_SLOT" 0, "ig_inventorytabs_consumables")
-sharedStashSpells = (Location "SHARED_STASH_BAG_SPELLS" "BAG_SPELL_SLOT" 0, "ig_inventorytabs_spells")
+sharedStashSpells = (Location "SHARED_STASH_BAG_SPELLS" "BAG_SPELLS_SLOT" 0, "ig_inventorytabs_spells")
 
 locIdGenerator :: Location -> String -> String
 locIdGenerator loc = \x -> locContainer loc ++ ":" ++ x
@@ -49,8 +51,11 @@ locToId loc = locIdGenerator loc $ show $ locIndex loc
 
 idToLoc :: String -> Location
 idToLoc id =
-    let (a:b:c:rest) = splitOn ":" id
-    in Location a b (read c)
+    let (a:c:rest) = splitOn ":" id
+        matchingSlot "SHARED_STASH_BAG_ARMS" = "BAG_ARMS_SLOT"
+        matchingSlot "SHARED_STASH_BAG_CONSUMABLES" = "BAG_CONSUMABLES_SLOT"
+        matchingSlot "SHARED_STASH_BAG_SPELLS" = "BAG_SPELLS_SLOT"
+    in Location a (matchingSlot a) (read c)
 
 
 overlay = do
@@ -159,18 +164,27 @@ gridRow messages startId n gen = do
 gridCell messages id gen = do
     let idString = gen (show id)
     d <- new ## idString #. "gridcell" # allowDrop
-    onDragEnter d $ \_ -> set "style" "background-color:#ffff99;" d # unit
-    onDragLeave d $ \_ -> set "style" "background-color:transparent;" d # unit
-    onDragEnd d $ \_ -> set "style" "background-color:transparent;" d # unit
-    onDrop d $  \(EventData eData) -> do
-        set "style" "background-color:transparent;" d # unit
-        liftIO (notifyMove messages eData idString)
+    onDragEnter d $ \_ -> setColor d # unit
+    onDragLeave d $ \_ -> setTrans d # unit
+    onDragEnd d $ \_ -> setTrans d # unit
+    onDrop d $  \(EventData eData) -> setTrans d >> processDrop idString d eData
     return d
+    where
+        setTrans = set "style" "background-color:transparent;" -- for some reason, setStyle isn't working for these
+        setColor = set "style" "background-color:#ffff99;"
+        processDrop _ _ (Nothing:_) = return ()
+        processDrop idString d ((Just eString):_)
+            | (take 12 eString) == "SHARED_STASH" = 
+                liftIO (notifyMove messages eString idString)
+            | (take 7 eString) == "ARCHIVE" =
+                return () --- do nothing for now
+            | otherwise =
+                return () --- do nothing
 
 
 
-notifyMove mes eData toId = do
-    let fromId = fromJust $ head eData
+notifyMove mes eString toId = do
+    let fromId = eString
         from = idToLoc fromId
         to = idToLoc toId
     writeFMessage mes $ Move from to
