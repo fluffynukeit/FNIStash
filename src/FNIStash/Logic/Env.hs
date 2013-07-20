@@ -17,6 +17,7 @@
 
 module FNIStash.Logic.Env 
     ( buildEnv
+    , searchAncestryFor
     , Env (..)
     , EffectKey (..)
     ) where
@@ -200,3 +201,12 @@ triggerableLookup = makeLookupByName "MEDIA/TRIGGERABLES/"
 
 statLookup = makeLookupByName "MEDIA/STATS/"
 
+-- Recurses down from a Dat Node (usually an Item dat node) looking for a particular variable.
+-- Looks deeper into each BASEFILE, if it exists, until it has to give up.
+searchAncestryFor (env@Env{..}) findMeVar itemDat =
+    let foundVar = return itemDat >>= findMeVar
+        itemBase = return itemDat >>= vBASEFILE
+    in case foundVar of
+        Just var -> foundVar -- we found the data we want!
+        Nothing ->
+            itemBase >>= lkupPath >>= searchAncestryFor env findMeVar

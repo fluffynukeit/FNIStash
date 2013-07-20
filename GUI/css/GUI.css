@@ -146,11 +146,21 @@ user-select: none;
 	border-style: solid;
 	padding-left: 10px;
     }
+.archiveicon {
+	max-width:100%;
+	max-height:100%;
+	vertical-align:middle;
+	}
+.iconcell {
+	width: 15px;
+	height: 15px;
+	padding:0 0 0 0;
+	}
 .namecell {
-	width: 265px;
+	width: 260px;
 	}
 .statuscell {
-	width:90px;
+	width:80px;
 	}
 	
 .socket1 { top: 0px; 	left:  0px; position: absolute; }

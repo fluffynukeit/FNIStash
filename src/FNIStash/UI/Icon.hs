@@ -156,9 +156,13 @@ setZ int = set "style" ("z-index:" ++ show int ++ ";")
 
 
 makeArchiveRow m (ItemSummary{..}) = do
-    row <- new #. "archiverow" ## ("ARCHIVE:" ++ show summaryDbID) # allowDrag
+    row <- new #. "archiverow" ## ("ARCHIVE:" ++ show summaryDbID)
+    iconCell <- new #. "archivecell iconcell"
+    newIcon summaryIcon #. "archiveicon" #+ iconCell
     nameCell <- new #. "archivecell namecell"
     locCell  <- new #. "archivecell statuscell"
+
+    return iconCell #+ row
     return nameCell #= summaryName #+ row
     return locCell #= show summaryStatus #+ row
 

@@ -114,13 +114,6 @@ data ItemBase = ItemBase
     , iBaseDescription :: [Descriptor] -- 1 descriptor per line of description
     } deriving (Eq, Ord)
 
-searchAncestryFor (env@Env{..}) findMeVar itemDat =
-    let foundVar = return itemDat >>= findMeVar
-        itemBase = return itemDat >>= vBASEFILE
-    in case foundVar of
-        Just var -> foundVar -- we found the data we want!
-        Nothing ->
-            itemBase >>= lkupPath >>= searchAncestryFor env findMeVar
 
 getItemBase (env@Env{..}) guid itemLevel =
     let Just item = lkupItemGUID guid

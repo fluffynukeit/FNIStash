@@ -50,7 +50,7 @@ import GHC.Float
 import Text.Parsec
 import Data.Binary.Strict.Get
 
-import Filesystem.Path.CurrentOS
+import Filesystem.Path.CurrentOS hiding (FilePath)
 import Filesystem
 
 import Debug.Trace
@@ -69,6 +69,7 @@ data ItemSummary = ItemSummary
     , summaryDbID :: Int
     , summaryItemClass :: ItemClass
     , summaryStatus :: ItemStatus
+    , summaryIcon :: FilePath
     } deriving (Eq, Show, Ord)
 data ItemMatch = ItemMatch
     { matchDbID :: Int
@@ -132,13 +133,16 @@ keywordStatus env (parseKeywords -> Right keywordList) = do
     return . Right $ map buildMatch qResults
 
 allItemSummaries :: Env -> IO [ItemSummary]
-allItemSummaries (dbConn -> conn) = do
-    let query = "select NAME, CONTAINER, STATUS, ID from ITEMS order by NAME;"
+allItemSummaries (env@(Env{..})) = do
+    let query = "select NAME, CONTAINER, STATUS, ID, GUID from ITEMS order by NAME;"
         makeSumm row = ItemSummary  (fromSql $ row !! 0)
                                     (fromSql $ row !! 3)
                                     (contToClass (fromSql $ row !! 1 :: String))
                                     (read . fromSql $ row !! 2)
-    itemData <- quickQuery' conn query []
+                                    (getImage $ GUID $ fromSql $ row !! 4)
+        getImage guid = fromJust (lkupItemGUID guid >>= searchAncestryFor env vICON)
+       
+    itemData <- quickQuery' dbConn query []
     return $ map makeSumm itemData
 
 contToClass "SHARED_STASH_BAG_ARMS" = Arms
