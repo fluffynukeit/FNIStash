@@ -19,6 +19,7 @@ module FNIStash.UI.Icon
 where
 
 import FNIStash.File.SharedStash
+import FNIStash.UI.Effects
 
 import Graphics.UI.Threepenny
 import Graphics.UI.Threepenny.Browser
@@ -50,10 +51,12 @@ newItemIcon (item@Item {..}) = do
     
     return container
 
-moveScript = "if (event.clientX < document.body.clientWidth/2) \
-             \{document.getElementById(\"itempopup\").style.left=(event.clientX)+\"px\";}\
-             \else {document.getElementById(\"itempopup\").style.right=(document.body.clientWidth - event.clientX)+\"px\";}\
-             \document.getElementById(\"itempopup\").style.top=(event.clientY+5)+\"px\""
+moveScript = "var pop = document.getElementById(\"itempopup\"); pop.style.visibility = \"inherit\";\
+             \if (event.clientX < document.body.clientWidth/2) \
+             \{pop.style.left=(event.clientX+5)+\"px\";}\
+             \else {pop.style.right=(document.body.clientWidth - event.clientX+20)+\"px\";}\
+             \pop.style.top=\
+                \(event.clientY - (event.clientY*1.0/document.body.clientHeight)*pop.offsetHeight)+\"px\""
 
 
 makePopUp item container = makePopUpBox item >> setAttr "onmousemove" moveScript container # unit
@@ -113,6 +116,7 @@ makePopUpBox (Item{..}) = do
 
     return titleArea #+ container
     return dataArea #+ container
+    return container # setVis False # setStyle [("top", "0")] # unit
     return container #+ body # unit
 
 makeEmptySocket container = do
