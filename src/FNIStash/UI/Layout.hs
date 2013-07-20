@@ -206,17 +206,3 @@ populateArchiveTable m summs =
 appendArchiveRows m table pairs = forM_ pairs $ \pair -> makeArchiveRow m pair #+ table
 
 
-makeArchiveRow m (ItemSummary{..}) = do
-    row <- new #. "archiverow" ## show summaryDbID
-    nameCell <- new #. "archivecell namecell"
-    locCell  <- new #. "archivecell statuscell"
-    return nameCell #= summaryName #+ row
-    return locCell #= show summaryStatus #+ row
-
-    -- Set up request and event handling for popup
-    onHover row $ \_ -> killPopUp >> (liftIO $ writeFMessage m $ RequestItem row summaryDbID)
-    onBlur row $ \_ -> killPopUp
-    onDragStart row $ \_ -> killPopUp
-    return row
-
-

@@ -20,19 +20,20 @@ where
 
 import FNIStash.File.SharedStash
 import FNIStash.UI.Effects
+import FNIStash.Comm.Messages
 
 import Graphics.UI.Threepenny
 import Graphics.UI.Threepenny.Browser
 
 import Control.Monad
+import Control.Monad.Trans
 import Data.Maybe
 
 newItemIcon (item@Item {..}) = do
-    container <- new # setStyle [("position", "relative")]
+    container <- new # setStyle [("position", "relative")] # allowDrag
     
     i <- newIcon (iBaseIcon iBase)
         #. "item"
-        # allowDrag
     return i #+ container
 
     -- create full and empty socket icons
@@ -147,11 +148,23 @@ killPopUp = do
 
 
 newIcon src =
-    newImg
-    # setSrc src
+    newImg # setSrc src # blockDrag
 
 setSrc src = \x -> set "src" ("static/GUIAssets/" ++ src ++ ".png") x # set "alt" src
 
 setZ int = set "style" ("z-index:" ++ show int ++ ";")
 
+
+makeArchiveRow m (ItemSummary{..}) = do
+    row <- new #. "archiverow" ## show summaryDbID # allowDrag
+    nameCell <- new #. "archivecell namecell"
+    locCell  <- new #. "archivecell statuscell"
+    return nameCell #= summaryName #+ row
+    return locCell #= show summaryStatus #+ row
+
+    -- Set up request and event handling for popup
+    onHover row $ \_ -> killPopUp >> (liftIO $ writeFMessage m $ RequestItem row summaryDbID)
+    onBlur row $ \_ -> killPopUp
+    onDragStart row $ \_ -> killPopUp
+    return row
 
