@@ -19,7 +19,7 @@ module FNIStash.UI.Layout
 ( stash
 , controls
 , overlay
-, updateItem
+, updateCell
 , withLocVals
 , populateArchiveTable
 ) where
@@ -198,7 +198,7 @@ withLocVals locValList actionOfElValId = do
     let tuples = zip3 els (map snd locValList) ids
     forM_ tuples $ \(e,v,i) -> actionOfElValId e v i
 
-updateItem el mItem id = do
+updateCell el mItem id = do
     case mItem of
         Just item   -> do
             emptyEl el

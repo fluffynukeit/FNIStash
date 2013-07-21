@@ -54,7 +54,7 @@ frontend messages = do
                 
             Initializing x                -> handleInit x overlayMsg
                 
-            LocationContents locItemsList -> withLocVals locItemsList updateItem
+            LocationContents locItemsList -> withLocVals locItemsList updateCell
             Notice notice                 -> noticeDisplay notice # addTo msgWindow >> scrollToBottom msgWindow
             Visibility idStatusList       -> setVisOfMatches idStatusList
             ResponseItem elem item        -> makePopUp item elem
