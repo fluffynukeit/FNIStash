@@ -25,6 +25,7 @@ module FNIStash.Logic.DB
 , allItemSummaries
 , getItemFromDb
 , locationChange
+, allLocationContents
 , ItemClass(..)
 , ItemSummary(..)
 , ItemMatch(..)
@@ -147,6 +148,17 @@ allItemSummaries (env@(Env{..})) = do
     itemData <- quickQuery' dbConn query []
     return $ map makeSumm itemData
 
+allLocationContents (env@Env{..}) = do
+    let query = getItemDataQuery ++ " where STATUS=?"
+    rows <- quickQuery' dbConn query [toSql Stashed]
+    return $ flip map rows $ \(lead:m:trail:cont:slot:pos:name:_) ->
+        let bs = buildItemFromBytes lead m trail
+            loc = Location (fromSql cont) (fromSql slot) (fromSql pos)
+        in case fst $ runGet (getItem env bs) bs of
+            Left err -> Left $ "Item named " ++ fromSql name ++
+                " failed binary parsing with error: " ++ err
+            Right item -> Right (loc, Just item)
+
 contToClass "SHARED_STASH_BAG_ARMS" = Arms
 contToClass "SHARED_STASH_BAG_CONSUMABLES" = Consumables
 contToClass "SHARED_STASH_BAG_SPELLS" = Spells
@@ -195,17 +207,19 @@ getItemFromDb :: Env -> Location -> IO (Either String (Maybe Item))
 getItemFromDb (env@Env{..}) loc = do
     let (query, params) = case loc of
             Archive id     -> (getItemDataQueryID, [toSql id])
-            Location c _ i -> (getItemDataQueryLoc, [toSql c, toSql i])
+            Location c _ i -> (getItemDataQueryLoc, [toSql c, toSql i, toSql Stashed])
     qResults <- quickQuery' dbConn query params
     return $ case qResults of
         []    -> Right Nothing
         ((lead:loc:trail:_):_) ->
-            let bs = fromSql lead `BS.append` fromSql loc `BS.append` fromSql trail
+            let bs = buildItemFromBytes lead loc trail
             in case fst $ runGet (getItem env bs) bs of
-                Left err -> Left $ "Item with locattion " ++ show loc ++
+                Left err -> Left $ "Item with location " ++ show loc ++
                     " was found in DB but binary parsing failed with error: " ++ err
                 Right item -> Right (Just item)
     
+buildItemFromBytes lead mid trail = fromSql lead `BS.append` fromSql mid `BS.append` fromSql trail
+
 
 -- Location argument order is From -> To
 locationChange :: Env -> Location -> Location -> IO (Either String [(Location, Maybe Item)])
@@ -389,15 +403,14 @@ keywordQuery condString =
         \ group by s.FK_ITEM_ID \
     \ );"
 
-getItemDataQuery = "select LEAD_DATA, X'FFFFFFFF', DATA \
+getItemDataQuery = "select LEAD_DATA, X'FFFFFFFF', DATA, CONTAINER, SLOT, POSITION, NAME \
     \ from ITEMS i \
     \ inner join TRAIL_DATA t on i.FK_TRAIL_DATA_ID = t.ID "
     
 getItemDataQueryID = getItemDataQuery ++
     " where i.ID = (?);"
 
-getItemDataQueryLoc = getItemDataQuery ++
-    " where CONTAINER=? and POSITION=?;"
+getItemDataQueryLoc = getItemDataQuery ++ whereContPosStat
 
 queryToStash  = "update ITEMS set CONTAINER=?, POSITION=?, STATUS=? \
                 \where ID = (?);"

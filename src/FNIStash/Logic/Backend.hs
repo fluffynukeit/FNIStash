@@ -67,26 +67,25 @@ backend msg appRoot guiRoot = handle (sendErrIO msg) $ handleDB (sendErrDB msg) 
     case sharedStashResult of
         Left error -> writeBMessage msg $ Initializing $ InitError $ "Error reading shared stash: " ++ error
         Right sharedStash -> do
-            dumpItemLocs msg sharedStash
             writeBMessage msg $ Initializing RegisterStart
             dumpRegistrations env msg sharedStash
+            dumpItemLocs msg env
             writeBMessage msg $ Initializing ArchiveDataStart
             dumpArchive env msg
             writeBMessage msg $ Initializing Complete
             msgList <- liftIO $ onlyFMessages msg
             handleMessages env msg cryptoFile msgList
 
-dumpItemLocs messages sharedStash =
-    let itemErrors = lefts sharedStash
-        goodItems = rights sharedStash
-        locContents = map (\(i@Item{..}) -> (iLocation, Just i)) goodItems
-        locMsg = LocationContents locContents
-    in do
-        writeBMessage messages locMsg
-        forM_ itemErrors $ \err -> writeBMessage messages $
-            Notice $ Error $ err
-        when (length itemErrors > 0) $ writeBMessage messages $
-             Notice $ Error $ "Number items failed: " ++ (show.length) itemErrors
+dumpItemLocs messages env = do
+    eitherConts <- allLocationContents env
+    let itemErrors = lefts eitherConts
+        goodLocItems  = rights eitherConts
+        locMsg = LocationContents goodLocItems
+    writeBMessage messages locMsg
+    forM_ itemErrors $ \err -> writeBMessage messages $
+        Notice $ Error $ err
+    when (length itemErrors > 0) $ writeBMessage messages $
+         Notice $ Error $ "Number items failed: " ++ (show.length) itemErrors
 
 
 dumpArchive env msg = do
