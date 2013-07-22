@@ -22,6 +22,7 @@ module FNIStash.UI.Layout
 , updateCell
 , withLocVals
 , populateArchiveTable
+, locToId
 ) where
 
 import FNIStash.UI.Icon
@@ -36,6 +37,7 @@ import Control.Monad
 import Control.Monad.Trans
 import Data.Maybe
 import Data.List.Split
+import Data.List (zip4)
 
 import Debug.Trace
 
@@ -47,7 +49,9 @@ locIdGenerator :: Location -> String -> String
 locIdGenerator loc = \x -> locContainer loc ++ ":" ++ x
 
 locToId :: Location -> String
-locToId loc = locIdGenerator loc $ show $ locIndex loc
+locToId (loc@Location{..}) = locIdGenerator loc $ show locIndex
+locToId (Archive id)   = "ARCHIVE:" ++ (show id)
+locToId (InsertedInSocket) = "ErrorInsertedID"
 
 idToLoc :: String -> Location
 idToLoc id =
@@ -193,17 +197,20 @@ notifySave mes = writeFMessage mes Save
 notifySearch mes str = writeFMessage mes $ Search str
 
 withLocVals locValList actionOfElValId = do
-    let ids = map (locToId.fst) locValList
+    let locs = map fst locValList
+        ids = map locToId locs
     els <- getElementsById ids
-    let tuples = zip3 els (map snd locValList) ids
-    forM_ tuples $ \(e,v,i) -> actionOfElValId e v i
+    let tuples = zip4 els locs (map snd locValList) ids
+    forM_ tuples $ \(e,l,v,i) -> actionOfElValId e l v i
 
-updateCell el mItem id = do
-    case mItem of
-        Just item   -> do
-            emptyEl el
-            newItemIcon item # setDragData id #+ el # unit
-        Nothing     -> emptyEl el # unit
+
+
+updateCell el (Location _ _ _) (Just item) id =
+    emptyEl el >> newItemIcon item # setDragData id #+ el # unit
+updateCell el (Location _ _ _) Nothing id =
+    emptyEl el # unit
+updateCell el (Archive _) mItem id =
+    updateArchiveRow el id mItem
 
 populateArchiveTable m summs =
     let armsSumms = filter ((== Arms) . summaryItemClass) summs
@@ -217,6 +224,7 @@ populateArchiveTable m summs =
         appendArchiveRows m consTab consSumms
         appendArchiveRows m spellsTab spellsSumms
 
-appendArchiveRows m table pairs = forM_ pairs $ \pair -> makeArchiveRow m pair #+ table
+appendArchiveRows m table summs = forM_ summs $ \(i@ItemSummary{..}) ->
+    makeArchiveRow m i (locToId $ Archive summaryDbID) #+ table
 
 

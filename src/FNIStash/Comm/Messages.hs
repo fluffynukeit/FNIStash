@@ -22,6 +22,7 @@ module FNIStash.Comm.Messages
 , Location(..)
 , ItemClass(..)
 , ItemMatch(..)
+, ItemStatus(..)
 , newMessages
 , onlyFMessages
 , onlyBMessages
@@ -38,7 +39,7 @@ data BMessage = Initializing InitEvent
               | LocationContents [(Location, Maybe Item)]
               | Notice Notice
               | Visibility [ItemMatch]
-              | ResponseItem Element Item
+              | ResponseItem Element (Maybe Item)
 
 data InitEvent = CfgStart
                | DBStart
@@ -58,7 +59,7 @@ data Notice = Error String
 data FMessage = Move {moveFrom :: Location, moveTo :: Location}
               | Save
               | Search String
-              | RequestItem Element Int
+              | RequestItem Element Location
 
 data Messages = Messages
     { fSource :: Chan FMessage

@@ -155,21 +155,38 @@ setSrc src = \x -> set "src" ("static/GUIAssets/" ++ src ++ ".png") x # set "alt
 setZ int = set "style" ("z-index:" ++ show int ++ ";")
 
 
-makeArchiveRow m (ItemSummary{..}) = do
-    let id = ("ARCHIVE:" ++ show summaryDbID)
+makeArchiveRow m (ItemSummary{..}) id = do
     row <- new #. "archiverow" ## id
-    iconCell <- new #. "archivecell iconcell"
-    newIcon summaryIcon #. "archiveicon" # setDragData id #+ iconCell
-    nameCell <- new #. "archivecell namecell"
-    locCell  <- new #. "archivecell statuscell"
-
-    return iconCell #+ row
-    return nameCell #= summaryName #+ row
-    return locCell #= show summaryStatus #+ row
+    fillRow row id summaryIcon summaryName summaryStatus
 
     -- Set up request and event handling for popup
-    onHover row $ \_ -> killPopUp >> (liftIO $ writeFMessage m $ RequestItem row summaryDbID)
+    onHover row $ \_ -> killPopUp >> (liftIO $ writeFMessage m $ RequestItem row (Archive summaryDbID))
     onBlur row $ \_ -> killPopUp
     onDragStart row $ \_ -> killPopUp
     return row
+
+setColorBy Archived = setStyle [("color", "black")]
+setColorBy _        = setStyle [("color", "gray")]
+
+fillRow row id icon name status = do
+    let setColor = setColorBy status
+    iconCell <- new #. "archivecell iconcell" # setColor ## (id ++ "icon")
+    iconEl <- newIcon icon #. "archiveicon" # blockDrag #+ iconCell
+    when (status == Archived) $
+         return iconEl # setDragData id # allowDrag # setColor # unit
+    nameCell <- new #. "archivecell namecell" # setColor ## (id ++ "name")
+    locCell  <- new #. "archivecell statuscell" # setColor ## (id ++ "status")
+
+    return iconCell #+ row
+    return nameCell #= name #+ row
+    return locCell #= show status #+ row
+
+updateArchiveRow rowEl id (Just (item@Item{..})) = do
+    let Descriptor n _ _ = iName
+    emptyEl rowEl >> fillRow rowEl id (iBaseIcon iBase) n Archived # unit
+    
+updateArchiveRow rowEl id (Nothing) = do
+    cells <- getElementsById $ map (id++) ["icon", "name", "status"]
+    forM_ cells $ \c -> return c # setColorBy Stashed #unit
+    return (cells !! 0) # blockDrag # unit
 

@@ -74,7 +74,7 @@ backend msg appRoot guiRoot = handle (sendErrIO msg) $ handleDB (sendErrDB msg) 
             dumpArchive env msg
             writeBMessage msg $ Initializing Complete
             msgList <- liftIO $ onlyFMessages msg
-            handleMessages env msg cryptoFile sharedStash msgList
+            handleMessages env msg cryptoFile msgList
 
 dumpItemLocs messages sharedStash =
     let itemErrors = lefts sharedStash
@@ -105,28 +105,39 @@ registerStash env sharedStash =
     let parsedItems = rights sharedStash
     in register env parsedItems
 
+-- This is the main backend event queue
+handleMessages env m cryptoFile (msg:rest) = do
+    outMessages <- case msg of
 
-handleMessages env m cryptoFile sharedStash (msg:rest) = do
-    (newStash, updates) <- case msg of
-            Move from to -> moveContents from to sharedStash
-            Save -> do
-                a <- saveItems env cryptoFile sharedStash (encodeString savePath)
-                writeBMessage m $ Notice $ Saved (encodeString savePath)
-                return a
-            Search keywordsString -> do
-                -- writeBMessage m $ Notice $ Info "Searching..."
-                matchStatuses <- keywordStatus env keywordsString
-                writeBMessage m $ case matchStatuses of
-                    Right visibilityUpdates -> Visibility visibilityUpdates
-                    Left  queryError        -> Notice . Error $ "Query parse error " ++ queryError
-                return (sharedStash, [])
-            RequestItem elem id -> do
-                dbResult <- getItemFromDb env id
-                writeBMessage m $ case dbResult of
-                    Left requestErr -> Notice . Error $ requestErr
-                    Right item      -> ResponseItem elem item
-                return (sharedStash, [])
-    let locMsg = LocationContents updates
-    writeBMessage m locMsg
-    handleMessages env m cryptoFile newStash rest
+        -- Move an item from one location to another
+        Move from to -> do
+            cont <- locationChange env from to
+            return $ case cont of
+                Right contentUpdates -> [LocationContents contentUpdates]
+                Left  erro           -> [Notice . Error $ "Move error " ++ erro]
+
+        -- Save all "Stashed" items to disk
+        Save -> do
+            --a <- saveItems env cryptoFile sharedStash (encodeString savePath)
+            return [Notice $ Saved (encodeString savePath)]
+
+        -- Find items matching keywords
+        Search keywordsString -> do
+            matchStatuses <- keywordStatus env keywordsString
+            return $ case matchStatuses of
+                Right visibilityUpdates -> [Visibility visibilityUpdates]
+                Left  queryError        -> [Notice . Error $ "Query parse error " ++ queryError]
+
+        -- Make a request for item data, associated with a particular element
+        RequestItem elem loc -> do
+            dbResult <- getItemFromDb env loc
+            return $ case dbResult of
+                Left requestErr -> [Notice . Error $ requestErr]
+                Right mitem     -> [ResponseItem elem mitem]
+
+    -- send GUI updates
+    forM_ outMessages $ \msg -> writeBMessage m msg
+
+    -- and then process next message
+    handleMessages env m cryptoFile rest
 

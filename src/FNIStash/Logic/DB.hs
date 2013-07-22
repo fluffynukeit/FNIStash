@@ -24,9 +24,11 @@ module FNIStash.Logic.DB
 , keywordStatus
 , allItemSummaries
 , getItemFromDb
+, locationChange
 , ItemClass(..)
 , ItemSummary(..)
 , ItemMatch(..)
+, ItemStatus(..)
 )
 where
 
@@ -189,18 +191,62 @@ addItemToDB env item@(Item {..}) = do
     forM_ (iGemsAsItems) (addItemToDB env) 
 
 
-getItemFromDb :: Env -> Int -> IO (Either String Item)
-getItemFromDb (env@Env{..}) id = do
-    qResults <- quickQuery' dbConn getItemDataQuery [toSql id]
+getItemFromDb :: Env -> Location -> IO (Either String (Maybe Item))
+getItemFromDb (env@Env{..}) loc = do
+    let (query, params) = case loc of
+            Archive id     -> (getItemDataQueryID, [toSql id])
+            Location c _ i -> (getItemDataQueryLoc, [toSql c, toSql i])
+    qResults <- quickQuery' dbConn query params
     return $ case qResults of
-        []    -> Left $ "No item with ID " ++ show id ++ " was found in DB."
+        []    -> Right Nothing
         ((lead:loc:trail:_):_) ->
             let bs = fromSql lead `BS.append` fromSql loc `BS.append` fromSql trail
             in case fst $ runGet (getItem env bs) bs of
-                Left err -> Left $ "Item with ID " ++ show id ++
+                Left err -> Left $ "Item with locattion " ++ show loc ++
                     " was found in DB but binary parsing failed with error: " ++ err
-                Right item -> Right item
+                Right item -> Right (Just item)
     
+
+-- Location argument order is From -> To
+locationChange :: Env -> Location -> Location -> IO (Either String [(Location, Maybe Item)])
+-- First handle case where we are moving an item from archive to a stash location, which might have
+-- an item there already
+locationChange (env@Env{..}) (arch@(Archive id)) (loc@Location{..}) = do
+    -- For any item at the destination and stashed, mark it as Archived
+    updates1 <- locationChange env loc arch
+    -- Now set new data
+    run dbConn queryToStash [toSql locContainer, toSql locIndex, toSql Stashed, toSql id]
+    item <- getItemFromDb env loc
+    return $ updates1 >>= const item >>= \i -> (++) <$> updates1 <*> Right [(loc, i)]
+
+
+-- The case where we are moving from stash to archive
+locationChange (env@Env{..}) (loc@Location{..}) (arch@Archive{..}) = do
+    rows <- run dbConn queryToArchive [toSql Archived, toSql Stashed, toSql locContainer, toSql locIndex]
+    item <- getItemFromDb env arch
+    return $ item >>= \i -> return $ (++) [(loc, Nothing)] (if rows > 0 then [(arch, i)] else [])
+
+locationChange (env@Env{..}) locFrom locTo = do
+    let selQuery = "select ID from ITEMS " ++ whereContPosStat
+        upQuery = "update ITEMS set CONTAINER=?, POSITION=?, STATUS=?"
+        contPosStatVals loc = [toSql $ locContainer loc, toSql $ locIndex loc, toSql Stashed]
+        getID r = fromSql $ ((head r) !! 0)
+    -- First check to see if anything is already at the TO location
+    rows <- quickQuery' dbConn selQuery (contPosStatVals locTo)
+    let destOccupied = length rows > 0
+
+    -- Update the item that will be in the new TO location
+    run dbConn (upQuery ++ whereContPosStat) $
+        contPosStatVals locTo ++ contPosStatVals locFrom
+
+    -- If something exists at the TO location, swap it with the FROM location
+    when destOccupied $ do
+        void $ run dbConn (upQuery ++ " where ID=?;") ((contPosStatVals locFrom) ++ [getID rows])
+
+    itemF <- getItemFromDb env locFrom
+    itemT <- getItemFromDb env locTo
+    return $ sequence [itemF, itemT] >>= \(f:t:[]) -> Right [(locFrom, f), (locTo, t)]
+
 
 -- Use like this: ensureExists conn "ITEMS" ["RANDOM_ID", "GUID"] [toSql itemRandomID, toSql itemGUID]
 -- Tries to do an insert and ignores if constraint is broken.  Returns the ID of the row with
@@ -238,7 +284,7 @@ insertItem (Env {..}) item@(Item {..}) trailDataID = do
                                 , ("CONTAINER", toSql container)
                                 , ("SLOT", toSql slot)
                                 , ("POSITION", toSql position)
-                                , ("STATUS", toSql $ show status)
+                                , ("STATUS", toSql status)
                                 , ("LEAD_DATA", toSql $ pBeforeLocation iPartition)
                                 , ("FK_TRAIL_DATA_ID", toSql trailDataID)
                                 , ("DATE", toSql localTime)]
@@ -282,6 +328,12 @@ instance Convertible SqlValue DescriptorType where
 
 instance Convertible Float SqlValue where
     safeConvert = Right . toSql . float2Double
+
+instance Convertible ItemStatus SqlValue where
+    safeConvert = Right . toSql . show
+
+instance Convertible SqlValue ItemStatus where
+    safeConvert = Right . read . fromSql 
 
 -- Types for each table to use with ID
 data Descriptors = Descriptors
@@ -337,8 +389,18 @@ keywordQuery condString =
         \ group by s.FK_ITEM_ID \
     \ );"
 
-getItemDataQuery =
-    "select LEAD_DATA, X'FFFFFFFF', DATA \
+getItemDataQuery = "select LEAD_DATA, X'FFFFFFFF', DATA \
     \ from ITEMS i \
-    \ inner join TRAIL_DATA t on i.FK_TRAIL_DATA_ID = t.ID \
-    \ where i.ID = (?);"
+    \ inner join TRAIL_DATA t on i.FK_TRAIL_DATA_ID = t.ID "
+    
+getItemDataQueryID = getItemDataQuery ++
+    " where i.ID = (?);"
+
+getItemDataQueryLoc = getItemDataQuery ++
+    " where CONTAINER=? and POSITION=?;"
+
+queryToStash  = "update ITEMS set CONTAINER=?, POSITION=?, STATUS=? \
+                \where ID = (?);"
+queryToArchive = "update ITEMS set STATUS=? " ++ whereContPosStat
+
+whereContPosStat = " where CONTAINER=? and POSITION=? and STATUS=?;"
