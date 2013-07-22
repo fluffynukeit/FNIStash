@@ -148,14 +148,21 @@ grid messages r c gen = do
     return cont
 
 archive bodyID = do
-    archiveEl <- new #. "archive"
+    archiveEl <- new #. "archive" 
     archiveText <- new #. "archivetitle" #= "Registry"
-    archiveBodyContainer <- new #. "archivetablecontainer"
+    aBody <- new #. "archivetablecontainer" # allowDrop
     archiveBody <- new #. "archivetable" ## bodyID
 
     return archiveText #+ archiveEl
-    return archiveBody #+ archiveBodyContainer
-    return archiveBodyContainer #+ archiveEl
+    return archiveBody #+ aBody
+    return aBody #+ archiveEl
+
+    -- Set up drop functionality
+    onDragEnter aBody $ \_ ->
+        set "style" "outline: thick solid #ffff99" aBody # unit
+    onDragLeave aBody $ \_ -> set "style" "" aBody # unit
+    onDragEnd aBody $ \_ -> set "style" "" aBody # unit
+    onDrop aBody $ \_ -> set "style" "" aBody # unit
     return archiveEl
 
 gridRow messages startId n gen = do
@@ -168,14 +175,14 @@ gridRow messages startId n gen = do
 gridCell messages id gen = do
     let idString = gen (show id)
     d <- new ## idString #. "gridcell" # allowDrop
-    onDragEnter d $ \_ -> setColor d # unit
+    onDragEnter d $ \_ -> setDragColor d # unit
     onDragLeave d $ \_ -> setTrans d # unit
     onDragEnd d $ \_ -> setTrans d # unit
     onDrop d $  \(EventData eData) -> setTrans d >> processDrop idString d eData
     return d
     where
-        setTrans = set "style" "background-color:transparent;" -- for some reason, setStyle isn't working for these
-        setColor = set "style" "background-color:#ffff99;"
+        setTrans     = set "style" "background-color:transparent;" -- for some reason, setStyle isn't working for these
+        setDragColor = set "style" "background-color:#ffff99;"
         processDrop _ _ (Nothing:_) = return ()
         processDrop idString d ((Just eString):_)
             | (take 12 eString) == "SHARED_STASH" = 

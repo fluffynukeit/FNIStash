@@ -171,9 +171,9 @@ setColorBy _        = setStyle [("color", "gray")]
 fillRow row id icon name status = do
     let setColor = setColorBy status
     iconCell <- new #. "archivecell iconcell" # setColor ## (id ++ "icon")
-    iconEl <- newIcon icon #. "archiveicon" # blockDrag #+ iconCell
+    iconEl <- newIcon icon #. "archiveicon" # blockDrag # set "onmousedown" "event.preventDefault()" #+ iconCell
     when (status == Archived) $
-         return iconEl # setDragData id # allowDrag # setColor # unit
+         return iconEl # setDragData id # allowDrag # set "onmousedown" "" # setColor # unit
     nameCell <- new #. "archivecell namecell" # setColor ## (id ++ "name")
     locCell  <- new #. "archivecell statuscell" # setColor ## (id ++ "status")
 

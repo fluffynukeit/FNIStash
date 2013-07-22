@@ -138,6 +138,7 @@ user-select: none;
 	}
 .archiverow {
 	display: table-row;
+	pointer-events: none;
 	}
 .archivecell {
 	display: table-cell;
