@@ -10,14 +10,20 @@
 	font-size:10pt;
 	}
 
-img {
--webkit-user-select: none;
--khtml-user-select: none;
--moz-user-select: none;
--o-user-select: none;
-user-select: none;
+html, body, div, span, object,
+form, input, h1, h2, button, label, a, img {
+  -moz-user-select: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -o-user-select: none;
+  /* this will work for QtWebKit in future */
+  -webkit-user-drag: none;
+  user-select: none;
 }
-	
+input[type=text] {
+  -moz-user-select: text;
+  -webkit-user-select: text;
+}
 /* Macro layout stuff */
 
 #underlay {
@@ -138,7 +144,6 @@ user-select: none;
 	}
 .archiverow {
 	display: table-row;
-	pointer-events: none;
 	}
 .archivecell {
 	display: table-cell;

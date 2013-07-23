@@ -173,7 +173,8 @@ setColorBy _        = setStyle [("color", "gray")]
 fillRow row id icon name status = do
     let setColor = setColorBy status
     iconCell <- new #. "archivecell iconcell" # setColor ## (id ++ "icon")
-    iconEl <- newIcon icon #. "archiveicon" # blockDrag # set "onmousedown" "event.preventDefault()" #+ iconCell
+    iconEl <- newIcon icon #. "archiveicon" ## (id++"iconimg") # blockDrag
+              # set "onmousedown" "event.preventDefault()" #+ iconCell
     when (status == Archived) $
          return iconEl # setDragData id # allowDrag # set "onmousedown" "" # setColor # unit
     nameCell <- new #. "archivecell namecell" # setColor ## (id ++ "name")
@@ -185,12 +186,13 @@ fillRow row id icon name status = do
 
 updateArchiveRow rowEl id (Just (item@Item{..})) = do
     let Descriptor n _ _ = iName
-    traceShow ("=============== Looking for ID J " ++ id) $ return ()
+    --traceShow ("=============== Looking for ID J " ++ id) $ return ()
     emptyEl rowEl >> fillRow rowEl id (iBaseIcon iBase) n Archived # unit
     
 updateArchiveRow rowEl id (Nothing) = do
-    traceShow ("=============== Looking for ID N " ++ id) $ return ()
-    cells <- getElementsById $ map (id++) ["icon", "name", "status"]
+    --traceShow ("=============== Looking for ID N " ++ id) $ return ()
+    cells <- getElementsById $ map (id++) ["iconimg", "icon", "name", "status"]
     forM_ cells $ \c -> return c # setColorBy Stashed # unit
-    return (cells !! 0) # blockDrag # unit
+    return (cells !! 0) # blockDrag # set "onmousedown" "event.preventDefault()" # unit
+    return (cells !! 3) #= "Stashed" # unit
 

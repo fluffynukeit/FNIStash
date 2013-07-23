@@ -231,7 +231,7 @@ locationChange (env@Env{..}) (arch@(Archive id)) (loc@Location{..}) = do
     -- Now set new data
     run dbConn queryToStash [toSql locContainer, toSql locIndex, toSql Stashed, toSql id]
     item <- getItemFromDb env loc
-    return $ updates1 >>= const item >>= \i -> (++) <$> updates1 <*> Right [(loc, i)]
+    return $ updates1 >>= const item >>= \i -> (++) <$> updates1 <*> Right [(loc, i), (arch, Nothing)]
 
 
 -- The case where we are moving from stash to archive
@@ -240,7 +240,7 @@ locationChange (env@Env{..}) (loc@Location{..}) (arch@Archive{..}) = do
     rows <- run dbConn queryToArchive [toSql Archived, toSql locContainer, toSql locIndex, toSql Stashed]
     let result = item >>= \i ->
             return $ (++) [(loc, Nothing)] (if rows > 0 then [(Archive (fromJust . iID $ fromJust i), i)] else [])
-    return $ traceShow ("=========== getItem result", result) result
+    return $ result
 
 locationChange (env@Env{..}) locFrom locTo = do
     let selQuery = "select ID from ITEMS " ++ whereContPosStat
