@@ -60,6 +60,7 @@ data FMessage = Move {moveFrom :: Location, moveTo :: Location}
               | Save
               | Search String
               | RequestItem Element Location
+              deriving Show
 
 data Messages = Messages
     { fSource :: Chan FMessage

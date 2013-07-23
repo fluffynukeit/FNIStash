@@ -151,10 +151,10 @@ allItemSummaries (env@(Env{..})) = do
 allLocationContents (env@Env{..}) = do
     let query = getItemDataQuery ++ " where STATUS=?"
     rows <- quickQuery' dbConn query [toSql Stashed]
-    return $ flip map rows $ \(lead:m:trail:cont:slot:pos:name:_) ->
+    return $ flip map rows $ \(dbID:lead:m:trail:cont:slot:pos:name:_) ->
         let bs = buildItemFromBytes lead m trail
             loc = Location (fromSql cont) (fromSql slot) (fromSql pos)
-        in case fst $ runGet (getItem env bs) bs of
+        in case fst $ runGet (getItem env (Just $ fromSql dbID) bs) bs of
             Left err -> Left $ "Item named " ++ fromSql name ++
                 " failed binary parsing with error: " ++ err
             Right item -> Right (loc, Just item)
@@ -211,13 +211,13 @@ getItemFromDb (env@Env{..}) loc = do
     qResults <- quickQuery' dbConn query params
     return $ case qResults of
         []    -> Right Nothing
-        ((lead:loc:trail:_):_) ->
+        ((dbID:lead:loc:trail:_):_) ->
             let bs = buildItemFromBytes lead loc trail
-            in case fst $ runGet (getItem env bs) bs of
+            in case fst $ runGet (getItem env (Just $ fromSql dbID) bs) bs of
                 Left err -> Left $ "Item with location " ++ show loc ++
                     " was found in DB but binary parsing failed with error: " ++ err
                 Right item -> Right (Just item)
-    
+
 buildItemFromBytes lead mid trail = fromSql lead `BS.append` fromSql mid `BS.append` fromSql trail
 
 
@@ -236,9 +236,11 @@ locationChange (env@Env{..}) (arch@(Archive id)) (loc@Location{..}) = do
 
 -- The case where we are moving from stash to archive
 locationChange (env@Env{..}) (loc@Location{..}) (arch@Archive{..}) = do
-    rows <- run dbConn queryToArchive [toSql Archived, toSql Stashed, toSql locContainer, toSql locIndex]
-    item <- getItemFromDb env arch
-    return $ item >>= \i -> return $ (++) [(loc, Nothing)] (if rows > 0 then [(arch, i)] else [])
+    item <- getItemFromDb env loc -- get the info for the item we are moving (if it exists at loc)
+    rows <- run dbConn queryToArchive [toSql Archived, toSql locContainer, toSql locIndex, toSql Stashed]
+    let result = item >>= \i ->
+            return $ (++) [(loc, Nothing)] (if rows > 0 then [(Archive (fromJust . iID $ fromJust i), i)] else [])
+    return $ traceShow ("=========== getItem result", result) result
 
 locationChange (env@Env{..}) locFrom locTo = do
     let selQuery = "select ID from ITEMS " ++ whereContPosStat
@@ -403,7 +405,7 @@ keywordQuery condString =
         \ group by s.FK_ITEM_ID \
     \ );"
 
-getItemDataQuery = "select LEAD_DATA, X'FFFFFFFF', DATA, CONTAINER, SLOT, POSITION, NAME \
+getItemDataQuery = "select i.ID, LEAD_DATA, X'FFFFFFFF', DATA, CONTAINER, SLOT, POSITION, NAME \
     \ from ITEMS i \
     \ inner join TRAIL_DATA t on i.FK_TRAIL_DATA_ID = t.ID "
     

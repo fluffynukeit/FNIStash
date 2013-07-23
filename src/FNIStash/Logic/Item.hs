@@ -380,9 +380,13 @@ data Item = Item
     , iTriggerables :: [Descriptor]
     , iPartition :: Partition
     , iBase :: ItemBase
+    , iID :: Maybe Int
     } deriving (Eq, Ord)
 
-getItem env bs = decodeItemBytes env <$> getItemBytes bs
+instance Show Item where
+    show = show . iName
+
+getItem env id bs = decodeItemBytes env id <$> getItemBytes bs
 
 decodeIdentified 0x00 = False
 decodeIdentified _ = True
@@ -517,9 +521,9 @@ makeTrigDescriptors env (bytes@ItemBytes{..}) = concat $ mapMaybe (getDescrip en
 
 effectsOf item = iBytesEffects item ++ iBytesEffects2 item
 
-decodeItemBytes env (itemBytes@ItemBytes {..}) =
+decodeItemBytes env id (itemBytes@ItemBytes {..}) =
     let (useNormal, useEnchants, innateDef) = selectSpecialEffects env itemBytes
-        gemItems = map (decodeItemBytes env) iBytesGems
+        gemItems = map (decodeItemBytes env Nothing) iBytesGems
         base = getItemBase env (GUID $ fromIntegral iBytesGUID) iBytesLevel
 
         effectIndexList = map (eBytesIndex) $ effectsOf itemBytes
@@ -541,6 +545,7 @@ decodeItemBytes env (itemBytes@ItemBytes {..}) =
                (makeTrigDescriptors env itemBytes)
                iBytesPartition
                base
+               id
     in item
 
 

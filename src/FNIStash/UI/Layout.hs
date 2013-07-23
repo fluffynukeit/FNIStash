@@ -59,7 +59,9 @@ idToLoc id =
         matchingSlot "SHARED_STASH_BAG_ARMS" = "BAG_ARMS_SLOT"
         matchingSlot "SHARED_STASH_BAG_CONSUMABLES" = "BAG_CONSUMABLES_SLOT"
         matchingSlot "SHARED_STASH_BAG_SPELLS" = "BAG_SPELLS_SLOT"
-    in Location a (matchingSlot a) (read c)
+    in case a of
+        "ARCHIVE" -> Archive (read c)
+        _         -> Location a (matchingSlot a) (read c)
 
 
 overlay = do
@@ -143,11 +145,11 @@ grid messages r c gen = do
 
     cont <- new #. "gridandarchive"
     return grid #+ cont
-    archiveEl <- archive (gen "ARCHIVE")
+    archiveEl <- archive messages (gen "ARCHIVE")
     return archiveEl #+ cont
     return cont
 
-archive bodyID = do
+archive msg bodyID = do
     archiveEl <- new #. "archive" 
     archiveText <- new #. "archivetitle" #= "Registry"
     aBody <- new #. "archivetablecontainer" # allowDrop
@@ -162,7 +164,8 @@ archive bodyID = do
         set "style" "outline: thick solid #ffff99" aBody # unit
     onDragLeave aBody $ \_ -> set "style" "" aBody # unit
     onDragEnd aBody $ \_ -> set "style" "" aBody # unit
-    onDrop aBody $ \_ -> set "style" "" aBody # unit
+    onDrop aBody $ \(EventData eData) ->
+        set "style" "" aBody >> processDrop msg "ARCHIVE:-1" eData
     return archiveEl
 
 gridRow messages startId n gen = do
@@ -178,27 +181,28 @@ gridCell messages id gen = do
     onDragEnter d $ \_ -> setDragColor d # unit
     onDragLeave d $ \_ -> setTrans d # unit
     onDragEnd d $ \_ -> setTrans d # unit
-    onDrop d $  \(EventData eData) -> setTrans d >> processDrop idString d eData
+    onDrop d $  \(EventData eData) -> setTrans d >> processDrop messages idString eData
     return d
     where
         setTrans     = set "style" "background-color:transparent;" -- for some reason, setStyle isn't working for these
         setDragColor = set "style" "background-color:#ffff99;"
-        processDrop _ _ (Nothing:_) = return ()
-        processDrop idString d ((Just eString):_)
-            | (take 12 eString) == "SHARED_STASH" = 
-                liftIO (notifyMove messages eString idString)
-            | (take 7 eString) == "ARCHIVE" =
-                return () --- do nothing for now
-            | otherwise =
-                return () --- do nothing
-
+       
+processDrop _ _ (Nothing:_) = return ()
+processDrop messages dropID ((Just fromID):_)
+    | (take 12 fromID) == "SHARED_STASH" = 
+        liftIO (traceShow ("================== Process drop from stash ===") $ notifyMove messages fromID dropID)
+    | (take 7 fromID) == "ARCHIVE" =
+        liftIO (traceShow ("================== Process drop from archive ===") $ notifyMove messages fromID dropID)
+    | otherwise =
+        return () --- do nothing
 
 
 notifyMove mes eString toId = do
     let fromId = eString
         from = idToLoc fromId
         to = idToLoc toId
-    writeFMessage mes $ Move from to
+        mvMsg = Move from to
+    writeFMessage mes $ traceShow ("=========== Notifying move ", mvMsg) mvMsg
 
 notifySave mes = writeFMessage mes Save
 notifySearch mes str = writeFMessage mes $ Search str

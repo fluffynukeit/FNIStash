@@ -29,6 +29,8 @@ import Control.Monad
 import Control.Monad.Trans
 import Data.Maybe
 
+import Debug.Trace
+
 newItemIcon (item@Item {..}) = do
     container <- new # setStyle [("position", "relative")] # allowDrag
     
@@ -183,10 +185,12 @@ fillRow row id icon name status = do
 
 updateArchiveRow rowEl id (Just (item@Item{..})) = do
     let Descriptor n _ _ = iName
+    traceShow ("=============== Looking for ID J " ++ id) $ return ()
     emptyEl rowEl >> fillRow rowEl id (iBaseIcon iBase) n Archived # unit
     
 updateArchiveRow rowEl id (Nothing) = do
+    traceShow ("=============== Looking for ID N " ++ id) $ return ()
     cells <- getElementsById $ map (id++) ["icon", "name", "status"]
-    forM_ cells $ \c -> return c # setColorBy Stashed #unit
+    forM_ cells $ \c -> return c # setColorBy Stashed # unit
     return (cells !! 0) # blockDrag # unit
 
