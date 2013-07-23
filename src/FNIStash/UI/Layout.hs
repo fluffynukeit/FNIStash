@@ -161,11 +161,11 @@ archive msg bodyID = do
 
     -- Set up drop functionality
     onDragEnter aBody $ \_ ->
-        set "style" "outline: thick solid #ffff99" aBody # unit
-    onDragLeave aBody $ \_ -> set "style" "" aBody # unit
-    onDragEnd aBody $ \_ -> set "style" "" aBody # unit
+        setStyle [("outline", "thick solid #ffff99")] aBody # unit
+    onDragLeave aBody $ \_ -> setStyle [("outline", "thick none #ffff99")] aBody # unit
+    onDragEnd aBody $ \_ -> setStyle [("outline", "thick none #ffff99")] aBody # unit
     onDrop aBody $ \(EventData eData) ->
-        set "style" "" aBody >> processDrop msg "ARCHIVE:-1" eData
+        setStyle [("outline", "thick none #ffff99")] aBody >> processDrop msg "ARCHIVE:-1" eData
     return archiveEl
 
 gridRow messages startId n gen = do
@@ -184,15 +184,15 @@ gridCell messages id gen = do
     onDrop d $  \(EventData eData) -> setTrans d >> processDrop messages idString eData
     return d
     where
-        setTrans     = set "style" "background-color:transparent;" -- for some reason, setStyle isn't working for these
-        setDragColor = set "style" "background-color:#ffff99;"
+        setTrans     = setStyle [("backgroundColor", "transparent")]
+        setDragColor = setStyle [("backgroundColor", "#ffff99")]
        
 processDrop _ _ (Nothing:_) = return ()
 processDrop messages dropID ((Just fromID):_)
     | (take 12 fromID) == "SHARED_STASH" = 
-        liftIO (traceShow ("================== Process drop from stash ===") $ notifyMove messages fromID dropID)
+        liftIO $ notifyMove messages fromID dropID
     | (take 7 fromID) == "ARCHIVE" =
-        liftIO (traceShow ("================== Process drop from archive ===") $ notifyMove messages fromID dropID)
+        liftIO $ notifyMove messages fromID dropID
     | otherwise =
         return () --- do nothing
 

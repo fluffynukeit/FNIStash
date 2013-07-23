@@ -154,7 +154,7 @@ newIcon src =
 
 setSrc src = \x -> set "src" ("static/GUIAssets/" ++ src ++ ".png") x # set "alt" src
 
-setZ int = set "style" ("z-index:" ++ show int ++ ";")
+setZ int = setStyle [("zIndex", show int)]
 
 
 makeArchiveRow m (ItemSummary{..}) id = do

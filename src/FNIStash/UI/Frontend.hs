@@ -65,7 +65,7 @@ matchToLocBool (ItemMatch id flag (Just loc)) = Just (loc, flag)
 
 setVisOfMatches matchList = do
     -- first set visibility of any items still in stash
-    withLocVals (catMaybes $ map (matchToLocBool) matchList) $ \e _ v _ -> setVis v e # unit
+    withLocVals (catMaybes $ map (matchToLocBool) matchList) $ \e _ v _ -> setFaded (not v) e # unit
     -- then set visibility of archive table rows
     archRows <- getElementsById $ map (locToId . Archive . matchDbID) matchList
     let rowBool = zip archRows $ map matchFlag matchList

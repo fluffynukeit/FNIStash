@@ -41,3 +41,9 @@ setDisp v = setStyle [("display",
         True    -> "inherit"
         False   -> "none"
         )]
+
+setFaded v = setStyle [("opacity",
+    case v of
+        True    -> "0.3"
+        False   -> "inherit"
+        )]
