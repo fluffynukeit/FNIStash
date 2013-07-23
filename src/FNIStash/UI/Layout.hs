@@ -201,7 +201,7 @@ notifyMove mes eString toId = do
     let fromId = eString
         from = idToLoc fromId
         to = idToLoc toId
-        mvMsg = Move from to
+        mvMsg = Move [(from, to)]
     writeFMessage mes $ traceShow ("=========== Notifying move ", mvMsg) mvMsg
 
 notifySave mes = writeFMessage mes Save

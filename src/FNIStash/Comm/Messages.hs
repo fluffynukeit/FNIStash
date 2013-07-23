@@ -56,7 +56,7 @@ data Notice = Error String
             | Info String
             | Saved String
 
-data FMessage = Move {moveFrom :: Location, moveTo :: Location}
+data FMessage = Move [(Location, Location)] -- order is FROM then TO
               | Save
               | Search String
               | RequestItem Element Location

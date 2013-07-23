@@ -34,6 +34,7 @@ import Control.Monad
 import Control.Exception
 import Data.Either
 import Data.List.Split
+import qualified Data.List as L
 
 import Debug.Trace
 
@@ -109,11 +110,12 @@ handleMessages env m cryptoFile (msg:rest) = do
     outMessages <- case msg of
 
         -- Move an item from one location to another
-        Move from to -> do
-            cont <- locationChange env from to
-            return $ case cont of
-                Right contentUpdates -> [LocationContents contentUpdates]
-                Left  erro           -> [Notice . Error $ "Move error " ++ erro]
+        Move fromToList -> do
+            changeResults <- forM fromToList $ \(from, to) -> locationChange env from to
+            let errorStrings = lefts changeResults
+                contentUpdates = L.concat $ rights changeResults
+                makeNotice erro = Notice . Error $ "Move error " ++ erro
+            return $ (map makeNotice errorStrings) ++ [LocationContents contentUpdates]
 
         -- Save all "Stashed" items to disk
         Save -> do
