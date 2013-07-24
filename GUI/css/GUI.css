@@ -85,7 +85,16 @@ input[type=text] {
 	left: 263px;
     top:300px;
 	}
-    
+
+#batcharchivebutton {
+	transform:rotate(180deg);
+	-ms-transform:rotate(180deg); /* IE 9 */
+	-webkit-transform:rotate(180deg); /* Safari and Chrome */
+	position:absolute;
+	left:238px;
+	top:400px;
+}
+	
 /* General layout */
  .grid {
 	display: table;

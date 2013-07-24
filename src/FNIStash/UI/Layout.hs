@@ -41,9 +41,11 @@ import Data.List (zip4)
 
 import Debug.Trace
 
-sharedStashArms = (Location "SHARED_STASH_BAG_ARMS" "BAG_ARMS_SLOT" 0, "ig_inventorytabs_arms")
-sharedStashCons = (Location "SHARED_STASH_BAG_CONSUMABLES" "BAG_CONSUMABLES_SLOT" 0, "ig_inventorytabs_consumables")
-sharedStashSpells = (Location "SHARED_STASH_BAG_SPELLS" "BAG_SPELLS_SLOT" 0, "ig_inventorytabs_spells")
+sharedStashArms = (Location "SHARED_STASH_BAG_ARMS" "BAG_ARMS_SLOT", "ig_inventorytabs_arms")
+sharedStashCons = (Location "SHARED_STASH_BAG_CONSUMABLES" "BAG_CONSUMABLES_SLOT", "ig_inventorytabs_consumables")
+sharedStashSpells = (Location "SHARED_STASH_BAG_SPELLS" "BAG_SPELLS_SLOT", "ig_inventorytabs_spells")
+
+locTemplates = [sharedStashArms, sharedStashCons, sharedStashSpells]
 
 locIdGenerator :: Location -> String -> String
 locIdGenerator loc = \x -> locContainer loc ++ ":" ++ x
@@ -91,15 +93,17 @@ controls mes body = do
 stash mes = do
     cont <- new ## "sharedstash"
     newIcon "ig_merchant_menu_base" ## "sharedstash_img" #+ cont
-    let gStack = tabbedGridStack mes 5 8 [sharedStashArms, sharedStashCons, sharedStashSpells]
+    let gStack = tabbedGridStack mes 5 8 locTemplates
     gStack ## "sharedstash_stack" #+ cont
+    batchArchiveButton mes #+ cont
+    
     return cont
 
 tabbedGridStack messages r c templates = do
     div <- new #. "tabbed_grid_stack"
     -- make a triplet of grid, tab for grid, and tab image prefix
     gridTabTrips <- forM templates (\(loc, tabImg) -> do
-        trip1 <- grid messages r c (locIdGenerator loc)
+        trip1 <- grid messages r c (locIdGenerator $ loc 0)
         trip2 <- newIcon (tabImg ++ "_unselected_") #. "inventory_tab" ## tabImg
         return (trip1, trip2, tabImg)
         )
@@ -206,6 +210,11 @@ notifyMove mes eString toId = do
 
 notifySave mes = writeFMessage mes Save
 notifySearch mes str = writeFMessage mes $ Search str
+notifyBatchArchive mes =
+    let applyToIndices k = map k [0..39]
+        allLocations = concat $ map (applyToIndices.fst) locTemplates
+        moveCommands = zip allLocations $ repeat (Archive (-1))
+    in writeFMessage mes $ Move moveCommands
 
 withLocVals locValList actionOfElValId = do
     let locs = map fst locValList
@@ -228,8 +237,8 @@ populateArchiveTable m summs =
         consSumms = filter ((== Consumables) . summaryItemClass) summs
         spellsSumms = filter ((== Spells) . summaryItemClass) summs
     in do
-        (armsTab:consTab:spellsTab:_) <- getElementsById $ map (flip locIdGenerator "ARCHIVE" . fst)
-            [sharedStashArms, sharedStashCons, sharedStashSpells]
+        (armsTab:consTab:spellsTab:_) <- getElementsById $ map (flip locIdGenerator "ARCHIVE")
+            $ map (flip ($) 0 . fst) locTemplates
 
         appendArchiveRows m armsTab armsSumms
         appendArchiveRows m consTab consSumms
@@ -238,4 +247,13 @@ populateArchiveTable m summs =
 appendArchiveRows m table summs = forM_ summs $ \(i@ItemSummary{..}) ->
     makeArchiveRow m i (locToId $ Archive summaryDbID) #+ table
 
+
+batchArchiveButton mes = do
+    btn <- newIcon "arrow_up" ## "batcharchivebutton" # set "title" "Archive all"
+
+    onHover btn $ \_ -> setSrc "arrow_up_highlight" btn # unit
+    onBlur  btn $ \_ -> setSrc "arrow_up" btn # unit
+    onClick btn $ \_ -> liftIO $ notifyBatchArchive mes
+
+    return btn
 
