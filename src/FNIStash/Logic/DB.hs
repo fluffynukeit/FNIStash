@@ -24,6 +24,7 @@ module FNIStash.Logic.DB
 , keywordStatus
 , allItemSummaries
 , getItemFromDb
+, getSharedStashFromDb
 , locationChange
 , allLocationContents
 , ItemClass(..)
@@ -35,8 +36,10 @@ where
 
 import FNIStash.Logic.Item
 import FNIStash.Logic.Env
+import FNIStash.File.SharedStash
 import FNIStash.File.Variables
 import FNIStash.File.General
+import FNIStash.File.Item
 
 import Database.HDBC
 import Database.HDBC.Sqlite3
@@ -52,6 +55,7 @@ import Data.Convertible.Base
 import GHC.Float
 import Text.Parsec
 import Data.Binary.Strict.Get
+import Data.Binary.Put
 
 import Filesystem.Path.CurrentOS hiding (FilePath)
 import Filesystem
@@ -151,13 +155,12 @@ allItemSummaries (env@(Env{..})) = do
 allLocationContents (env@Env{..}) = do
     let query = getItemDataQuery ++ " where STATUS=?"
     rows <- quickQuery' dbConn query [toSql Stashed]
-    return $ flip map rows $ \(dbID:lead:m:trail:cont:slot:pos:name:_) ->
-        let bs = buildItemFromBytes lead m trail
-            loc = Location (fromSql cont) (fromSql slot) (fromSql pos)
+    return $ flip map rows $ \(dbID:lead:trail:cont:slot:pos:name:_) ->
+        let bs = buildItemBytes env lead trail cont slot pos
         in case fst $ runGet (getItem env (Just $ fromSql dbID) bs) bs of
             Left err -> Left $ "Item named " ++ fromSql name ++
                 " failed binary parsing with error: " ++ err
-            Right item -> Right (loc, Just item)
+            Right item -> Right (iLocation item, Just item)
 
 contToClass "SHARED_STASH_BAG_ARMS" = Arms
 contToClass "SHARED_STASH_BAG_CONSUMABLES" = Consumables
@@ -210,15 +213,28 @@ getItemFromDb (env@Env{..}) loc = do
             Location c _ i -> (getItemDataQueryLoc, [toSql c, toSql i, toSql Stashed])
     qResults <- quickQuery' dbConn query params
     return $ case qResults of
-        []    -> Right Nothing
-        ((dbID:lead:loc:trail:_):_) ->
-            let bs = buildItemFromBytes lead loc trail
-            in case fst $ runGet (getItem env (Just $ fromSql dbID) bs) bs of
-                Left err -> Left $ "Item with location " ++ show loc ++
-                    " was found in DB but binary parsing failed with error: " ++ err
-                Right item -> Right (Just item)
+        []    -> Right Nothing -- no rows returns
+        [row] -> Just <$> parseItemRow env row
 
-buildItemFromBytes lead mid trail = fromSql lead `BS.append` fromSql mid `BS.append` fromSql trail
+getSharedStashFromDb :: Env -> IO SharedStash
+getSharedStashFromDb env@Env{..} = do
+    let query = getItemDataQuery ++ " where STATUS = ?"
+    rows <- quickQuery' dbConn query [toSql Stashed]
+    return $ map (parseItemRow env) rows
+
+
+parseItemRow env@Env{..} (dbID:lead:trail:c:s:p:name) =
+    let
+        bs = buildItemBytes env lead trail c s p
+    in case fst $ runGet (getItem env (Just $ fromSql dbID) bs) bs of
+        Left err -> Left $ "Item with name '" ++ show name ++ 
+            "' was found in DB but binary parsing failed with error: " ++ err
+        Right item -> Right (item)
+
+buildItemBytes env lead trail c s p =
+    let loc = Location (fromSql c) (fromSql s) (fromSql p)
+        part = Partition (fromSql lead) (fromSql trail)
+    in BS.drop 4 . toStrict . runPut $ putPartition (encodeLocationBytes env loc) part
 
 
 -- Location argument order is From -> To
@@ -405,7 +421,7 @@ keywordQuery condString =
         \ group by s.FK_ITEM_ID \
     \ );"
 
-getItemDataQuery = "select i.ID, LEAD_DATA, X'FFFFFFFF', DATA, CONTAINER, SLOT, POSITION, NAME \
+getItemDataQuery = "select i.ID, LEAD_DATA, DATA, CONTAINER, SLOT, POSITION, NAME \
     \ from ITEMS i \
     \ inner join TRAIL_DATA t on i.FK_TRAIL_DATA_ID = t.ID "
     

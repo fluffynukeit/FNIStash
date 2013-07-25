@@ -24,7 +24,6 @@ import FNIStash.Logic.Initialize
 import FNIStash.Comm.Messages
 import FNIStash.File.Crypto
 import FNIStash.File.SharedStash
-import FNIStash.Logic.Operations
 import FNIStash.Logic.DB
 
 import Filesystem.Path
@@ -34,6 +33,7 @@ import Control.Monad
 import Control.Exception
 import Data.Either
 import Data.List.Split
+import Data.Binary.Put
 import qualified Data.List as L
 
 import Debug.Trace
@@ -114,20 +114,28 @@ handleMessages env m cryptoFile (msg:rest) = do
             changeResults <- forM fromToList $ \(from, to) -> locationChange env from to
             let errorStrings = lefts changeResults
                 contentUpdates = L.concat $ rights changeResults
-                makeNotice erro = Notice . Error $ "Move error " ++ erro
+                makeNotice erro = Notice . Error $ "Move error: " ++ erro
             return $ (map makeNotice errorStrings) ++ [LocationContents contentUpdates]
 
         -- Save all "Stashed" items to disk
         Save -> do
-            --a <- saveItems env cryptoFile sharedStash (encodeString savePath)
-            return [Notice $ Saved (encodeString savePath)]
+            sharedStash <- getSharedStashFromDb env
+            let (saveErrors, newSaveFile) = buildSaveFile env cryptoFile sharedStash
+                errorNotices = map (\e -> Notice . Error $ "Save error: " ++ e) saveErrors
+                filePath = encodeString savePath
+                saveNotice = if length errorNotices > 0
+                             then []
+                             else [Notice . Saved $ filePath]
+            when (length errorNotices == 0) $ -- only write out the file if there are no errors
+                writeCryptoFile filePath newSaveFile
+            return $ errorNotices ++ saveNotice
 
         -- Find items matching keywords
         Search keywordsString -> do
             matchStatuses <- keywordStatus env keywordsString
             return $ case matchStatuses of
                 Right visibilityUpdates -> [Visibility visibilityUpdates]
-                Left  queryError        -> [Notice . Error $ "Query parse error " ++ queryError]
+                Left  queryError        -> [Notice . Error $ "Query parse error: " ++ queryError]
 
         -- Make a request for item data, associated with a particular element
         RequestItem elem loc -> do
@@ -142,3 +150,11 @@ handleMessages env m cryptoFile (msg:rest) = do
     -- and then process next message
     handleMessages env m cryptoFile rest
 
+
+sharedStashToBS env ss = runPut (putSharedStash env ss)
+
+buildSaveFile env c ss =
+    let itemErrors = lefts ss
+        i = sharedStashToBS env ss
+        newSaveFile = CryptoFile (fileVersion c) (fileDummy c) (0) (i) (0)
+    in (itemErrors, newSaveFile)

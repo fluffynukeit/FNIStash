@@ -224,7 +224,6 @@ withLocVals locValList actionOfElValId = do
     forM_ tuples $ \(e,l,v,i) -> actionOfElValId e l v i
 
 
-
 updateCell el (Location _ _ _) (Just item) id =
     emptyEl el >> newItemIcon item # setDragData id #+ el # unit
 updateCell el (Location _ _ _) Nothing id =

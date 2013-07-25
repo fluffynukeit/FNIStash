@@ -21,6 +21,7 @@ module FNIStash.Logic.Item
     ( getItem
     , putItem
     , allDescriptorsOf
+    , encodeLocationBytes
     , Item(..)
     , ItemBase(..)
     , Location(..)
@@ -225,10 +226,10 @@ decodeLocationBytes (Env {..}) (locBytes@LocationBytes {..})
 
 
 encodeLocationBytes :: Env -> Location -> LocationBytes
-encodeLocationBytes (Env {..}) loc = do
-    let (Just slotID, Just contID) = lkupLocIDs (locSlot loc) (locContainer loc)
-        slotIndex = (slotIDVal slotID + (fromIntegral $ locIndex loc))
-    LocationBytes slotIndex (containerIDVal contID)
+encodeLocationBytes Env{..} Location{..} = 
+    let (Just slotID, Just contID) = lkupLocIDs locSlot locContainer
+        slotIndex = (slotIDVal slotID + (fromIntegral locIndex))
+    in LocationBytes slotIndex (containerIDVal contID)
 
 
 
@@ -562,17 +563,10 @@ allDescriptorsOf (Item{..}) =
         innateDefs = map snd iInnateDefs
     
 putItem env (Item {..}) = putPartition (encodeLocationBytes env iLocation) iPartition
+
+
+
 itemAsBS env item = runPut $ putItem env item
-
-
-
-
-
-
-
-
-
-    
 
 
 
