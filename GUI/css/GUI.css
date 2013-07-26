@@ -10,6 +10,7 @@
 	font-size:10pt;
 	}
 
+/*Disable text selection by default*/
 html, body, div, span, object,
 form, input, h1, h2, button, label, a, img {
   -moz-user-select: none;
@@ -20,6 +21,7 @@ form, input, h1, h2, button, label, a, img {
   -webkit-user-drag: none;
   user-select: none;
 }
+
 input[type=text] {
   -moz-user-select: text;
   -webkit-user-select: text;
@@ -46,16 +48,6 @@ input[type=text] {
 	background-color: transparent;
 	display: inline-block;
 	text-align: left;
-	}
-
-#msgwindow {
-	height: 90px;
-	width: 510px;
-	border-style:solid;
-	border-width:2px;
-	border-color:gray;
-	overflow:scroll;
-	background-color: white;
 	}
 
 #sharedstash{
@@ -126,9 +118,9 @@ input[type=text] {
     cursor:pointer;cursor:hand;
     }
 
- .archive {
+.archive {
     top: 360px;
-	left: 40px;
+	left: 37px;
 	position: absolute;
 	width:400px;
 	margin: 0 auto;
@@ -328,7 +320,16 @@ input[type=text] {
 	width: 95%;
 	margin-left: auto;
 	margin-right: auto;
-	height: 80px;
+	height: 45px;
+	overflow-y: scroll;
+	overflow-x: hidden;
+	background-color:white;
+	-moz-user-select: all;
+	-webkit-user-select: all;
+	-khtml-user-select: all;
+	-o-user-select: all;
+	-webkit-user-drag: all;
+	user-select: all;
 	}
 
 #msgwindow .error {
