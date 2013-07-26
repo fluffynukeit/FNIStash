@@ -206,7 +206,7 @@ notifyMove mes eString toId = do
         from = idToLoc fromId
         to = idToLoc toId
         mvMsg = Move [(from, to)]
-    writeFMessage mes $ traceShow ("=========== Notifying move ", mvMsg) mvMsg
+    writeFMessage mes mvMsg
 
 notifySave mes = writeFMessage mes Save
 notifySearch mes str = writeFMessage mes $ Search str
@@ -248,10 +248,10 @@ appendArchiveRows m table summs = forM_ summs $ \(i@ItemSummary{..}) ->
 
 
 batchArchiveButton mes = do
-    btn <- newIcon "arrow_up" ## "batcharchivebutton" # set "title" "Archive all"
+    btn <- newIcon "arrow_down" ## "batcharchivebutton" # set "title" "Archive all"
 
-    onHover btn $ \_ -> setSrc "arrow_up_highlight" btn # unit
-    onBlur  btn $ \_ -> setSrc "arrow_up" btn # unit
+    onHover btn $ \_ -> setSrc "arrow_down_highlight" btn # unit
+    onBlur  btn $ \_ -> setSrc "arrow_down" btn # unit
     onClick btn $ \_ -> liftIO $ notifyBatchArchive mes
 
     return btn
