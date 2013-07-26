@@ -78,8 +78,7 @@ overlay = do
 controls mes body = do
     controls <- new
     msgWindow <- new ## "msgwindow" #+ controls
-    saveButton <- new #= "Click here to save" #+ controls
-    onClick saveButton $ \_ -> liftIO $ notifySave mes
+
     searchBox <- newTextarea #. "searchbox"
     onSendValue searchBox $ \content -> liftIO $ notifySearch mes content
     searchLabel <- new #. "searchlabel" #= "Filter:"
@@ -246,13 +245,30 @@ populateArchiveTable m summs =
 appendArchiveRows m table summs = forM_ summs $ \(i@ItemSummary{..}) ->
     makeArchiveRow m i (locToId $ Archive summaryDbID) #+ table
 
+makeButton offImg overImg explanation clickAction = do
+    cont <- new #. "imgbutton"
+    btn <- newIcon offImg # set "title" explanation #. "imgbuttonicon"
+    onHover btn $ \_ -> setSrc overImg btn # unit
+    onBlur  btn $ \_ -> setSrc offImg btn # unit
+    onClick btn $ \_ -> liftIO $ clickAction
+    text <- new #. "imgbuttontext"
+    return btn #+ cont
+    return (cont, text)
+
 
 batchArchiveButton mes = do
-    btn <- newIcon "arrow_down" ## "batcharchivebutton" # set "title" "Archive all"
+    (btn, txt) <- makeButton "arrow_down" "arrow_down_highlight"
+                  "Archive all"
+                  (notifyBatchArchive mes)
+    return btn ## "batcharchivebutton"
 
-    onHover btn $ \_ -> setSrc "arrow_down_highlight" btn # unit
-    onBlur  btn $ \_ -> setSrc "arrow_down" btn # unit
-    onClick btn $ \_ -> liftIO $ notifyBatchArchive mes
-
+updateStashBtn mes = do
+    (btn, txt) <- makeButton "ig_abandon_button" "ig_abandon_button_rollover"
+                  "Updates TL2 shared stash with items shown"
+                  (notifySave mes)
+    return btn ## "updatestashbutton"
+    --return txt #= "Update Stash"
     return btn
+
+
 

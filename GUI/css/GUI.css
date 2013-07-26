@@ -365,6 +365,21 @@ input[type=text] {
 	margin-left: auto;
 	margin-right: auto;
 	}
+
+/* Image Button stuff */
+.imgbuttontext {
+	color: white;
+	font: huge;
+	text-align: center;
+	top: 0px;
+}
+
+#updatestashbutton {
+	position: absolute;
+	top:350px;
+	left:200px;
+}
+
 	
 /* Overlay */
 #overlay {
