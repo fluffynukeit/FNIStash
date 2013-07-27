@@ -43,10 +43,10 @@ frontend messages = do
     frame <- new ## "frame" #+ underlay
     msgWindow <- controls messages frame
     msgList <- liftIO $ onlyBMessages messages
-    
+    (stash, updateTxt) <- stash messages
     forM_ msgList $ \x -> do
         case x of
-            Initializing AssetsComplete -> stash messages #+ frame # unit
+            Initializing AssetsComplete -> return stash #+ frame # unit
             Initializing Complete -> do
                 assignRandomBackground underlay
                 crossFade overlay underlay 350

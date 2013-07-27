@@ -94,9 +94,13 @@ stash mes = do
     newIcon "ig_merchant_menu_base" ## "sharedstash_img" #+ cont
     let gStack = tabbedGridStack mes 5 8 locTemplates
     gStack ## "sharedstash_stack" #+ cont
+
     batchArchiveButton mes #+ cont
+
+    (updateBtn, txt) <- updateStashButton mes
+    return updateBtn #+ cont
     
-    return cont
+    return (cont, txt)
 
 tabbedGridStack messages r c templates = do
     div <- new #. "tabbed_grid_stack"
@@ -246,13 +250,14 @@ appendArchiveRows m table summs = forM_ summs $ \(i@ItemSummary{..}) ->
     makeArchiveRow m i (locToId $ Archive summaryDbID) #+ table
 
 makeButton offImg overImg explanation clickAction = do
-    cont <- new #. "imgbutton"
-    btn <- newIcon offImg # set "title" explanation #. "imgbuttonicon"
-    onHover btn $ \_ -> setSrc overImg btn # unit
-    onBlur  btn $ \_ -> setSrc offImg btn # unit
-    onClick btn $ \_ -> liftIO $ clickAction
+    cont <- new #. "imgbutton" # set "title" explanation
+    btn <- newIcon offImg #. "imgbuttonicon"
+    onHover cont $ \_ -> setSrc overImg btn # unit
+    onBlur  cont $ \_ -> setSrc offImg btn # unit
+    onClick cont $ \_ -> liftIO $ clickAction
     text <- new #. "imgbuttontext"
     return btn #+ cont
+    return text #+ cont
     return (cont, text)
 
 
@@ -262,13 +267,13 @@ batchArchiveButton mes = do
                   (notifyBatchArchive mes)
     return btn ## "batcharchivebutton"
 
-updateStashBtn mes = do
+updateStashButton mes = do
     (btn, txt) <- makeButton "ig_abandon_button" "ig_abandon_button_rollover"
                   "Updates TL2 shared stash with items shown"
                   (notifySave mes)
     return btn ## "updatestashbutton"
-    --return txt #= "Update Stash"
-    return btn
+    return txt #= "Update Stash"
+    return (btn, txt)
 
 
 

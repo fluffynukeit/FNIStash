@@ -350,6 +350,8 @@ input[type=text] {
 	font-size: 1em;
 	display: inline-block;
 	width: 85%;
+	position: relative;
+	top:5px;
 }
 
 .searchlabel {
@@ -369,15 +371,18 @@ input[type=text] {
 /* Image Button stuff */
 .imgbuttontext {
 	color: white;
-	font: huge;
+	font-family: huge;
 	text-align: center;
-	top: 0px;
+	position: absolute;
+	font-size: 0.8em;
+	top: 0.8em;
+	width:100%;
 }
 
 #updatestashbutton {
 	position: absolute;
-	top:350px;
-	left:200px;
+	top:360px;
+	left:370px;
 }
 
 	
