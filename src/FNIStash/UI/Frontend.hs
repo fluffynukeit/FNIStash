@@ -12,6 +12,8 @@
 --
 -----------------------------------------------------------------------------
 
+{-# LANGUAGE RecordWildCards #-}
+
 module FNIStash.UI.Frontend (
    frontend,
    module Graphics.UI.Threepenny
@@ -28,6 +30,7 @@ import Graphics.UI.Threepenny.Browser
 import Control.Monad.Trans
 import Control.Monad
 import System.Random
+import Data.Time.LocalTime
 
 import Debug.Trace
 import Data.Maybe
@@ -70,13 +73,16 @@ setVisOfMatches matchList = do
     archRows <- getElementsById $ map (locToId . Archive . matchDbID) matchList
     let rowBool = zip archRows $ map matchFlag matchList
     forM_ rowBool $ \(e, d) -> setDisp d e # unit
-    
+
 noticeDisplay notice = do
+    zonedTime <- liftIO getZonedTime
+    let localTime = localTimeOfDay $ zonedTimeToLocalTime zonedTime
+        mkMsg = (++) (show (todHour localTime) ++ ":" ++ show (todMin localTime) ++ ": ") 
     msgDisp <- new #. "notice"
     case notice of
-        Error msg   -> new #. "error" #= msg #+ msgDisp # unit
-        Info msg    -> new #. "info" #= msg #+ msgDisp # unit
-        Saved path  -> new #. "saved" #= "Shared stash saved to " ++ path #+ msgDisp # unit
+        Error msg   -> new #. "error" #= mkMsg msg #+ msgDisp # unit
+        Info msg    -> new #. "info" #= mkMsg msg #+ msgDisp # unit
+        Saved path  -> new #. "saved" #= mkMsg ("Shared stash saved to " ++ path) #+ msgDisp # unit
     return msgDisp
 
 assignRandomBackground el = do

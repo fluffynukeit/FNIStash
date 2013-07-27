@@ -53,6 +53,7 @@ import qualified Data.Text as T
 import qualified Data.ByteString as BS
 import qualified Data.List as L
 
+
 ------ GENERAL STUFF
 
 -- Given a Translate instance and a sentence full of markup (like This item gives [VALUE] to strength")
@@ -226,8 +227,9 @@ decodeLocationBytes (Env {..}) (locBytes@LocationBytes {..})
 
 
 encodeLocationBytes :: Env -> Location -> LocationBytes
-encodeLocationBytes Env{..} Location{..} = 
-    let (Just slotID, Just contID) = lkupLocIDs locSlot locContainer
+encodeLocationBytes Env{..} loc@Location{..} = 
+    let
+        (Just slotID, Just contID) = lkupLocIDs locSlot locContainer
         slotIndex = (slotIDVal slotID + (fromIntegral locIndex))
     in LocationBytes slotIndex (containerIDVal contID)
 

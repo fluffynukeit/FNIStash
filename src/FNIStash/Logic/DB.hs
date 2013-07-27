@@ -307,8 +307,8 @@ insertItem (Env {..}) item@(Item {..}) trailDataID = do
     zonedTime <- getZonedTime
     let localTime = zonedTimeToLocalTime zonedTime
         (container, slot, position, status) = case iLocation of
-            Location a b c   -> (a,b, show c, Stashed)
-            InsertedInSocket -> ("SHARED_STASH_BAG_ARMS", "", "", Inserted) -- gems always go in Arms
+            Location a b c   -> (a,b, c, Stashed)
+            InsertedInSocket -> ("SHARED_STASH_BAG_ARMS", "BAG_ARMS_SLOT", 0, Inserted) -- gems always go in Arms
 
     ensureExists dbConn "ITEMS" [ ("RANDOM_ID", toSql iRandomID)
                                 , ("GUID", toSql $ iBaseGUID iBase)

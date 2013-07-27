@@ -17,9 +17,9 @@ form, input, h1, h2, button, label, a, img {
   -webkit-user-select: none;
   -khtml-user-select: none;
   -o-user-select: none;
-  /* this will work for QtWebKit in future */
+  /*this will work for QtWebKit in future
   -webkit-user-drag: none;
-  user-select: none;
+  user-select: none; */
 }
 
 input[type=text] {
