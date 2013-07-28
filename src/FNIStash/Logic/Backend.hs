@@ -15,9 +15,9 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module FNIStash.Logic.Backend (
-    ensurePaths,
-    backend
+module FNIStash.Logic.Backend
+    ( ensurePaths
+    , backend
 ) where
 
 import FNIStash.Logic.Initialize
@@ -25,6 +25,8 @@ import FNIStash.Comm.Messages
 import FNIStash.File.Crypto
 import FNIStash.File.SharedStash
 import FNIStash.Logic.DB
+import FNIStash.Logic.Env
+import FNIStash.File.Variables
 
 import Filesystem.Path
 import Filesystem.Path.CurrentOS
@@ -35,6 +37,7 @@ import Data.Either
 import Data.List.Split
 import Data.Binary.Put
 import qualified Data.List as L
+import qualified Data.Map as M
 
 import Debug.Trace
 
@@ -73,6 +76,8 @@ backend msg appRoot guiRoot = handle (sendErrIO msg) $ handleDB (sendErrDB msg) 
             dumpItemLocs msg env
             writeBMessage msg $ Initializing ArchiveDataStart
             dumpArchive env msg
+            writeBMessage msg $ Initializing ReportStart
+            dumpItemReport env msg
             writeBMessage msg $ Initializing Complete
             msgList <- liftIO $ onlyFMessages msg
             handleMessages env msg cryptoFile msgList
@@ -158,3 +163,20 @@ buildSaveFile env c ss =
         i = sharedStashToBS env ss
         newSaveFile = CryptoFile (fileVersion c) (fileDummy c) (0) (i) (0)
     in (itemErrors, newSaveFile)
+
+dumpItemReport env mes = do
+    guids <- allGUIDs env
+    let report = buildReport env guids
+    writeBMessage mes $ Initializing $ ReportData $ report
+
+buildReport :: Env -> [GUID] -> ItemsReport
+buildReport env@Env{..} guids =
+    let allGUIDs = M.keys allItems
+        notFoundItems = allGUIDs L.\\ guids
+        mkItemReport guid =
+            let i = lkupItemGUID guid
+                n = i >>= searchAncestryFor env vDISPLAYNAME
+                r = i >>= searchAncestryFor env vRARITY
+            in ItemReport n r
+        percFound = 100 * fromIntegral (length guids) / fromIntegral (length allGUIDs)
+    in ItemsReport (map mkItemReport notFoundItems) percFound

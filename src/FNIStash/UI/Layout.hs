@@ -23,6 +23,7 @@ module FNIStash.UI.Layout
 , withLocVals
 , populateArchiveTable
 , locToId
+, updateReport
 ) where
 
 import FNIStash.UI.Icon
@@ -99,6 +100,9 @@ stash mes = do
 
     (updateBtn, txt) <- updateStashButton mes
     return updateBtn #+ cont
+
+    report <- mkReport
+    return report #+ cont
     
     return (cont, txt)
 
@@ -275,5 +279,12 @@ updateStashButton mes = do
     return txt #= "Update Stash"
     return (btn, txt)
 
+mkReport = new ## "reportpercent"
 
+updateReport ItemsReport{..} = do
+    r <- getElementById "reportpercent"
+    case r of
+        Just a -> return a #= "Grail " ++ (take 5 $ show reportPercentFound) ++ "%" # unit
+        Nothing -> return ()
+    
 

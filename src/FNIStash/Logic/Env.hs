@@ -59,7 +59,7 @@ data Env = Env
     , lkupStat :: T.Text -> Maybe DATNode
     , lkupPath :: T.Text -> Maybe DATNode
     , lkupGraph :: T.Text -> Float -> Float
-    , totalItems :: Int
+    , allItems :: DATFiles GUID -- map of GUID to item nodes
     , dbConn :: Connection
     }
 
@@ -76,7 +76,7 @@ buildEnv pak conn =
     let effects = effectLookup pak
         skills = skillLookup pak
         (bytesToNodesFxn, nodesToBytesFxn) = locLookup pak
-        (itemsGUID, totalItems) = itemLookupGUID pak
+        (itemsGUID, allItemsMap) = itemLookupGUID pak
         byPath = lookupPath pak
         graph = graphLookup byPath
         affixes = affixLookup pak
@@ -85,14 +85,14 @@ buildEnv pak conn =
         stats = statLookup pak
     in  Env effects affixes skills monsters bytesToNodesFxn
             nodesToBytesFxn itemsGUID trigs stats byPath graph
-            totalItems conn
+            allItemsMap conn
 
 -- Each of the functions below returns a lookup function.  This is how we can keep the loaded PAK
 -- handy for repeated lookups since we cannot have a global.  The PAK stays on the stack.
 itemLookupGUID pak =
     let guidFinder = \x -> fromJust $ vUNIT_GUID x
         dat = readDATFiles pak "MEDIA/UNITS/ITEMS" guidFinder -- p is pak
-    in (\idInt64 -> lkupDATFile dat idInt64, M.size dat)
+    in (\idInt64 -> lkupDATFile dat idInt64, dat)
 
 lookupPath pak =
     let ffp p = T.replace "\\" "/" p -- fix file path

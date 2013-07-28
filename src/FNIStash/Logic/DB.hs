@@ -27,6 +27,7 @@ module FNIStash.Logic.DB
 , getSharedStashFromDb
 , locationChange
 , allLocationContents
+, allGUIDs
 , ItemClass(..)
 , ItemSummary(..)
 , ItemMatch(..)
@@ -165,6 +166,14 @@ allLocationContents (env@Env{..}) = do
 contToClass "SHARED_STASH_BAG_ARMS" = Arms
 contToClass "SHARED_STASH_BAG_CONSUMABLES" = Consumables
 contToClass "SHARED_STASH_BAG_SPELLS" = Spells
+
+allGUIDs :: Env -> IO [GUID]
+allGUIDs Env{..} =
+    let query = "select distinct GUID from ITEMS;"
+    in do
+        rows <- quickQuery' dbConn query []
+        return $ map mkGUID rows
+        where mkGUID row = GUID . fromSql $ row !! 0
 
 parseKeywords :: String -> Either ParseError [String]
 parseKeywords (deblank -> s) = parse keywordParser "" s
@@ -435,3 +444,4 @@ queryToStash  = "update ITEMS set CONTAINER=?, POSITION=?, STATUS=? \
 queryToArchive = "update ITEMS set STATUS=? " ++ whereContPosStat
 
 whereContPosStat = " where CONTAINER=? and POSITION=? and STATUS=?;"
+

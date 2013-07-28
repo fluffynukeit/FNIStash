@@ -26,6 +26,7 @@ module FNIStash.File.DAT
     , lkupDATFile
     , DATNode(..)
     , VarID
+    , DATFiles
     ) where
 
 -- This file defines parsing functions for reading TL2's DAT file format.  One thing that might

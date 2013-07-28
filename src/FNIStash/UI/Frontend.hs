@@ -54,6 +54,7 @@ frontend messages = do
                 assignRandomBackground underlay
                 crossFade overlay underlay 350
             Initializing (ArchiveData summs) -> populateArchiveTable messages summs
+            Initializing (ReportData iReport)-> updateReport iReport 
                 
             Initializing x                -> handleInit x overlayMsg
                 
@@ -102,4 +103,5 @@ handleInit RegisterStart = initMsg "Registering new items..."
 handleInit Complete = initMsg "Startup complete."
 handleInit (InitError s) = initMsg s
 handleInit ArchiveDataStart = initMsg "Retrieving archived items..."
+handleInit ReportStart = initMsg "Building item report..."
 handleInit _        = initMsg "Unknown initialization event!"

@@ -385,6 +385,14 @@ input[type=text] {
 	left:370px;
 }
 
+#reportpercent {
+	position: absolute;
+	top:410px;
+	left:365px;
+	font-family:huge;
+	font-size:1em;
+	color: white;
+}
 	
 /* Overlay */
 #overlay {

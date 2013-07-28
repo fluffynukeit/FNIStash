@@ -23,6 +23,8 @@ module FNIStash.Comm.Messages
 , ItemClass(..)
 , ItemMatch(..)
 , ItemStatus(..)
+, ItemsReport(..)
+, ItemReport(..)
 , newMessages
 , onlyFMessages
 , onlyBMessages
@@ -34,6 +36,15 @@ import Control.Concurrent
 import FNIStash.Logic.Item
 import FNIStash.Logic.DB
 import Graphics.UI.Threepenny
+
+data ItemsReport = ItemsReport
+    { reportMissingItems :: [ItemReport]
+    , reportPercentFound :: Float
+    }
+data ItemReport = ItemReport
+    { reportName :: Maybe String
+    , reportRarity :: Maybe Int
+    } deriving (Eq, Ord, Show)
 
 data BMessage = Initializing InitEvent
               | LocationContents [(Location, Maybe Item)]
@@ -51,6 +62,8 @@ data InitEvent = CfgStart
                | InitError String
                | ArchiveDataStart
                | ArchiveData [ItemSummary]
+               | ReportStart
+               | ReportData ItemsReport
 
 data Notice = Error String
             | Info String
