@@ -176,7 +176,7 @@ writeAssetFile assetPath lkupPath dataBS =
 guiAssets = (fmap ("MEDIA/UI/ICONS/" <>) ["ARMOR", "FISH", "GEMS", "JEWELRY", "MISC",
                                           "POTIONS", "QUESTITEMS", "WEAPONS", "SPELLS"])
             <>
-            (fmap ("MEDIA/UI/HUD/INGAMETEXTURESHEETS" <>) ["", "2", "5", "6"])
+            (fmap ("MEDIA/UI/HUD/INGAMETEXTURESHEETS" <>) [""]) -- this captures all ingametexturesheets
             <>
             ["MEDIA/UI/LOADING"]
             <>

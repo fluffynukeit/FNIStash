@@ -40,6 +40,8 @@ import Graphics.UI.Threepenny
 data ItemsReport = ItemsReport
     { reportMissingItems :: [ItemReport]
     , reportPercentFound :: Float
+    , reportGUIDsRegistered :: Int
+    , reportGUIDsAllItems :: Int
     }
 data ItemReport = ItemReport
     { reportName :: Maybe String

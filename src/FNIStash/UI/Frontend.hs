@@ -46,7 +46,7 @@ frontend messages = do
     frame <- new ## "frame" #+ underlay
     msgWindow <- controls messages frame
     msgList <- liftIO $ onlyBMessages messages
-    (stash, updateTxt, grailTxt) <- stash messages
+    (stash, updateTxt) <- stash messages
     forM_ msgList $ \x -> do
         case x of
             Initializing AssetsComplete -> return stash #+ frame # unit
@@ -54,7 +54,7 @@ frontend messages = do
                 assignRandomBackground underlay
                 crossFade overlay underlay 350
             Initializing (ArchiveData summs) -> populateArchiveTable messages summs
-            Initializing (ReportData iReport)-> updateReport grailTxt iReport 
+            Initializing (ReportData iReport)-> mkReport stash iReport 
                 
             Initializing x                -> handleInit x overlayMsg
                 

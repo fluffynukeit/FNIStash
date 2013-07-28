@@ -81,7 +81,7 @@ input[type=text] {
 #batcharchivebutton {
 	position:absolute;
 	left:238px;
-	top:400px;
+	top:405px;
 }
 	
 /* General layout */
@@ -393,7 +393,56 @@ input[type=text] {
 	font-size:1em;
 	color: white;
 }
+
+#reportclosebutton{
+	position: absolute;
+	top:20px;
+	left:385px;
+}
+
+#reportoverlay {
+	position: absolute;
+	top: 50px;
+	color: white;
+	z-index: 200;
+	left: 0%;
+	width: 100%;
+	text-align: center;
+}
+
+#report_img {
+	transform:rotate(180deg);
+	-ms-transform:rotate(180deg); /* IE 9 */
+	-webkit-transform:rotate(180deg); /* Safari and Chrome */
+	max-width:400px;
+	height: auto;
+}
+
+#reporttitle {
+	position: absolute;
+	top: 25px;
+	left: 80px;
+	font-size: 1.2em;
+	font-family: huge;
+	}
+#reportpercent {
+	position: absolute;
+	top: 45px;
+	left: 80px;
+	font-size: 1.2em;
+}
 	
+#reportsum1 {
+	position:absolute;
+	top: 85px;
+	left: 80px;
+}
+#reportsum2 {
+	position:absolute;
+	top: 105px;
+	left: 80px;
+}
+
 /* Overlay */
 #overlay {
 	position: absolute;

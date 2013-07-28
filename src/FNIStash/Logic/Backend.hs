@@ -172,6 +172,8 @@ dumpItemReport env mes = do
 buildReport :: Env -> [GUID] -> ItemsReport
 buildReport env@Env{..} guids =
     let allGUIDs = M.keys allItems
+        distinctGUIDs = length guids
+        numAllGUIDs = length allGUIDs
         notFoundItems = allGUIDs L.\\ guids
         mkItemReport guid =
             let i = lkupItemGUID guid
@@ -179,4 +181,4 @@ buildReport env@Env{..} guids =
                 r = i >>= searchAncestryFor env vRARITY
             in ItemReport n r
         percFound = 100 * fromIntegral (length guids) / fromIntegral (length allGUIDs)
-    in ItemsReport (map mkItemReport notFoundItems) percFound
+    in ItemsReport (map mkItemReport notFoundItems) percFound distinctGUIDs numAllGUIDs

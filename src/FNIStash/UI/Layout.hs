@@ -23,7 +23,7 @@ module FNIStash.UI.Layout
 , withLocVals
 , populateArchiveTable
 , locToId
-, updateReport
+, mkReport
 ) where
 
 import FNIStash.UI.Icon
@@ -100,11 +100,8 @@ stash mes = do
 
     (updateBtn, txt) <- updateStashButton mes
     return updateBtn #+ cont
-
-    (report, repTxt) <- mkReport
-    return report #+ cont
     
-    return (cont, txt, repTxt)
+    return (cont, txt)
 
 tabbedGridStack messages r c templates = do
     div <- new #. "tabbed_grid_stack"
@@ -223,8 +220,6 @@ notifyBatchArchive mes =
         moveCommands = zip allLocations $ repeat (Archive (-1))
     in writeFMessage mes $ Move moveCommands
 
-showReport = return ()
-
 
 withLocVals locValList actionOfElValId = do
     let locs = map fst locValList
@@ -261,7 +256,7 @@ makeButton offImg overImg explanation clickAction = do
     btn <- newIcon offImg #. "imgbuttonicon"
     onHover cont $ \_ -> setSrc overImg btn # unit
     onBlur  cont $ \_ -> setSrc offImg btn # unit
-    onClick cont $ \_ -> liftIO $ clickAction
+    onClick cont $ \_ -> clickAction
     text <- new #. "imgbuttontext"
     return btn #+ cont
     return text #+ cont
@@ -271,7 +266,7 @@ makeButton offImg overImg explanation clickAction = do
 batchArchiveButton mes = do
     (btn, txt) <- makeButton "arrow_down" "arrow_down_highlight"
                   "Archive all"
-                  (notifyBatchArchive mes)
+                  (liftIO $ notifyBatchArchive mes)
     return btn ## "batcharchivebutton"
 
 makeRedButton = makeButton "ig_abandon_button" "ig_abandon_button_rollover"
@@ -279,17 +274,31 @@ makeRedButton = makeButton "ig_abandon_button" "ig_abandon_button_rollover"
 updateStashButton mes = do
     (btn, txt) <- makeRedButton
                   "Updates TL2 shared stash with items shown"
-                  (notifySave mes)
+                  (liftIO $ notifySave mes)
     return btn ## "updatestashbutton"
     return txt #= "Update Stash"
     return (btn, txt)
 
-mkReport = do
-    (btn, txt) <- makeRedButton "Shows progress of finding all items" showReport
-    return btn ## "reportbutton"
-    return (btn, txt)
 
-updateReport a ItemsReport{..} =
-    return a #= "Grail: " ++ (take 5 $ show reportPercentFound) ++ "%" # unit
+mkReport stash ItemsReport{..} = do
     
+    -- Build the report overlay
+    cont <- new ## "reportoverlay" # setVis False
+    newIcon "ig_generic_menu_base" ## "report_img" #+ cont
+    (closeBtn, _) <- makeButton "ig_close_button" "ig_close_button_rollover"
+        "Closes grail report" (setVis False cont # unit)
+    return closeBtn ## "reportclosebutton" #+ cont
+    new ## "reporttitle" #= "Grail Achievement Report" #+ cont
+    new ## "reportpercent" #= (take 6 $ show reportPercentFound) ++ "% complete" #+ cont
+    new ## "reportsum1" #= "Distrinct items registered: " ++ show reportGUIDsRegistered #+ cont
+    new ## "reportsum2" #= "Total items in Torchlight 2: " ++ show reportGUIDsAllItems #+ cont
 
+    return cont #+ stash
+
+    -- make the report button
+    (btn, txt) <- makeRedButton "Shows progress of finding all items" (setVis True cont # unit)
+    return btn ## "reportbutton"
+    return btn #+ stash
+    return txt #= "Grail: " ++ (take 5 $ show reportPercentFound) ++ "%" # unit
+
+    
