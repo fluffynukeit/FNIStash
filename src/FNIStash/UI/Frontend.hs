@@ -46,7 +46,7 @@ frontend messages = do
     frame <- new ## "frame" #+ underlay
     msgWindow <- controls messages frame
     msgList <- liftIO $ onlyBMessages messages
-    (stash, updateTxt) <- stash messages
+    (stash, updateTxt, grailTxt) <- stash messages
     forM_ msgList $ \x -> do
         case x of
             Initializing AssetsComplete -> return stash #+ frame # unit
@@ -54,7 +54,7 @@ frontend messages = do
                 assignRandomBackground underlay
                 crossFade overlay underlay 350
             Initializing (ArchiveData summs) -> populateArchiveTable messages summs
-            Initializing (ReportData iReport)-> updateReport iReport 
+            Initializing (ReportData iReport)-> updateReport grailTxt iReport 
                 
             Initializing x                -> handleInit x overlayMsg
                 
@@ -78,7 +78,8 @@ setVisOfMatches matchList = do
 noticeDisplay notice = do
     zonedTime <- liftIO getZonedTime
     let localTime = localTimeOfDay $ zonedTimeToLocalTime zonedTime
-        mkMsg = (++) (show (todHour localTime) ++ ":" ++ show (todMin localTime) ++ ": ") 
+        mkMsg = (++) (pp0 (todHour localTime) ++ ":" ++ pp0 (todMin localTime) ++ ": ")
+        pp0 a = let t = show a in if length t >= 2 then t else "0"++t
     msgDisp <- new #. "notice"
     case notice of
         Error msg   -> new #. "error" #= mkMsg msg #+ msgDisp # unit

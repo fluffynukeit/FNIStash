@@ -101,10 +101,10 @@ stash mes = do
     (updateBtn, txt) <- updateStashButton mes
     return updateBtn #+ cont
 
-    report <- mkReport
+    (report, repTxt) <- mkReport
     return report #+ cont
     
-    return (cont, txt)
+    return (cont, txt, repTxt)
 
 tabbedGridStack messages r c templates = do
     div <- new #. "tabbed_grid_stack"
@@ -223,6 +223,9 @@ notifyBatchArchive mes =
         moveCommands = zip allLocations $ repeat (Archive (-1))
     in writeFMessage mes $ Move moveCommands
 
+showReport = return ()
+
+
 withLocVals locValList actionOfElValId = do
     let locs = map fst locValList
         ids = map locToId locs
@@ -271,20 +274,22 @@ batchArchiveButton mes = do
                   (notifyBatchArchive mes)
     return btn ## "batcharchivebutton"
 
+makeRedButton = makeButton "ig_abandon_button" "ig_abandon_button_rollover"
+
 updateStashButton mes = do
-    (btn, txt) <- makeButton "ig_abandon_button" "ig_abandon_button_rollover"
+    (btn, txt) <- makeRedButton
                   "Updates TL2 shared stash with items shown"
                   (notifySave mes)
     return btn ## "updatestashbutton"
     return txt #= "Update Stash"
     return (btn, txt)
 
-mkReport = new ## "reportpercent"
+mkReport = do
+    (btn, txt) <- makeRedButton "Shows progress of finding all items" showReport
+    return btn ## "reportbutton"
+    return (btn, txt)
 
-updateReport ItemsReport{..} = do
-    r <- getElementById "reportpercent"
-    case r of
-        Just a -> return a #= "Grail " ++ (take 5 $ show reportPercentFound) ++ "%" # unit
-        Nothing -> return ()
+updateReport a ItemsReport{..} =
+    return a #= "Grail: " ++ (take 5 $ show reportPercentFound) ++ "%" # unit
     
 

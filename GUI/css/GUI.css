@@ -119,7 +119,7 @@ input[type=text] {
     }
 
 .archive {
-    top: 360px;
+    top: 365px;
 	left: 37px;
 	position: absolute;
 	width:400px;
@@ -381,14 +381,14 @@ input[type=text] {
 
 #updatestashbutton {
 	position: absolute;
-	top:360px;
-	left:370px;
+	top:357px;
+	left:40px;
 }
 
-#reportpercent {
+#reportbutton {
 	position: absolute;
-	top:410px;
-	left:365px;
+	top:405px;
+	left:350px;
 	font-family:huge;
 	font-size:1em;
 	color: white;
