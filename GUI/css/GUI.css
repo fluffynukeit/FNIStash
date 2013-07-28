@@ -439,9 +439,44 @@ input[type=text] {
 }
 #reportsum2 {
 	position:absolute;
-	top: 105px;
+	top: 100px;
 	left: 80px;
 }
+
+#reportsum3 {
+	position:absolute;
+	top: 125px;
+	left: 80px;
+}
+
+#reportlist {
+	height: 350px;
+	overflow-y: scroll;
+	position:absolute;
+	top:170px;
+	left:85px;
+	width:355px;
+}
+.reportname {
+	left: 80px;
+	float:left;
+	width:160px;
+	text-align: left;
+	}
+.reportrarity {
+	float: right;
+	width: 80px;
+	}
+
+#reportnameheader {
+	top: 150px;
+	position: absolute;
+	}
+#reportrarityheader {
+	top: 150px;
+	position: absolute;
+	left: 340px;
+	}
 
 /* Overlay */
 #overlay {

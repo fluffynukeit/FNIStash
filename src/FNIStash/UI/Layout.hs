@@ -292,7 +292,15 @@ mkReport stash ItemsReport{..} = do
     new ## "reportpercent" #= (take 6 $ show reportPercentFound) ++ "% complete" #+ cont
     new ## "reportsum1" #= "Distrinct items registered: " ++ show reportGUIDsRegistered #+ cont
     new ## "reportsum2" #= "Total items in Torchlight 2: " ++ show reportGUIDsAllItems #+ cont
+    new ## "reportsum3" #= "Remaining items to find are listed below." #+ cont
+    new #. "reportname" ## "reportnameheader" #= "Item name" #+ cont
+    new #. "reportrarity" ## "reportrarityheader" #= "Rarity" #+ cont
+    listCont <- new ## "reportlist" #+ cont
+    forM_ (take 100 reportMissingItems) $ \ItemReport{..} -> do
+        new #. "reportname" #= maybe "Uknown name" id reportName #+ listCont
+        new #. "reportrarity" #= maybe "Unknown rarity" show reportRarity #+ listCont
 
+    return listCont #+ cont
     return cont #+ stash
 
     -- make the report button

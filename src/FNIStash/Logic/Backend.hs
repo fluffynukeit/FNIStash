@@ -181,4 +181,13 @@ buildReport env@Env{..} guids =
                 r = i >>= searchAncestryFor env vRARITY
             in ItemReport n r
         percFound = 100 * fromIntegral (length guids) / fromIntegral (length allGUIDs)
-    in ItemsReport (map mkItemReport notFoundItems) percFound distinctGUIDs numAllGUIDs
+    in ItemsReport
+        (L.sortBy rarityDesc $ map mkItemReport notFoundItems)
+        percFound
+        distinctGUIDs
+        numAllGUIDs
+
+rarityDesc (reportRarity -> a) (reportRarity -> b)
+    | a < b  = GT
+    | a > b  = LT
+    | a == b = EQ
