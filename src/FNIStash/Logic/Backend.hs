@@ -173,21 +173,28 @@ buildReport :: Env -> [GUID] -> ItemsReport
 buildReport env@Env{..} guids =
     let allGUIDs = M.keys allItems
         distinctGUIDs = length guids
-        numAllGUIDs = length allGUIDs
-        notFoundItems = allGUIDs L.\\ guids
         mkItemReport guid =
             let i = lkupItemGUID guid
                 n = i >>= searchAncestryFor env vDISPLAYNAME
                 r = i >>= searchAncestryFor env vRARITY
-            in ItemReport n r
-        percFound = 100 * fromIntegral (length guids) / fromIntegral (length allGUIDs)
+                l = i >>= searchAncestryFor env vLEVEL
+                q = maybe NormalQ id (i >>= searchAncestryFor env vITEMUNITTYPE >>= return . uQuality)
+                dropFlag = maybe True id (i >>= vDONTCREATE >>= return . not)
+                creatable = case (r, dropFlag) of
+                    (Just rar, f) -> rar > 0 && f && q /= QuestQ && q /= LevelQ
+                    _             -> False
+            in ItemReport guid n r l creatable
+        reportAllItems = map mkItemReport allGUIDs
+        reportAllCreatables = filter reportCreatable reportAllItems
+        itemsToFind = filter (\rep -> reportGUID rep `notElem` guids) reportAllCreatables
+        percFound = 100 * fromIntegral (length guids) / fromIntegral (length reportAllCreatables)
     in ItemsReport
-        (L.sortBy rarityDesc $ map mkItemReport notFoundItems)
+        (L.sortBy rarityDesc $ itemsToFind)
         percFound
         distinctGUIDs
-        numAllGUIDs
+        (length reportAllCreatables)
 
-rarityDesc (reportRarity -> a) (reportRarity -> b)
-    | a < b  = GT
-    | a > b  = LT
-    | a == b = EQ
+rarityDesc a b
+    | reportRarity a < reportRarity b  = GT
+    | reportRarity a > reportRarity b  = LT
+    | reportRarity a == reportRarity b = reportName a `compare` reportName b

@@ -292,13 +292,22 @@ mkReport stash ItemsReport{..} = do
     new ## "reportpercent" #= (take 6 $ show reportPercentFound) ++ "% complete" #+ cont
     new ## "reportsum1" #= "Distrinct items registered: " ++ show reportGUIDsRegistered #+ cont
     new ## "reportsum2" #= "Total items in Torchlight 2: " ++ show reportGUIDsAllItems #+ cont
-    new ## "reportsum3" #= "Remaining items to find are listed below." #+ cont
-    new #. "reportname" ## "reportnameheader" #= "Item name" #+ cont
-    new #. "reportrarity" ## "reportrarityheader" #= "Rarity" #+ cont
+    new ## "reportsum3" #= "Remaining items to find are listed below, most common first." #+ cont
+
+    hdr <- new ## "reportlistheader" #. "reporttable" #+ cont
+    hdrRow <- new #. "reportrow" #+ hdr
+    new #. "reportcell reportname reportheader" #= "Item Name" #+ hdrRow
+    new #. "reportcell reportlevel reportheader" #= "Level" #+ hdrRow
+    new #. "reportcell reportrarity reportheader" #= "Rarity" #+ hdrRow
+
     listCont <- new ## "reportlist" #+ cont
-    forM_ (take 100 reportMissingItems) $ \ItemReport{..} -> do
-        new #. "reportname" #= maybe "Uknown name" id reportName #+ listCont
-        new #. "reportrarity" #= maybe "Unknown rarity" show reportRarity #+ listCont
+    tableCont <- new #. "reporttable" #+ listCont
+    forM_ (reportMissingItems) $ \ItemReport{..} -> do
+        reportRow <- new #. "reportrow"
+        new #. "reportcell reportname" #= maybe "Unk. name" id reportName #+ reportRow
+        new #. "reportcell reportlevel" #= maybe "N/A" show reportLevel #+ reportRow
+        new #. "reportcell reportrarity" #= maybe "N/A" show reportRarity #+ reportRow
+        return reportRow #+ tableCont
 
     return listCont #+ cont
     return cont #+ stash

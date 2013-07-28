@@ -457,25 +457,38 @@ input[type=text] {
 	left:85px;
 	width:355px;
 }
-.reportname {
-	left: 80px;
-	float:left;
-	width:160px;
+
+#reportlistheader{
+	position: absolute;
+	top:152px;
+	left:85px;
+}
+
+.reportheader {
+	text-decoration:underline;
+}
+
+.reporttable {
+	display: table;
+}
+
+.reportrow {
+	display: table-row;
+	}
+.reportcell {
+	display: table-cell;
+	background-color: none;
+	border-style: none;
 	text-align: left;
+    }
+.reportname {
+	width:230px;
+	}
+.reportlevel {
+	width: 50px;
 	}
 .reportrarity {
-	float: right;
-	width: 80px;
-	}
-
-#reportnameheader {
-	top: 150px;
-	position: absolute;
-	}
-#reportrarityheader {
-	top: 150px;
-	position: absolute;
-	left: 340px;
+	width: 50px;
 	}
 
 /* Overlay */

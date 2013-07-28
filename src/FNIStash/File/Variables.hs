@@ -88,6 +88,7 @@ vMAGIC_REQUIRED d = grab 0x7bfed9d5 d >>= intVar >>= check0 >>= return . (StatRe
 vDEFENSE_REQUIRED d = grab 0xad0c2391 d >>= intVar >>= check0 >>= return . (StatReq Vitality)
 
 vLEVEL_REQUIRED d = grab 0x791e689d d >>= intVar
+vLEVEL d = grab 0xecd0e30e d >>= intVar
 
 vREQ_CLASS d = search 0x0f7e16fa d >>= vUNITTYPE
 
@@ -134,7 +135,7 @@ vSPECIAL_DMG_MOD  = getMod 0x29bff2ee
 
 -- Unit type stuff
 
-data Quality = NormalQ | MagicQ | UniqueQ | LegendaryQ | NoneQ deriving (Eq, Ord)
+data Quality = NormalQ | MagicQ | UniqueQ | LegendaryQ | QuestQ | LevelQ | NoneQ deriving (Eq, Ord)
 
 data UnitType = UnitType
     { uQuality :: Quality
@@ -152,9 +153,14 @@ parseType typeString =
             "MAGIC"     -> MagicQ
             "LEGENDARY" -> LegendaryQ
             "UNIQUE"    -> UniqueQ
+            "QUESTITEM" -> QuestQ
+            "LEVEL"     -> LevelQ
             _           -> NoneQ
         itemType = if quality == NoneQ then concat pieces else concat $ tail pieces
     in UnitType quality itemType
+
+-- Special flags
+vDONTCREATE d = grab 0xa0432383 d >>= boolVar
 
 
 -- Lookup for gem effects (some might be extraneous)

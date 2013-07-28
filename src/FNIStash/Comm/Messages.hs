@@ -35,6 +35,7 @@ module FNIStash.Comm.Messages
 import Control.Concurrent
 import FNIStash.Logic.Item
 import FNIStash.Logic.DB
+import FNIStash.File.Variables
 import Graphics.UI.Threepenny
 
 data ItemsReport = ItemsReport
@@ -44,9 +45,12 @@ data ItemsReport = ItemsReport
     , reportGUIDsAllItems :: Int
     }
 data ItemReport = ItemReport
-    { reportName :: Maybe String
+    { reportGUID :: GUID
+    , reportName :: Maybe String
     , reportRarity :: Maybe Int
-    } deriving (Eq, Ord, Show)
+    , reportLevel :: Maybe Int
+    , reportCreatable :: Bool
+    } 
 
 data BMessage = Initializing InitEvent
               | LocationContents [(Location, Maybe Item)]
