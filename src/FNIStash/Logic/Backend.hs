@@ -197,4 +197,7 @@ buildReport env@Env{..} guids =
 rarityDesc a b
     | reportRarity a < reportRarity b  = GT
     | reportRarity a > reportRarity b  = LT
-    | reportRarity a == reportRarity b = reportName a `compare` reportName b
+    | reportRarity a == reportRarity b = case reportName a `compare` reportName b of
+        LT -> LT
+        GT -> GT
+        EQ -> reportLevel a `compare` reportLevel b

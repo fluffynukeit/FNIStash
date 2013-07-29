@@ -220,15 +220,14 @@ type DATFiles a = M.Map a  DATNode
 -- key of type a and it's associated DAT file.  So for instance, we can look the DAT
 -- file for an item based on the GUID contained in that DAT file.  The text parameter
 -- is used to restrict the path so that only DAT files are encountered.
-readDATFiles :: Ord a => PAKFiles -> T.Text -> (DATNode -> a) -> DATFiles a
+readDATFiles :: Ord a => PAKFiles -> T.Text -> (DATNode -> Maybe a) -> DATFiles a
 readDATFiles pak pathSubStr keyFxn =
     let matchingKeyMap = pakWithKeysContaining pathSubStr pak
         newPair (oldKey,_) =
             let newVal = runGetSuppress getDAT $ maybe SBS.empty id $ lkupPAKFile oldKey pak
-                newKey = keyFxn newVal
-            in (newKey, newVal)
+            in keyFxn newVal >>= \newKey -> return (newKey, newVal)
         datExt (oldKey, _) = T.isInfixOf ".DAT" oldKey
-    in M.fromList $ map newPair $ filter datExt $ M.toList matchingKeyMap
+    in M.fromList $ catMaybes $ map newPair $ filter datExt $ M.toList matchingKeyMap
 
 lkupDATFile :: Ord a => DATFiles a -> a -> Maybe DATNode
 lkupDATFile d k = M.lookup k d

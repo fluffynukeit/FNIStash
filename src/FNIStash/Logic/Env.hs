@@ -90,7 +90,7 @@ buildEnv pak conn =
 -- Each of the functions below returns a lookup function.  This is how we can keep the loaded PAK
 -- handy for repeated lookups since we cannot have a global.  The PAK stays on the stack.
 itemLookupGUID pak =
-    let guidFinder = \x -> fromJust $ vUNIT_GUID x
+    let guidFinder = \x -> vUNIT_GUID x
         dat = readDATFiles pak "MEDIA/UNITS/ITEMS" guidFinder -- p is pak
     in (\idInt64 -> lkupDATFile dat idInt64, dat)
 
@@ -110,7 +110,7 @@ effectLookup pak =
 
 -- Given a prefix path, makes a lookup table of pak files with NAME as lookup key
 makeLookupByName path pak =
-    let nameFinder = \x -> fromJust $ vNAME x >>= return . T.toUpper
+    let nameFinder = \x -> vNAME x >>= return . T.toUpper
         dat = readDATFiles pak path nameFinder
     in (\name -> lkupDATFile dat $ T.toUpper name)
 
@@ -139,13 +139,13 @@ locLookup pak =
     -- algorithm to the new organizational scheme
     let invenSlotFiles = M.filterWithKey (\k _ -> T.isInfixOf "MEDIA/INVENTORY" k && not (T.isInfixOf "MEDIA/INVENTORY/CONTAINERS" k)) pak
         getName = vNAME
-        slotsDatFiles = readDATFiles invenSlotFiles "MEDIA/INVENTORY" (fromJust . getName)
+        slotsDatFiles = readDATFiles invenSlotFiles "MEDIA/INVENTORY" getName
         allSlotTypesList = M.elems slotsDatFiles
         -- allSlotTypeList is a list of all Dat files for slots.  SlotDatFiles is a map of slot name
         -- to Dat file
 
         -- containers is a map of container ID to DATNode for the container
-        containers = readDATFiles pak "MEDIA/INVENTORY/CONTAINERS" (fromJust . vContainerID)
+        containers = readDATFiles pak "MEDIA/INVENTORY/CONTAINERS" vContainerID
 
         -- make a search function for finding the slot type with unique ID closest but no greater
         -- than the locBytes Word16

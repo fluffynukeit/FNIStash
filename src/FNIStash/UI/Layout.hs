@@ -290,7 +290,7 @@ mkReport stash ItemsReport{..} = do
     return closeBtn ## "reportclosebutton" #+ cont
     new ## "reporttitle" #= "Grail Achievement Report" #+ cont
     new ## "reportpercent" #= (take 6 $ show reportPercentFound) ++ "% complete" #+ cont
-    new ## "reportsum1" #= "Distrinct items registered: " ++ show reportGUIDsRegistered #+ cont
+    new ## "reportsum1" #= "Distinct items registered: " ++ show reportGUIDsRegistered #+ cont
     new ## "reportsum2" #= "Total items in Torchlight 2: " ++ show reportGUIDsAllItems #+ cont
     new ## "reportsum3" #= "Remaining items to find are listed below, most common first." #+ cont
 
