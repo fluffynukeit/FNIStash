@@ -104,5 +104,5 @@ handleInit RegisterStart = initMsg "Registering new items..."
 handleInit Complete = initMsg "Startup complete."
 handleInit (InitError s) = initMsg s
 handleInit ArchiveDataStart = initMsg "Retrieving archived items..."
-handleInit ReportStart = initMsg "Building item report..."
+handleInit ReportStart = initMsg "Building grail report..."
 handleInit _        = initMsg "Unknown initialization event!"

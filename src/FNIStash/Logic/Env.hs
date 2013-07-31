@@ -59,6 +59,7 @@ data Env = Env
     , lkupStat :: T.Text -> Maybe DATNode
     , lkupPath :: T.Text -> Maybe DATNode
     , lkupGraph :: T.Text -> Float -> Float
+    , lkupSpawnClass :: T.Text -> Maybe DATNode -- map of spawnclass object's UNIT variable to the spawnclass itself
     , allItems :: DATFiles GUID -- map of GUID to item nodes
     , dbConn :: Connection
     }
@@ -83,8 +84,10 @@ buildEnv pak conn =
         monsters = monsterLookup pak
         trigs = triggerableLookup pak
         stats = statLookup pak
+        spawn = spawnclassLookup pak
     in  Env effects affixes skills monsters bytesToNodesFxn
             nodesToBytesFxn itemsGUID trigs stats byPath graph
+            spawn
             allItemsMap conn
 
 -- Each of the functions below returns a lookup function.  This is how we can keep the loaded PAK
@@ -115,10 +118,15 @@ makeLookupByName path pak =
     in (\name -> lkupDATFile dat $ T.toUpper name)
 
 affixLookup = makeLookupByName "MEDIA/AFFIXES/ITEMS"
-
 skillLookup = makeLookupByName "MEDIA/SKILLS/"
-
 monsterLookup = makeLookupByName "MEDIA/UNITS/MONSTERS/PETS/"
+
+spawnclassLookup pak =
+    let unitFinder node = searchNodeTreeWith (isJust . vUNIT) node
+                          >>= vUNIT >>= return . T.toUpper
+        dat = readDATFiles pak "MEDIA/SPAWNCLASSES" unitFinder
+    in (\unitName -> let k = lkupDATFile dat $ T.toUpper unitName
+                     in  k)
 
 priceIsRightSearch :: LocationBytes -> (DATNode -> SlotID) -> [DATNode] -> DATNode
 --priceIsRightSearch realPrice [] = who knows

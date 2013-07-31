@@ -19,6 +19,7 @@ import FNIStash.File.DAT
 import Data.Endian
 import Data.Word
 import Data.Int
+import Data.Maybe
 import qualified Data.List.Utils as L
 
 -- This file defines values for different VariableID's that are useful
@@ -159,9 +160,11 @@ parseType typeString =
         itemType = if quality == NoneQ then concat pieces else concat $ tail pieces
     in UnitType quality itemType
 
--- Special flags
+-- Special variables for items report
 vDONTCREATE d = grab 0xa0432383 d >>= boolVar
-
+vUNIT d = grab 0x74b16b00 d >>= textVar
+vRARITY_OVERRIDE d = grab 0xaf3dd30a d >>= intVar
+nRARITY_ORIDE_NODE = searchNodeTreeWith (isJust . vRARITY_OVERRIDE)
 
 -- Lookup for gem effects (some might be extraneous)
 nAFFIXES = search 0xdbe845c8

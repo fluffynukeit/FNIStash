@@ -33,6 +33,7 @@ import Filesystem.Path.CurrentOS
 import Control.Monad.Trans
 import Control.Monad
 import Control.Exception
+import Control.Applicative
 import Data.Either
 import Data.List.Split
 import Data.Binary.Put
@@ -175,13 +176,15 @@ buildReport env@Env{..} guids =
         distinctGUIDs = length guids
         mkItemReport guid =
             let i = lkupItemGUID guid
+                trueName = i >>= vNAME
                 n = i >>= searchAncestryFor env vDISPLAYNAME
-                r = i >>= searchAncestryFor env vRARITY
+                r = (i >>= searchAncestryFor env vRARITY >>= \k -> if k == 0 then Nothing else Just k)
+                    <|> (trueName >>= lkupSpawnClass >>= nRARITY_ORIDE_NODE >>= vRARITY_OVERRIDE)
                 l = i >>= searchAncestryFor env vLEVEL
                 q = maybe NormalQ id (i >>= searchAncestryFor env vITEMUNITTYPE >>= return . uQuality)
                 dropFlag = maybe True id (i >>= vDONTCREATE >>= return . not)
                 creatable = case (r, dropFlag) of
-                    (Just rar, f) -> rar > 0 && f && q /= QuestQ && q /= LevelQ
+                    (Just rar, f) -> f && q /= QuestQ && q /= LevelQ
                     _             -> False
             in ItemReport guid n r l creatable
         reportAllItems = map mkItemReport allGUIDs
