@@ -58,11 +58,17 @@ frontend messages = do
                 
             Initializing x                -> handleInit x overlayMsg
                 
-            LocationContents locItemsList -> withLocVals locItemsList updateCell
-            Notice notice                 -> noticeDisplay notice # addTo msgWindow >> scrollToBottom msgWindow
+            LocationContents locItemsList -> do
+                withLocVals locItemsList updateCell
+                updateButtonSaved False updateTxt >> return ()
+
+            Notice notice@(Saved msg)     -> addNotice notice msgWindow >> updateButtonSaved True updateTxt >> return () 
+            Notice notice                 -> addNotice notice msgWindow
             Visibility idStatusList       -> setVisOfMatches idStatusList
             ResponseItem elem mitem       -> maybe (return ()) (flip makePopUp elem) mitem
                 
+
+addNotice notice msgWindow = noticeDisplay notice # addTo msgWindow >> scrollToBottom msgWindow
 
 matchToLocBool (ItemMatch _ _ Nothing) = Nothing
 matchToLocBool (ItemMatch id flag (Just loc)) = Just (loc, flag)

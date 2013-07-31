@@ -24,6 +24,7 @@ module FNIStash.UI.Layout
 , populateArchiveTable
 , locToId
 , mkReport
+, updateButtonSaved
 ) where
 
 import FNIStash.UI.Icon
@@ -276,9 +277,11 @@ updateStashButton mes = do
                   "Updates TL2 shared stash with items shown"
                   (liftIO $ notifySave mes)
     return btn ## "updatestashbutton"
-    return txt #= "Update Stash"
+    updateButtonSaved False txt
     return (btn, txt)
 
+updateButtonSaved True  txt = return txt #= "Update Stash"
+updateButtonSaved False txt = return txt #= "Update Stash*"
 
 mkReport stash ItemsReport{..} = do
     let remaining = reportGUIDsAllItems - reportGUIDsRegistered
