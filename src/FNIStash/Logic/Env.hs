@@ -122,10 +122,14 @@ skillLookup = makeLookupByName "MEDIA/SKILLS/"
 monsterLookup = makeLookupByName "MEDIA/UNITS/MONSTERS/PETS/"
 
 spawnclassLookup pak =
-    let unitFinder node = searchNodeTreeWith (isJust . vUNIT) node
-                          >>= vUNIT >>= return . T.toUpper
-        dat = readDATFiles pak "MEDIA/SPAWNCLASSES" unitFinder
-    in (\unitName -> let k = lkupDATFile dat $ T.toUpper unitName
+    let dat = readDATFiles pak "MEDIA/SPAWNCLASSES" vNAME
+        collectTuples node@DATNode{..} = map (\sn -> (vUNIT sn, node)) $ datSubNodes
+        tuples = concatMap collectTuples $ M.elems dat
+        filteredTuples = mapMaybe (\(k, n) -> case k of
+            Just l -> Just (T.toUpper l, n)
+            _      -> Nothing) tuples
+        lkupMap = M.fromList filteredTuples
+    in (\unitName -> let k = M.lookup (T.toUpper unitName) lkupMap
                      in  k)
 
 priceIsRightSearch :: LocationBytes -> (DATNode -> SlotID) -> [DATNode] -> DATNode
