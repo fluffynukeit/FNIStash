@@ -447,20 +447,22 @@ input[type=text] {
 	position:absolute;
 	top: 125px;
 	left: 80px;
+	max-width:340px;
+	text-align: left;
 }
 
 #reportlist {
-	height: 350px;
+	height: 345px;
 	overflow-y: scroll;
 	position:absolute;
-	top:170px;
+	top:175px;
 	left:85px;
 	width:355px;
 }
 
 #reportlistheader{
 	position: absolute;
-	top:152px;
+	top:157px;
 	left:85px;
 }
 

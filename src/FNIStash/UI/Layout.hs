@@ -281,7 +281,7 @@ updateStashButton mes = do
 
 
 mkReport stash ItemsReport{..} = do
-    
+    let remaining = reportGUIDsAllItems - reportGUIDsRegistered
     -- Build the report overlay
     cont <- new ## "reportoverlay" # setVis False
     newIcon "ig_generic_menu_base" ## "report_img" #+ cont
@@ -292,7 +292,8 @@ mkReport stash ItemsReport{..} = do
     new ## "reportpercent" #= (take 6 $ show reportPercentFound) ++ "% complete" #+ cont
     new ## "reportsum1" #= "Distinct items registered: " ++ show reportGUIDsRegistered #+ cont
     new ## "reportsum2" #= "Total items in Torchlight 2: " ++ show reportGUIDsAllItems #+ cont
-    new ## "reportsum3" #= "Remaining items to find are listed below, most common first." #+ cont
+    new ## "reportsum3" #= "Remaining " ++ (show remaining)
+        ++ " items to find are listed below, most common first." #+ cont
 
     hdr <- new ## "reportlistheader" #. "reporttable" #+ cont
     hdrRow <- new #. "reportrow" #+ hdr

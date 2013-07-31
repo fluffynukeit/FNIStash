@@ -39,6 +39,7 @@ import Data.List.Split
 import Data.Binary.Put
 import qualified Data.List as L
 import qualified Data.Map as M
+import qualified Data.Set as S
 
 import Debug.Trace
 
@@ -171,9 +172,9 @@ dumpItemReport env mes = do
     writeBMessage mes $ Initializing $ ReportData $ report
 
 buildReport :: Env -> [GUID] -> ItemsReport
-buildReport env@Env{..} guids =
-    let allGUIDs = M.keys allItems
-        distinctGUIDs = length guids
+buildReport env@Env{..} (S.fromAscList -> guidSet) =
+    let allPossibleGUIDs = M.keys allItems
+        distinctFoundGUIDs = S.size guidSet
         mkItemReport guid =
             let i = lkupItemGUID guid
                 trueName = i >>= vNAME
@@ -187,14 +188,14 @@ buildReport env@Env{..} guids =
                     (Just rar, f) -> f && q /= QuestQ && q /= LevelQ
                     _             -> False
             in ItemReport guid n r l creatable
-        reportAllItems = map mkItemReport allGUIDs
+        reportAllItems = map mkItemReport allPossibleGUIDs
         reportAllCreatables = filter reportCreatable reportAllItems
-        itemsToFind = filter (\rep -> reportGUID rep `notElem` guids) reportAllCreatables
-        percFound = 100 * fromIntegral (length guids) / fromIntegral (length reportAllCreatables)
+        itemsToFind = filter (\rep -> reportGUID rep `S.notMember` guidSet) reportAllCreatables
+        percFound = 100 * fromIntegral (distinctFoundGUIDs) / fromIntegral (length reportAllCreatables)
     in ItemsReport
         (L.sortBy rarityDesc $ itemsToFind)
         percFound
-        distinctGUIDs
+        (S.size guidSet)
         (length reportAllCreatables)
 
 rarityDesc a b

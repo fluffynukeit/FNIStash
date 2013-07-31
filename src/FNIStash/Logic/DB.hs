@@ -169,7 +169,7 @@ contToClass "SHARED_STASH_BAG_SPELLS" = Spells
 
 allGUIDs :: Env -> IO [GUID]
 allGUIDs Env{..} =
-    let query = "select distinct GUID from ITEMS;"
+    let query = "select distinct GUID from ITEMS order by GUID asc;"
     in do
         rows <- quickQuery' dbConn query []
         return $ map mkGUID rows
