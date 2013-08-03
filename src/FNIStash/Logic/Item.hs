@@ -54,6 +54,8 @@ import qualified Data.ByteString as BS
 import qualified Data.List as L
 
 
+import Debug.Trace
+
 ------ GENERAL STUFF
 
 -- Given a Translate instance and a sentence full of markup (like This item gives [VALUE] to strength")
@@ -319,7 +321,7 @@ decodeEffectBytes (Env{..}) (eff@EffectBytes {..}) =
         precision = effectPrecisionVal effNode
         skillname = lkupSkill $ T.pack eBytesName
         monstername = lkupMonster $ T.pack eBytesName
-        nameToUse = tryFirst skillname monstername >>= vDISPLAYNAME
+        nameToUse = (skillname <|> monstername) >>= vDISPLAYNAME
         description = effectDescription precision nameToUse effNode eff
         ench = isEnchant eff
         effName = fromJust $ effNode >>= vNAME
@@ -402,7 +404,7 @@ decodePoints 0xFFFFFFFF a = ArmorVal $ fromIntegral a
 --decodeAddedDamage (AddedDamageBytes {..}) =
 
 selectSpecialEffects env (ItemBytes{..}) =
-    let allMods = (map (decodeEffectBytes env) (iBytesEffects ++ iBytesEffects2))
+    let allMods = map (decodeEffectBytes env) (iBytesEffects ++ iBytesEffects2)
         enchantAdditions = filter ((/=) 0 . dBytesFromEnchant) iBytesAddedDamages
         (enchantMods, normalMods) = L.partition (mIsEnchant) allMods
 
@@ -430,15 +432,12 @@ selectSpecialEffects env (ItemBytes{..}) =
 
         defenseFiles = map (fileLookup . mEffectName) innates
         useInnateDef = zip defenseFiles innateDefDescriptors
-
+        
     in (useNormal, useEnchants, useInnateDef)
 
 
 maybeToBool Nothing = False
 maybeToBool (Just b)  = b
-
-tryFirst a@(Just c) b = a
-tryFirst Nothing    b = b
 
 -- This function is mostly used for determining which of two effects on a gem belongs to armor and
 -- which belongs to weapons.  It's not consistent even among unique gems, but might? be consistent
@@ -453,7 +452,9 @@ makeGemDescriptors (env@Env{..}) (Item {..}) effIndexList =
                           | x == eff1 = Just 1
                           | otherwise = Nothing
 
-        checkValidLength ind = if ind < length iEffectsRaw then Just ind else Nothing
+        checkValidLength ind = if ind < length iEffectsRaw
+            then Just ind
+            else traceShow ("=========== Exceeded!!!", ind, length iEffectsRaw, iName) $ Nothing
 
         -- This is the code for getting effect from a unique socketable
         getMatchingTypeBy d = nEFFECT d >>= vTYPE >>= return . lkupEffect . EffectName
@@ -476,8 +477,10 @@ makeGemDescriptors (env@Env{..}) (Item {..}) effIndexList =
         normalArmorInd  = return 1 >>= checkValidLength
         normalWeaponInd = return 0 >>= checkValidLength
 
-        armorDescriptor  = fromJust $ tryFirst armorIndex  normalArmorInd  >>= return . (!!) iEffectsRaw
-        weaponDescriptor = fromJust $ tryFirst weaponIndex normalWeaponInd >>= return . (!!) iEffectsRaw
+        armorDescriptor  = maybe (mkDescriptor "!!! BROKEN ARMOR" 0 0) id $
+             (armorIndex <|> normalArmorInd)  >>= return . (!!) iEffectsRaw
+        weaponDescriptor =  maybe (mkDescriptor "!!! BROKEN WEAPON" 0 0) id $
+             (weaponIndex <|> normalWeaponInd) >>= return . (!!) iEffectsRaw
         armorSpecifier  = mkDescriptor "Armor/Trinkets:" 0 0
         weaponSpecifier = mkDescriptor "Weapons:" 0 0
 
@@ -485,7 +488,7 @@ makeGemDescriptors (env@Env{..}) (Item {..}) effIndexList =
         itemType = uType (iBaseUnitType iBase)
         socketItemTypes = ["SOCKETABLE", "BLOOD EMBER", "VOID EMBER", "CHAOS EMBER", "IRON EMBER"]
         isSocket = any (itemType ==) socketItemTypes
-    in if not isSocket then iEffectsRaw -- No change to descriptors
+    in if not isSocket then iEffectsRaw -- No change to descriptors if not a gem or quest item
        else armorSpecifier:armorDescriptor:weaponSpecifier:weaponDescriptor:[]
 
 

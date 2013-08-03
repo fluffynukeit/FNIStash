@@ -102,9 +102,13 @@ dumpArchive env msg = do
 
 dumpRegistrations env messages sharedStash = do
 
-    registeredItems <- registerStash env sharedStash
-    let locations = map iLocation registeredItems
-    writeBMessage messages $ Notice $ Info $ "Newly registered items: " ++ (show $ length locations)
+    RegisterSummary newItems updatedItems noChange <- registerStash env sharedStash
+    let numNew = length newItems
+        numUpd = length updatedItems
+        numNoC = length noChange
+    when (numNew > 0 ) $ writeBMessage messages $ Notice $ Info $ "Newly registered items: " ++ (show numNew)
+    when (numUpd > 0) $ writeBMessage messages $ Notice $ Info $ "Updated items: " ++ (show numUpd)
+    -- writeBMessage messages $ Notice $ Info $ "No change items: " ++ (show numNoC)
 
 -- Tries to register all non-registered items into the DB.  Retuns list of newly
 -- registered items.

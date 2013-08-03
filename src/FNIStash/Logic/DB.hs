@@ -32,6 +32,7 @@ module FNIStash.Logic.DB
 , ItemSummary(..)
 , ItemMatch(..)
 , ItemStatus(..)
+, RegisterSummary(..)
 )
 where
 
@@ -85,6 +86,17 @@ data ItemMatch = ItemMatch
     , matchLocation :: Maybe Location -- No location if item is archived or inserted
     } deriving (Eq, Ord, Show)
 
+data RegisterResult = New
+                    | Updated
+                    | NoChange
+                    deriving Eq
+
+data RegisterSummary = RegisterSummary
+    { news :: [Item]
+    , updates :: [Item]
+    , noChange :: [Item]
+    }
+
 -- DB stuff
 
 handleDB = handleSql
@@ -108,16 +120,42 @@ initializeDB appRoot = do
 -- returns the newly registered items in a list
 register env items = do
     let conn = dbConn env
-    succItems <- fmap catMaybes $ withTransaction conn $ const $ forM items $ \item@(Item {..}) -> do
-        wasRegistered <- isRegistered env item
+    registerResults <- withTransaction conn $ const $ forM items $ \item@(Item {..}) -> do
+        getReg <- getRegistered env item
 
-        if wasRegistered then
-            return Nothing
-            else do
-            addItemToDB env item
-            return $ Just item
-            
-    return succItems
+        case getReg of
+            Just id -> do
+                dataHasChanged <- dataChange env id item
+                case dataHasChanged of
+                    True  -> do
+                        deleteID env id
+                        addItemToDB env item
+                        return $ (Updated, item)
+                    False -> return $ (NoChange, item)
+            Nothing -> do
+                addItemToDB env item
+                return $ (New, item)
+
+    -- now clean up any trail_data entries that are irrelevant.
+    cleanUpDB env
+    let news = map snd $ filter ((== New) . fst) registerResults
+        upda = map snd $ filter ((== Updated) . fst) registerResults
+        noch = map snd $ filter ((== NoChange) . fst) registerResults
+    return $ RegisterSummary news upda noch
+
+
+cleanUpDB Env{..} = do
+    let query = "delete from TRAIL_DATA where ID not in (select FK_TRAIL_DATA_ID from ITEMS);"
+    void $ run dbConn query []
+
+deleteID Env{..} iD = do
+    let query = "delete from ITEMS where ID = ?;"
+    void $ run dbConn query [toSql iD]
+
+dataChange env id item = do
+    (Right (Just oldData)) <- getItemFromDb env (Archive id) -- dangerous pattern matching...
+    return $ iPartition oldData /= iPartition item
+
 
 keywordStatus :: Env -> String -> IO (Either String [ItemMatch])
 keywordStatus env (parseKeywords -> Left error) = return . Left . show $ error
@@ -195,9 +233,9 @@ quoted = do
 normalWord :: (Stream s m Char) => ParsecT s u m String
 normalWord = many1 (noneOf " ")
 
-isRegistered env (Item {..}) = do
-    matchingGuys <- quickQuery' (dbConn env) "select RANDOM_ID from ITEMS where RANDOM_ID = ?" [toSql iRandomID]
-    if length matchingGuys == 0 then return False else return True
+getRegistered env (Item {..}) = do
+    matchingGuys <- quickQuery' (dbConn env) "select ID from ITEMS where RANDOM_ID = ?" [toSql iRandomID]
+    if length matchingGuys == 0 then return Nothing else return $ Just (fromSql $ head matchingGuys !! 0)
 
 addItemToDB env item@(Item {..}) = do
     -- First register the item data, starting with the Trail data
@@ -414,7 +452,7 @@ setUpDescriptorSets =
     \, FK_ITEM_ID integer not null \
     \, FK_DESCRIPTOR_ID integer not null \
     \, VALUE real not null \
-    \, foreign key(FK_ITEM_ID) references ITEMS(ID)\
+    \, foreign key(FK_ITEM_ID) references ITEMS(ID) on delete cascade \
     \, foreign key(FK_DESCRIPTOR_ID) references DESCRIPTORS(ID));"
 
 keywordQuery condString =
