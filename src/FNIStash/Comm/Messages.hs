@@ -12,15 +12,51 @@
 --
 -----------------------------------------------------------------------------
 
-module FNIStash.Comm.Messages where
+module FNIStash.Comm.Messages
+( BMessage(..)
+, InitEvent(..)
+, Notice(..)
+, FMessage(..)
+, Messages(..)
+, ItemSummary(..)
+, Location(..)
+, ItemClass(..)
+, ItemMatch(..)
+, ItemStatus(..)
+, ItemsReport(..)
+, ItemReport(..)
+, newMessages
+, onlyFMessages
+, onlyBMessages
+, writeFMessage
+, writeBMessage
+) where
 
 import Control.Concurrent
 import FNIStash.Logic.Item
+import FNIStash.Logic.DB
+import FNIStash.File.Variables
+import Graphics.UI.Threepenny
+
+data ItemsReport = ItemsReport
+    { reportMissingItems :: [ItemReport]
+    , reportPercentFound :: Float
+    , reportGUIDsRegistered :: Int
+    , reportGUIDsAllItems :: Int
+    }
+data ItemReport = ItemReport
+    { reportGUID :: GUID
+    , reportName :: Maybe String
+    , reportRarity :: Maybe Int
+    , reportLevel :: Maybe Int
+    , reportCreatable :: Bool
+    } 
 
 data BMessage = Initializing InitEvent
               | LocationContents [(Location, Maybe Item)]
               | Notice Notice
-              | Visibility [(Location, Bool)]
+              | Visibility [ItemMatch]
+              | ResponseItem Element (Maybe Item)
 
 data InitEvent = CfgStart
                | DBStart
@@ -30,14 +66,20 @@ data InitEvent = CfgStart
                | RegisterStart
                | Complete
                | InitError String
+               | ArchiveDataStart
+               | ArchiveData [ItemSummary]
+               | ReportStart
+               | ReportData ItemsReport
 
 data Notice = Error String
             | Info String
             | Saved String
 
-data FMessage = Move {moveFrom :: Location, moveTo :: Location}
+data FMessage = Move [(Location, Location)] -- order is FROM then TO
               | Save
               | Search String
+              | RequestItem Element Location
+              deriving Show
 
 data Messages = Messages
     { fSource :: Chan FMessage

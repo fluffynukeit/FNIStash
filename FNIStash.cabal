@@ -26,7 +26,7 @@ executable FNIStash-Debug
     extra-lib-dirs: "C:\\Users\\Dan\\My Code\\DevIL-SDK-x86-1.7.8\\lib"
     hs-source-dirs: src
     other-modules: FNIStash.UI.Layout FNIStash.UI.Icon
-                   FNIStash.UI.Frontend FNIStash.UI.Effects FNIStash.Logic.Operations
+                   FNIStash.UI.Frontend FNIStash.UI.Effects
                    FNIStash.Logic.Item FNIStash.Logic.Initialize FNIStash.Logic.Env
                    FNIStash.Logic.DB FNIStash.Logic.Config FNIStash.Logic.Backend
                    FNIStash.File.Variables FNIStash.File.SharedStash FNIStash.File.PAK
@@ -47,11 +47,11 @@ executable FNIStash
     buildable: True
     hs-source-dirs: src
     other-modules: FNIStash.UI.Layout FNIStash.UI.Icon
-                   FNIStash.UI.Frontend FNIStash.UI.Effects FNIStash.Logic.Operations
+                   FNIStash.UI.Frontend FNIStash.UI.Effects
                    FNIStash.Logic.Item FNIStash.Logic.Initialize FNIStash.Logic.Env
                    FNIStash.Logic.DB FNIStash.Logic.Config FNIStash.Logic.Backend
                    FNIStash.File.Variables FNIStash.File.SharedStash FNIStash.File.PAK
                    FNIStash.File.Item FNIStash.File.General FNIStash.File.DAT
                    FNIStash.File.Crypto FNIStash.Comm.Messages
     ghc-options: -O2 -threaded
- 
+

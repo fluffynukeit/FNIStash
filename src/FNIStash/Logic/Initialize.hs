@@ -176,7 +176,7 @@ writeAssetFile assetPath lkupPath dataBS =
 guiAssets = (fmap ("MEDIA/UI/ICONS/" <>) ["ARMOR", "FISH", "GEMS", "JEWELRY", "MISC",
                                           "POTIONS", "QUESTITEMS", "WEAPONS", "SPELLS"])
             <>
-            (fmap ("MEDIA/UI/HUD/INGAMETEXTURESHEETS" <>) ["", "2", "5", "6"])
+            (fmap ("MEDIA/UI/HUD/INGAMETEXTURESHEETS" <>) [""]) -- this captures all ingametexturesheets
             <>
             ["MEDIA/UI/LOADING"]
             <>
@@ -268,7 +268,8 @@ readPAKPrefixes cfg prefs = do
 -- PAK file path prefixes that contain game data needed to build the data lookup environment
 envPrefixes = [ "MEDIA/EFFECTSLIST.DAT", "MEDIA/UNITS/ITEMS", "MEDIA/SKILLS", "MEDIA/INVENTORY"
               , "MEDIA/GRAPHS/STATS", "MEDIA/AFFIXES/ITEMS", "MEDIA/AFFIXES/GEMS"
-              , "MEDIA/TRIGGERABLES", "MEDIA/STATS", "MEDIA/UNITS/MONSTERS/PETS"]
+              , "MEDIA/TRIGGERABLES", "MEDIA/STATS", "MEDIA/UNITS/MONSTERS/PETS"
+              , "MEDIA/SPAWNCLASSES"]
 
 
 

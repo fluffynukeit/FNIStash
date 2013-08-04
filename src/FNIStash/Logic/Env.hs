@@ -17,6 +17,7 @@
 
 module FNIStash.Logic.Env 
     ( buildEnv
+    , searchAncestryFor
     , Env (..)
     , EffectKey (..)
     ) where
@@ -58,7 +59,8 @@ data Env = Env
     , lkupStat :: T.Text -> Maybe DATNode
     , lkupPath :: T.Text -> Maybe DATNode
     , lkupGraph :: T.Text -> Float -> Float
-    , totalItems :: Int
+    , lkupSpawnClass :: T.Text -> Maybe DATNode -- map of spawnclass object's UNIT variable to the spawnclass itself
+    , allItems :: DATFiles GUID -- map of GUID to item nodes
     , dbConn :: Connection
     }
 
@@ -75,23 +77,25 @@ buildEnv pak conn =
     let effects = effectLookup pak
         skills = skillLookup pak
         (bytesToNodesFxn, nodesToBytesFxn) = locLookup pak
-        (itemsGUID, totalItems) = itemLookupGUID pak
+        (itemsGUID, allItemsMap) = itemLookupGUID pak
         byPath = lookupPath pak
         graph = graphLookup byPath
         affixes = affixLookup pak
         monsters = monsterLookup pak
         trigs = triggerableLookup pak
         stats = statLookup pak
+        spawn = spawnclassLookup pak
     in  Env effects affixes skills monsters bytesToNodesFxn
             nodesToBytesFxn itemsGUID trigs stats byPath graph
-            totalItems conn
+            spawn
+            allItemsMap conn
 
 -- Each of the functions below returns a lookup function.  This is how we can keep the loaded PAK
 -- handy for repeated lookups since we cannot have a global.  The PAK stays on the stack.
 itemLookupGUID pak =
-    let guidFinder = \x -> fromJust $ vUNIT_GUID x
+    let guidFinder = \x -> vUNIT_GUID x
         dat = readDATFiles pak "MEDIA/UNITS/ITEMS" guidFinder -- p is pak
-    in (\idInt64 -> lkupDATFile dat idInt64, M.size dat)
+    in (\idInt64 -> lkupDATFile dat idInt64, dat)
 
 lookupPath pak =
     let ffp p = T.replace "\\" "/" p -- fix file path
@@ -109,15 +113,24 @@ effectLookup pak =
 
 -- Given a prefix path, makes a lookup table of pak files with NAME as lookup key
 makeLookupByName path pak =
-    let nameFinder = \x -> fromJust $ vNAME x >>= return . T.toUpper
+    let nameFinder = \x -> vNAME x >>= return . T.toUpper
         dat = readDATFiles pak path nameFinder
     in (\name -> lkupDATFile dat $ T.toUpper name)
 
 affixLookup = makeLookupByName "MEDIA/AFFIXES/ITEMS"
-
 skillLookup = makeLookupByName "MEDIA/SKILLS/"
-
 monsterLookup = makeLookupByName "MEDIA/UNITS/MONSTERS/PETS/"
+
+spawnclassLookup pak =
+    let dat = readDATFiles pak "MEDIA/SPAWNCLASSES" vNAME
+        collectTuples node@DATNode{..} = map (\sn -> (vUNIT sn, node)) $ datSubNodes
+        tuples = concatMap collectTuples $ M.elems dat
+        filteredTuples = mapMaybe (\(k, n) -> case k of
+            Just l -> Just (T.toUpper l, n)
+            _      -> Nothing) tuples
+        lkupMap = M.fromList filteredTuples
+    in (\unitName -> let k = M.lookup (T.toUpper unitName) lkupMap
+                     in  k)
 
 priceIsRightSearch :: LocationBytes -> (DATNode -> SlotID) -> [DATNode] -> DATNode
 --priceIsRightSearch realPrice [] = who knows
@@ -138,13 +151,13 @@ locLookup pak =
     -- algorithm to the new organizational scheme
     let invenSlotFiles = M.filterWithKey (\k _ -> T.isInfixOf "MEDIA/INVENTORY" k && not (T.isInfixOf "MEDIA/INVENTORY/CONTAINERS" k)) pak
         getName = vNAME
-        slotsDatFiles = readDATFiles invenSlotFiles "MEDIA/INVENTORY" (fromJust . getName)
+        slotsDatFiles = readDATFiles invenSlotFiles "MEDIA/INVENTORY" getName
         allSlotTypesList = M.elems slotsDatFiles
         -- allSlotTypeList is a list of all Dat files for slots.  SlotDatFiles is a map of slot name
         -- to Dat file
 
         -- containers is a map of container ID to DATNode for the container
-        containers = readDATFiles pak "MEDIA/INVENTORY/CONTAINERS" (fromJust . vContainerID)
+        containers = readDATFiles pak "MEDIA/INVENTORY/CONTAINERS" vContainerID
 
         -- make a search function for finding the slot type with unique ID closest but no greater
         -- than the locBytes Word16
@@ -200,3 +213,12 @@ triggerableLookup = makeLookupByName "MEDIA/TRIGGERABLES/"
 
 statLookup = makeLookupByName "MEDIA/STATS/"
 
+-- Recurses down from a Dat Node (usually an Item dat node) looking for a particular variable.
+-- Looks deeper into each BASEFILE, if it exists, until it has to give up.
+searchAncestryFor (env@Env{..}) findMeVar itemDat =
+    let foundVar = return itemDat >>= findMeVar
+        itemBase = return itemDat >>= vBASEFILE
+    in case foundVar of
+        Just var -> foundVar -- we found the data we want!
+        Nothing ->
+            itemBase >>= lkupPath >>= searchAncestryFor env findMeVar

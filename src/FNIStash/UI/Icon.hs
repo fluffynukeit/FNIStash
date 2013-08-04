@@ -19,19 +19,23 @@ module FNIStash.UI.Icon
 where
 
 import FNIStash.File.SharedStash
+import FNIStash.UI.Effects
+import FNIStash.Comm.Messages
 
 import Graphics.UI.Threepenny
 import Graphics.UI.Threepenny.Browser
 
 import Control.Monad
+import Control.Monad.Trans
 import Data.Maybe
 
+import Debug.Trace
+
 newItemIcon (item@Item {..}) = do
-    container <- new # setStyle [("position", "relative")]
+    container <- new # setStyle [("position", "relative")] # allowDrag
     
     i <- newIcon (iBaseIcon iBase)
         #. "item"
-        # allowDrag
     return i #+ container
 
     -- create full and empty socket icons
@@ -44,17 +48,23 @@ newItemIcon (item@Item {..}) = do
 
     killPopUp
 
-    onHover container $ \_ -> killPopUp >> makePopUp item >> setAttr "onmousemove" moveScript container # unit
+    onHover container $ \_ -> killPopUp >> makePopUp item container
     onBlur container $ \_ -> killPopUp
+    onDragStart container $ \_ -> killPopUp
     
     return container
 
-moveScript = "if (event.clientX < document.body.clientWidth/2) \
-             \{document.getElementById(\"itempopup\").style.left=(event.clientX)+\"px\";}\
-             \else {document.getElementById(\"itempopup\").style.right=(document.body.clientWidth - event.clientX)+\"px\";}\
-             \document.getElementById(\"itempopup\").style.top=(event.clientY+5)+\"px\""
+moveScript = "var pop = document.getElementById(\"itempopup\"); pop.style.visibility = \"inherit\";\
+             \if (event.clientX < document.body.clientWidth/2) \
+             \{pop.style.left=(event.clientX+5)+\"px\";}\
+             \else {pop.style.right=(document.body.clientWidth - event.clientX+20)+\"px\";}\
+             \pop.style.top=\
+                \(event.clientY - (event.clientY*1.0/document.body.clientHeight)*pop.offsetHeight)+\"px\""
 
-makePopUp (Item{..}) = do
+
+makePopUp item container = makePopUpBox item >> setAttr "onmousemove" moveScript container # unit
+
+makePopUpBox (Item{..}) = do
     body <- getBody
     container <- new #. "itempopup" ## "itempopup"
     titleArea <- new #. "poptitlearea"
@@ -109,6 +119,7 @@ makePopUp (Item{..}) = do
 
     return titleArea #+ container
     return dataArea #+ container
+    return container # setVis False # setStyle [("top", "0")] # unit
     return container #+ body # unit
 
 makeEmptySocket container = do
@@ -139,11 +150,49 @@ killPopUp = do
 
 
 newIcon src =
-    newImg
-    # setSrc src
+    newImg # setSrc src # blockDrag
 
 setSrc src = \x -> set "src" ("static/GUIAssets/" ++ src ++ ".png") x # set "alt" src
 
-setZ int = set "style" ("z-index:" ++ show int ++ ";")
+setZ int = setStyle [("zIndex", show int)]
 
+
+makeArchiveRow m (ItemSummary{..}) id = do
+    row <- new #. "archiverow" ## id
+    fillRow row id summaryIcon summaryName summaryStatus
+
+    -- Set up request and event handling for popup
+    onHover row $ \_ -> killPopUp >> (liftIO $ writeFMessage m $ RequestItem row (Archive summaryDbID))
+    onBlur row $ \_ -> killPopUp
+    onDragStart row $ \_ -> killPopUp
+    return row
+
+setColorBy Archived = setStyle [("color", "black")]
+setColorBy _        = setStyle [("color", "gray")]
+
+fillRow row id icon name status = do
+    let setColor = setColorBy status
+    iconCell <- new #. "archivecell iconcell" # setColor ## (id ++ "icon")
+    iconEl <- newIcon icon #. "archiveicon" ## (id++"iconimg") # blockDrag
+              # set "onmousedown" "event.preventDefault()" #+ iconCell
+    when (status == Archived) $
+         return iconEl # setDragData id # allowDrag # set "onmousedown" "" # setColor # unit
+    nameCell <- new #. "archivecell namecell" # setColor ## (id ++ "name")
+    locCell  <- new #. "archivecell statuscell" # setColor ## (id ++ "status")
+
+    return iconCell #+ row
+    return nameCell #= name #+ row
+    return locCell #= show status #+ row
+
+updateArchiveRow rowEl id (Just (item@Item{..})) = do
+    let Descriptor n _ _ = iName
+    --traceShow ("=============== Looking for ID J " ++ id) $ return ()
+    emptyEl rowEl >> fillRow rowEl id (iBaseIcon iBase) n Archived # unit
+    
+updateArchiveRow rowEl id (Nothing) = do
+    --traceShow ("=============== Looking for ID N " ++ id) $ return ()
+    cells <- getElementsById $ map (id++) ["iconimg", "icon", "name", "status"]
+    forM_ cells $ \c -> return c # setColorBy Stashed # unit
+    return (cells !! 0) # blockDrag # set "onmousedown" "event.preventDefault()" # unit
+    return (cells !! 3) #= "Stashed" # unit
 

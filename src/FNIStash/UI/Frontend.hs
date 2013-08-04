@@ -12,6 +12,8 @@
 --
 -----------------------------------------------------------------------------
 
+{-# LANGUAGE RecordWildCards #-}
+
 module FNIStash.UI.Frontend (
    frontend,
    module Graphics.UI.Threepenny
@@ -28,6 +30,7 @@ import Graphics.UI.Threepenny.Browser
 import Control.Monad.Trans
 import Control.Monad
 import System.Random
+import Data.Time.LocalTime
 
 import Debug.Trace
 import Data.Maybe
@@ -43,25 +46,51 @@ frontend messages = do
     frame <- new ## "frame" #+ underlay
     msgWindow <- controls messages frame
     msgList <- liftIO $ onlyBMessages messages
-    
+    (stash, updateTxt) <- stash messages
     forM_ msgList $ \x -> do
         case x of
-            Initializing AssetsComplete -> stash messages #+ frame # unit
+            Initializing AssetsComplete -> return stash #+ frame # unit
             Initializing Complete -> do
                 assignRandomBackground underlay
                 crossFade overlay underlay 350
-            Initializing x -> handleInit x overlayMsg
+            Initializing (ArchiveData summs) -> populateArchiveTable messages summs
+            Initializing (ReportData iReport)-> mkReport stash iReport 
                 
-            LocationContents locItemsList -> withLocVals locItemsList updateItem
-            Notice notice -> noticeDisplay notice # addTo msgWindow >> scrollToBottom msgWindow
-            Visibility idStatusList -> withLocVals idStatusList $ \e v _ -> setVis v e # unit
-                                 
+            Initializing x                -> handleInit x overlayMsg
+                
+            LocationContents locItemsList -> do
+                withLocVals locItemsList updateCell
+                updateButtonSaved False updateTxt >> return ()
+
+            Notice notice@(Saved msg)     -> addNotice notice msgWindow >> updateButtonSaved True updateTxt >> return () 
+            Notice notice                 -> addNotice notice msgWindow
+            Visibility idStatusList       -> setVisOfMatches idStatusList
+            ResponseItem elem mitem       -> maybe (return ()) (flip makePopUp elem) mitem
+                
+
+addNotice notice msgWindow = noticeDisplay notice # addTo msgWindow >> scrollToBottom msgWindow
+
+matchToLocBool (ItemMatch _ _ Nothing) = Nothing
+matchToLocBool (ItemMatch id flag (Just loc)) = Just (loc, flag)
+
+setVisOfMatches matchList = do
+    -- first set visibility of any items still in stash
+    withLocVals (catMaybes $ map (matchToLocBool) matchList) $ \e _ v _ -> setFaded (not v) e # unit
+    -- then set visibility of archive table rows
+    archRows <- getElementsById $ map (locToId . Archive . matchDbID) matchList
+    let rowBool = zip archRows $ map matchFlag matchList
+    forM_ rowBool $ \(e, d) -> setDisp d e # unit
+
 noticeDisplay notice = do
+    zonedTime <- liftIO getZonedTime
+    let localTime = localTimeOfDay $ zonedTimeToLocalTime zonedTime
+        mkMsg = (++) (pp0 (todHour localTime) ++ ":" ++ pp0 (todMin localTime) ++ ": ")
+        pp0 a = let t = show a in if length t >= 2 then t else "0"++t
     msgDisp <- new #. "notice"
     case notice of
-        Error msg   -> new #. "error" #= msg #+ msgDisp # unit
-        Info msg    -> new #. "info" #= msg #+ msgDisp # unit
-        Saved path  -> new #. "saved" #= "Shared stash saved to " ++ path #+ msgDisp # unit
+        Error msg   -> new #. "error" #= mkMsg msg #+ msgDisp # unit
+        Info msg    -> new #. "info" #= mkMsg msg #+ msgDisp # unit
+        Saved path  -> new #. "saved" #= mkMsg ("Shared stash saved to " ++ path) #+ msgDisp # unit
     return msgDisp
 
 assignRandomBackground el = do
@@ -80,4 +109,6 @@ handleInit EnvStart = initMsg "Building lookup environment..."
 handleInit RegisterStart = initMsg "Registering new items..."
 handleInit Complete = initMsg "Startup complete."
 handleInit (InitError s) = initMsg s
+handleInit ArchiveDataStart = initMsg "Retrieving archived items..."
+handleInit ReportStart = initMsg "Building grail report..."
 handleInit _        = initMsg "Unknown initialization event!"

@@ -21,13 +21,28 @@ module FNIStash.Logic.DB
 ( handleDB
 , initializeDB
 , register
-, locsKeywordStatus
+, keywordStatus
+, allItemSummaries
+, getItemFromDb
+, getSharedStashFromDb
+, locationChange
+, allLocationContents
+, allGUIDs
+, commitDB
+, ItemClass(..)
+, ItemSummary(..)
+, ItemMatch(..)
+, ItemStatus(..)
+, RegisterSummary(..)
 )
 where
 
 import FNIStash.Logic.Item
 import FNIStash.Logic.Env
+import FNIStash.File.SharedStash
 import FNIStash.File.Variables
+import FNIStash.File.General
+import FNIStash.File.Item
 
 import Database.HDBC
 import Database.HDBC.Sqlite3
@@ -36,13 +51,16 @@ import Data.Time.LocalTime
 import Data.Maybe
 import Control.Monad
 import Control.Applicative ((<$>), (<*>))
+import qualified Data.ByteString as BS
 import qualified Data.List as L
 import qualified Data.Text as T
 import Data.Convertible.Base
 import GHC.Float
 import Text.Parsec
+import Data.Binary.Strict.Get
+import Data.Binary.Put
 
-import Filesystem.Path.CurrentOS
+import Filesystem.Path.CurrentOS hiding (FilePath)
 import Filesystem
 
 import Debug.Trace
@@ -53,7 +71,38 @@ instance Convertible GUID SqlValue where
     safeConvert (GUID{..}) = safeConvert guidVal
 
 
+-- Record types for returning data from DB
+
+data ItemStatus = Stashed | Inserted | Archived deriving (Eq, Show, Read, Ord)
+data ItemSummary = ItemSummary
+    { summaryName :: String
+    , summaryDbID :: Int
+    , summaryItemClass :: ItemClass
+    , summaryStatus :: ItemStatus
+    , summaryIcon :: FilePath
+    } deriving (Eq, Show, Ord)
+data ItemMatch = ItemMatch
+    { matchDbID :: Int
+    , matchFlag :: Bool
+    , matchLocation :: Maybe Location -- No location if item is archived or inserted
+    } deriving (Eq, Ord, Show)
+
+data RegisterResult = New
+                    | Updated
+                    | NoChange
+                    deriving Eq
+
+data RegisterSummary = RegisterSummary
+    { news :: [Item]
+    , updates :: [Item]
+    , noChange :: [Item]
+    }
+
+-- DB stuff
+
 handleDB = handleSql
+commitDB Env{..} = commit dbConn
+
 
 initializeDB appRoot = do
     let dbPath = appRoot </> "fnistash.db"
@@ -61,7 +110,7 @@ initializeDB appRoot = do
     conn <- connectSqlite3 $ encodeString dbPath
 
     -- need to enable foreign keys for each connection
-    run conn "PRAGMA foreign_keys = ON;" []
+    runRaw conn "PRAGMA foreign_keys = ON;"
 
     if dbExists then
         return () -- don't need to make a new table
@@ -72,32 +121,117 @@ initializeDB appRoot = do
 
 -- Given a list of items, registers those that have not been registered yet and
 -- returns the newly registered items in a list
-register env items = do
-    let conn = dbConn env
-    succItems <- fmap catMaybes $ forM items $ \item@(Item {..}) -> do
-        wasRegistered <- isRegistered env item
+register env@Env{..} items = do
+    setStashedToElsewhere env
+    registerResults <- forM items $ \item@(Item {..}) -> do
+        getReg <- getRegistered env item
 
-        if wasRegistered then
-            return Nothing
-            else do
-            addItemToDB env item
-            return $ Just item
-            
-    return succItems
+        case getReg of
+            Just id -> do
+                dataHasChanged <- dataChange env id item
+                case dataHasChanged of
+                    True  -> do     -- Item data has changed.  Remove and re-insert
+                        deleteID env id
+                        addItemToDB env item
+                        return $ (Updated, item)
+                    False -> do -- Item data the same.  Only update location
+                        updateLocation env id iLocation
+                        return $ (NoChange, item)
+            Nothing -> do -- Item not previously registered
+                addItemToDB env item
+                return $ (New, item)
 
-locsKeywordStatus :: Env -> String -> IO (Either String [(Location, Bool)])
-locsKeywordStatus env (parseKeywords -> Left error) = return . Left . show $ error
-locsKeywordStatus env (parseKeywords -> Right keywordList) = do
+    -- now clean up any trail_data entries that are irrelevant.
+    cleanUpDB env
+    let news = map snd $ filter ((== New) . fst) registerResults
+        upda = map snd $ filter ((== Updated) . fst) registerResults
+        noch = map snd $ filter ((== NoChange) . fst) registerResults
+    return $ RegisterSummary news upda noch
+
+
+setStashedToElsewhere Env{..} = do
+    let query = "update ITEMS set STATUS=? where STATUS=?;"
+    void $ run dbConn query [toSql $ show Elsewhere, toSql Stashed]
+
+
+cleanUpDB Env{..} = do
+    let query = "delete from TRAIL_DATA where ID not in (select FK_TRAIL_DATA_ID from ITEMS);"
+    void $ run dbConn query []
+
+deleteID Env{..} iD = do
+    let query = "delete from ITEMS where ID = ?;"
+    void $ run dbConn query [toSql iD]
+
+dataChange env id item = do
+    (Right (Just oldData)) <- getItemFromDb env (Archive id) -- dangerous pattern matching...
+    return $ iPartition oldData /= iPartition item
+
+updateLocation Env{..} id Location{..} = do
+    void $ run dbConn updateLocStatById [toSql locContainer, toSql locIndex, toSql Stashed, toSql id]
+
+updateLocation Env{..} id InsertedInSocket = do
+    void $ run dbConn updateLocStatById [ toSql ("SHARED_STASH_BAG_ARMS"::String)
+                                 , toSql (0::Int)
+                                 , toSql Inserted
+                                 , toSql id]
+
+updateLocation _ _ Elsewhere = return ()
+
+keywordStatus :: Env -> String -> IO (Either String [ItemMatch])
+keywordStatus env (parseKeywords -> Left error) = return . Left . show $ error
+keywordStatus env (parseKeywords -> Right keywordList) = do
     let keywords = if length keywordList > 0 then keywordList else [""]
         conn = dbConn env
         keywordExpr = L.intercalate " and " $ replicate (length keywords) "FD like ?"
         query = (keywordQuery keywordExpr)
         s word = toSql $ "%" ++ word ++ "%"
-    idStrings <- quickQuery' conn query $ map s keywords
-    let returnList = map (\row -> (Location (fromSql $ row !! 0) (fromSql $ row !! 1) (fromSql $ row !! 2)
-                                  , fromSql $ row !! 3))
-                    idStrings
-    return . Right $ returnList
+    qResults <- quickQuery' conn query $ map s keywords
+    let buildMatch row =
+            let dbID = fromSql $ row !! 3
+                status = read . fromSql $ row !! 4
+                matchFlag = fromSql $ row !! 5
+                mLoc = case status of
+                    Archived -> Nothing
+                    Inserted -> Nothing
+                    _        -> Just $ Location (fromSql $ row !! 0) (fromSql $ row !! 1) (fromSql $ row !! 2)
+            in ItemMatch dbID matchFlag mLoc
+
+    return . Right $ map buildMatch qResults
+
+allItemSummaries :: Env -> IO [ItemSummary]
+allItemSummaries (env@(Env{..})) = do
+    let query = "select NAME, CONTAINER, STATUS, ID, GUID from ITEMS order by NAME;"
+        makeSumm row = ItemSummary  (fromSql $ row !! 0)
+                                    (fromSql $ row !! 3)
+                                    (contToClass (fromSql $ row !! 1 :: String))
+                                    (read . fromSql $ row !! 2)
+                                    (getImage $ GUID $ fromSql $ row !! 4)
+        getImage guid = fromJust (lkupItemGUID guid >>= searchAncestryFor env vICON)
+       
+    itemData <- quickQuery' dbConn query []
+    return $ map makeSumm itemData
+
+allLocationContents (env@Env{..}) = do
+    let query = getItemDataQuery ++ " where STATUS=?"
+    rows <- quickQuery' dbConn query [toSql Stashed]
+    return $ flip map rows $ \(dbID:lead:trail:cont:slot:pos:name:_) ->
+        let bs = buildItemBytes env lead trail cont slot pos
+        in case fst $ runGet (getItem env (Just $ fromSql dbID) bs) bs of
+            Left err -> Left $ "Item named " ++ fromSql name ++
+                " failed binary parsing with error: " ++ err
+            Right item -> Right (iLocation item, Just item)
+
+contToClass "SHARED_STASH_BAG_ARMS" = Arms
+contToClass "SHARED_STASH_BAG_CONSUMABLES" = Consumables
+contToClass "SHARED_STASH_BAG_SPELLS" = Spells
+
+allGUIDs :: Env -> IO [GUID]
+allGUIDs Env{..} =
+    let query = "select distinct GUID from ITEMS order by GUID asc;"
+    in do
+        rows <- quickQuery' dbConn query []
+        return $ map mkGUID rows
+        where mkGUID row = GUID . fromSql $ row !! 0
 
 parseKeywords :: String -> Either ParseError [String]
 parseKeywords (deblank -> s) = parse keywordParser "" s
@@ -119,11 +253,11 @@ quoted = do
 normalWord :: (Stream s m Char) => ParsecT s u m String
 normalWord = many1 (noneOf " ")
 
-isRegistered env (Item {..}) = do
-    matchingGuys <- quickQuery' (dbConn env) "select RANDOM_ID from ITEMS where RANDOM_ID = ?" [toSql iRandomID]
-    if length matchingGuys == 0 then return False else return True
+getRegistered env (Item {..}) = do
+    matchingGuys <- quickQuery' (dbConn env) "select ID from ITEMS where RANDOM_ID = ?" [toSql iRandomID]
+    if length matchingGuys == 0 then return Nothing else return $ Just (fromSql $ head matchingGuys !! 0)
 
-addItemToDB env item@(Item {..}) = let c  = dbConn env in withTransaction c $ \_ -> do
+addItemToDB env item@(Item {..}) = do
     -- First register the item data, starting with the Trail data
     trailID <- insertTrailData env item
     itemID <- insertItem env item trailID
@@ -134,6 +268,83 @@ addItemToDB env item@(Item {..}) = let c  = dbConn env in withTransaction c $ \_
 
     -- Then insert them into the db
     insertDescriptorSet env itemID descListWithValue
+
+    -- Finally, insert any socketed gems into the DB as well
+    forM_ (iGemsAsItems) (addItemToDB env) 
+
+
+getItemFromDb :: Env -> Location -> IO (Either String (Maybe Item))
+getItemFromDb (env@Env{..}) loc = do
+    let (query, params) = case loc of
+            Archive id     -> (getItemDataQueryID, [toSql id])
+            Location c _ i -> (getItemDataQueryLoc, [toSql c, toSql i, toSql Stashed])
+    qResults <- quickQuery' dbConn query params
+    return $ case qResults of
+        []    -> Right Nothing -- no rows returns
+        [row] -> Just <$> parseItemRow env row
+
+getSharedStashFromDb :: Env -> IO SharedStash
+getSharedStashFromDb env@Env{..} = do
+    let query = getItemDataQuery ++ " where STATUS = ?"
+    rows <- quickQuery' dbConn query [toSql Stashed]
+    return $ map (parseItemRow env) rows
+
+
+parseItemRow env@Env{..} (dbID:lead:trail:c:s:p:name) =
+    let
+        bs = buildItemBytes env lead trail c s p
+    in case fst $ runGet (getItem env (Just $ fromSql dbID) bs) bs of
+        Left err -> Left $ "Item with name '" ++ show name ++ 
+            "' was found in DB but binary parsing failed with error: " ++ err
+        Right item -> Right (item)
+
+buildItemBytes env lead trail c s p =
+    let loc = Location (fromSql c) (fromSql s) (fromSql p)
+        part = Partition (fromSql lead) (fromSql trail)
+    in BS.drop 4 . toStrict . runPut $ putPartition (encodeLocationBytes env loc) part
+
+
+-- Location argument order is From -> To
+locationChange :: Env -> Location -> Location -> IO (Either String [(Location, Maybe Item)])
+-- First handle case where we are moving an item from archive to a stash location, which might have
+-- an item there already
+locationChange (env@Env{..}) (arch@(Archive id)) (loc@Location{..}) = do
+    -- For any item at the destination and stashed, mark it as Archived
+    updates1 <- locationChange env loc arch
+    -- Now set new location data
+    updateLocation env id loc
+    item <- getItemFromDb env loc
+    return $ updates1 >>= const item >>= \i -> (++) <$> updates1 <*> Right [(loc, i), (arch, Nothing)]
+
+
+-- The case where we are moving from stash to archive
+locationChange (env@Env{..}) (loc@Location{..}) (arch@Archive{..}) = do
+    item <- getItemFromDb env loc -- get the info for the item we are moving (if it exists at loc)
+    rows <- run dbConn queryToArchive [toSql Archived, toSql locContainer, toSql locIndex, toSql Stashed]
+    let result = item >>= \i ->
+            return $ (++) [(loc, Nothing)] (if rows > 0 then [(Archive (fromJust . iID $ fromJust i), i)] else [])
+    return $ result
+
+locationChange (env@Env{..}) locFrom locTo = do
+    let selQuery = "select ID from ITEMS " ++ whereContPosStat
+        upQuery = "update ITEMS set CONTAINER=?, POSITION=?, STATUS=?"
+        contPosStatVals loc = [toSql $ locContainer loc, toSql $ locIndex loc, toSql Stashed]
+        getID r = fromSql $ ((head r) !! 0)
+    -- First check to see if anything is already at the TO location
+    rows <- quickQuery' dbConn selQuery (contPosStatVals locTo)
+    let destOccupied = length rows > 0
+
+    -- Update the item that will be in the new TO location
+    run dbConn (upQuery ++ whereContPosStat) $
+        contPosStatVals locTo ++ contPosStatVals locFrom
+
+    -- If something exists at the TO location, swap it with the FROM location
+    when destOccupied $ do
+        void $ run dbConn (upQuery ++ " where ID=?;") ((contPosStatVals locFrom) ++ [getID rows])
+
+    itemF <- getItemFromDb env locFrom
+    itemT <- getItemFromDb env locTo
+    return $ sequence [itemF, itemT] >>= \(f:t:[]) -> Right [(locFrom, f), (locTo, t)]
 
 
 -- Use like this: ensureExists conn "ITEMS" ["RANDOM_ID", "GUID"] [toSql itemRandomID, toSql itemGUID]
@@ -162,12 +373,17 @@ insertItem :: Env -> Item -> ID TrailData -> IO (ID Items)
 insertItem (Env {..}) item@(Item {..}) trailDataID = do
     zonedTime <- getZonedTime
     let localTime = zonedTimeToLocalTime zonedTime
+        (container, slot, position, status) = case iLocation of
+            Location a b c   -> (a, b, c, Stashed)
+            InsertedInSocket -> ("SHARED_STASH_BAG_ARMS", "BAG_ARMS_SLOT", 0, Inserted) -- gems always go in Arms
 
     ensureExists dbConn "ITEMS" [ ("RANDOM_ID", toSql iRandomID)
                                 , ("GUID", toSql $ iBaseGUID iBase)
-                                , ("CONTAINER", toSql $ locContainer iLocation)
-                                , ("SLOT", toSql $ locSlot iLocation)
-                                , ("POSITION", toSql $ locIndex iLocation)
+                                , ("NAME", toSql $ descriptorString iName)
+                                , ("CONTAINER", toSql container)
+                                , ("SLOT", toSql slot)
+                                , ("POSITION", toSql position)
+                                , ("STATUS", toSql status)
                                 , ("LEAD_DATA", toSql $ pBeforeLocation iPartition)
                                 , ("FK_TRAIL_DATA_ID", toSql trailDataID)
                                 , ("DATE", toSql localTime)]
@@ -187,7 +403,7 @@ insertDescriptorSet (Env {..}) itemID descIDValPairs =
 
 setUpAllTables conn =
     forM_ [setUpDescriptors, setUpTrailData, setUpItems, setUpDescriptorSets]
-        (\q -> run conn q [])
+        (\q -> runRaw conn q )
 
 
 data DescriptorType = Innate | Effect | Socket | Enchant | RequiredLevel | Level | StatReq
@@ -212,6 +428,12 @@ instance Convertible SqlValue DescriptorType where
 instance Convertible Float SqlValue where
     safeConvert = Right . toSql . float2Double
 
+instance Convertible ItemStatus SqlValue where
+    safeConvert = Right . toSql . show
+
+instance Convertible SqlValue ItemStatus where
+    safeConvert = Right . read . fromSql 
+
 -- Types for each table to use with ID
 data Descriptors = Descriptors
 data Items = Items
@@ -234,9 +456,11 @@ setUpItems =
     \( ID integer primary key not null \
     \, RANDOM_ID blob not null \
     \, GUID integer not null \
+    \, NAME text not null \
     \, CONTAINER text not null\
     \, SLOT text not null\
-    \, POSITION integer not null\
+    \, POSITION text not null\
+    \, STATUS text not null\
     \, LEAD_DATA blob not null\
     \, FK_TRAIL_DATA_ID integer not null \
     \, DATE text not null \
@@ -248,14 +472,14 @@ setUpDescriptorSets =
     \, FK_ITEM_ID integer not null \
     \, FK_DESCRIPTOR_ID integer not null \
     \, VALUE real not null \
-    \, foreign key(FK_ITEM_ID) references ITEMS(ID)\
+    \, foreign key(FK_ITEM_ID) references ITEMS(ID) on delete cascade \
     \, foreign key(FK_DESCRIPTOR_ID) references DESCRIPTORS(ID));"
 
 keywordQuery condString =
-    "select CONTAINER, SLOT, POSITION, " ++ condString ++ " \
+    "select CONTAINER, SLOT, POSITION, ID, STATUS, " ++ condString ++ " \
     \ from ( \
-        \ select i.CONTAINER, i.SLOT, i.POSITION, \
-        \ group_concat(replace(d.EXPRESSION, '[*]', s.VALUE), char(10)) as FD \
+        \ select i.CONTAINER, i.SLOT, i.POSITION, i.ID, i.STATUS, \
+        \ i.NAME || char(10) || group_concat(replace(d.EXPRESSION, '[*]', s.VALUE), char(10)) as FD \
         \ from DESCRIPTORS d \
         \ inner join DESCRIPTOR_SETS s \
         \ on s.FK_DESCRIPTOR_ID = d.ID \
@@ -263,3 +487,19 @@ keywordQuery condString =
         \ on s.FK_ITEM_ID = i.ID \
         \ group by s.FK_ITEM_ID \
     \ );"
+
+getItemDataQuery = "select i.ID, LEAD_DATA, DATA, CONTAINER, SLOT, POSITION, NAME \
+    \ from ITEMS i \
+    \ inner join TRAIL_DATA t on i.FK_TRAIL_DATA_ID = t.ID "
+    
+getItemDataQueryID = getItemDataQuery ++
+    " where i.ID = (?);"
+
+getItemDataQueryLoc = getItemDataQuery ++ whereContPosStat
+
+updateLocStatById  = "update ITEMS set CONTAINER=?, POSITION=?, STATUS=? \
+                \where ID = (?);"
+queryToArchive = "update ITEMS set STATUS=? " ++ whereContPosStat
+
+whereContPosStat = " where CONTAINER=? and POSITION=? and STATUS=?;"
+

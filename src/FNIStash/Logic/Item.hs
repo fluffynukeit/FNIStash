@@ -21,6 +21,7 @@ module FNIStash.Logic.Item
     ( getItem
     , putItem
     , allDescriptorsOf
+    , encodeLocationBytes
     , Item(..)
     , ItemBase(..)
     , Location(..)
@@ -30,6 +31,7 @@ module FNIStash.Logic.Item
     , Quality(..)
     , PointValue(..)
     , Descriptor(..)
+    , ItemClass(..)
     ) where
 
 -- This file is for decodeing raw bytes of items into useables types and useable information
@@ -51,6 +53,9 @@ import qualified Data.Text as T
 import qualified Data.ByteString as BS
 import qualified Data.List as L
 
+
+import Debug.Trace
+
 ------ GENERAL STUFF
 
 -- Given a Translate instance and a sentence full of markup (like This item gives [VALUE] to strength")
@@ -70,9 +75,9 @@ translateSentence translateMarkup sent =
        else newSent ++ translateSentence translateMarkup suffix
 
 
-
-
 ------ BASE ITEM STUFF
+
+data ItemClass = Arms | Consumables | Spells deriving (Eq, Show, Ord)
 
 data Descriptor = Descriptor
     { descriptorString :: String
@@ -113,13 +118,6 @@ data ItemBase = ItemBase
     , iBaseDescription :: [Descriptor] -- 1 descriptor per line of description
     } deriving (Eq, Ord)
 
-searchAncestryFor (env@Env{..}) findMeVar itemDat =
-    let foundVar = return itemDat >>= findMeVar
-        itemBase = return itemDat >>= vBASEFILE
-    in case foundVar of
-        Just var -> foundVar -- we found the data we want!
-        Nothing ->
-            itemBase >>= lkupPath >>= searchAncestryFor env findMeVar
 
 getItemBase (env@Env{..}) guid itemLevel =
     let Just item = lkupItemGUID guid
@@ -212,14 +210,16 @@ data Location = Location
     , locSlot :: String
     , locIndex :: Int
     }
-    | Inserted
+    | InsertedInSocket
+    | Archive {rowID :: Int}
+    | Elsewhere
     | UnknownLocation
     deriving (Eq, Ord, Show)
 
 -- Given the raw bytes for location in the item file, decode from the bytes to a
 -- Location record that has 
 decodeLocationBytes (Env {..}) (locBytes@LocationBytes {..})
-    | lBytesSlotIndex == 0xFFFF && lBytesContainer == 0xFFFF = Inserted
+    | lBytesSlotIndex == 0xFFFF && lBytesContainer == 0xFFFF = InsertedInSocket
     | otherwise = 
         let (slotType, container) = lkupLocNodes locBytes
             Just containerName = container >>= vNAME >>= return . T.unpack
@@ -230,10 +230,11 @@ decodeLocationBytes (Env {..}) (locBytes@LocationBytes {..})
 
 
 encodeLocationBytes :: Env -> Location -> LocationBytes
-encodeLocationBytes (Env {..}) loc = do
-    let (Just slotID, Just contID) = lkupLocIDs (locSlot loc) (locContainer loc)
-        slotIndex = (slotIDVal slotID + (fromIntegral $ locIndex loc))
-    LocationBytes slotIndex (containerIDVal contID)
+encodeLocationBytes Env{..} loc@Location{..} = 
+    let
+        (Just slotID, Just contID) = lkupLocIDs locSlot locContainer
+        slotIndex = (slotIDVal slotID + (fromIntegral locIndex))
+    in LocationBytes slotIndex (containerIDVal contID)
 
 
 
@@ -321,7 +322,7 @@ decodeEffectBytes (Env{..}) (eff@EffectBytes {..}) =
         precision = effectPrecisionVal effNode
         skillname = lkupSkill $ T.pack eBytesName
         monstername = lkupMonster $ T.pack eBytesName
-        nameToUse = tryFirst skillname monstername >>= vDISPLAYNAME
+        nameToUse = (skillname <|> monstername) >>= vDISPLAYNAME
         description = effectDescription precision nameToUse effNode eff
         ench = isEnchant eff
         effName = fromJust $ effNode >>= vNAME
@@ -340,7 +341,7 @@ mkModDescriptor (EffectDescription {..}) =
 isEnchant (EffectBytes{..}) =
     let byteTest = eBytesType .&. 0x0000FF00
         notEnchant = [0x8000, 0x8100, 0xA000] -- list of bytes for nameless skills but NOT enchants
-    in null eBytesName && all (byteTest /=) notEnchant
+    in (null eBytesName && all (byteTest /=) notEnchant) || eBytesType == 0x8541
 
 instance Convertible AddedDamageBytes EffectBytes where
     safeConvert (AddedDamageBytes{..}) = Right $
@@ -377,6 +378,7 @@ data Item = Item
     , iQuantity :: Int
     , iNumSockets :: Int
     , iGems :: [(FilePath, Descriptor, Descriptor)] -- (icon, title, desc) triplet for each gem
+    , iGemsAsItems :: [Item]
     , iInnateDefs :: [(FilePath, Descriptor)]
     , iEffectsRaw :: [Descriptor]
     , iEffects :: [Descriptor]
@@ -384,9 +386,13 @@ data Item = Item
     , iTriggerables :: [Descriptor]
     , iPartition :: Partition
     , iBase :: ItemBase
+    , iID :: Maybe Int
     } deriving (Eq, Ord)
 
-getItem env bs = decodeItemBytes env <$> getItemBytes bs
+instance Show Item where
+    show = show . iName
+
+getItem env id bs = decodeItemBytes env id <$> getItemBytes bs
 
 decodeIdentified 0x00 = False
 decodeIdentified _ = True
@@ -399,7 +405,7 @@ decodePoints 0xFFFFFFFF a = ArmorVal $ fromIntegral a
 --decodeAddedDamage (AddedDamageBytes {..}) =
 
 selectSpecialEffects env (ItemBytes{..}) =
-    let allMods = (map (decodeEffectBytes env) (iBytesEffects ++ iBytesEffects2))
+    let allMods = map (decodeEffectBytes env) (iBytesEffects ++ iBytesEffects2)
         enchantAdditions = filter ((/=) 0 . dBytesFromEnchant) iBytesAddedDamages
         (enchantMods, normalMods) = L.partition (mIsEnchant) allMods
 
@@ -427,15 +433,12 @@ selectSpecialEffects env (ItemBytes{..}) =
 
         defenseFiles = map (fileLookup . mEffectName) innates
         useInnateDef = zip defenseFiles innateDefDescriptors
-
+        
     in (useNormal, useEnchants, useInnateDef)
 
 
 maybeToBool Nothing = False
 maybeToBool (Just b)  = b
-
-tryFirst a@(Just c) b = a
-tryFirst Nothing    b = b
 
 -- This function is mostly used for determining which of two effects on a gem belongs to armor and
 -- which belongs to weapons.  It's not consistent even among unique gems, but might? be consistent
@@ -450,7 +453,9 @@ makeGemDescriptors (env@Env{..}) (Item {..}) effIndexList =
                           | x == eff1 = Just 1
                           | otherwise = Nothing
 
-        checkValidLength ind = if ind < length iEffectsRaw then Just ind else Nothing
+        checkValidLength ind = if ind < length iEffectsRaw
+            then Just ind
+            else traceShow ("=========== Exceeded!!!", ind, length iEffectsRaw, iName) $ Nothing
 
         -- This is the code for getting effect from a unique socketable
         getMatchingTypeBy d = nEFFECT d >>= vTYPE >>= return . lkupEffect . EffectName
@@ -473,8 +478,10 @@ makeGemDescriptors (env@Env{..}) (Item {..}) effIndexList =
         normalArmorInd  = return 1 >>= checkValidLength
         normalWeaponInd = return 0 >>= checkValidLength
 
-        armorDescriptor  = fromJust $ tryFirst armorIndex  normalArmorInd  >>= return . (!!) iEffectsRaw
-        weaponDescriptor = fromJust $ tryFirst weaponIndex normalWeaponInd >>= return . (!!) iEffectsRaw
+        armorDescriptor  = maybe (mkDescriptor "!!! BROKEN ARMOR" 0 0) id $
+             (armorIndex <|> normalArmorInd)  >>= return . (!!) iEffectsRaw
+        weaponDescriptor =  maybe (mkDescriptor "!!! BROKEN WEAPON" 0 0) id $
+             (weaponIndex <|> normalWeaponInd) >>= return . (!!) iEffectsRaw
         armorSpecifier  = mkDescriptor "Armor/Trinkets:" 0 0
         weaponSpecifier = mkDescriptor "Weapons:" 0 0
 
@@ -482,7 +489,7 @@ makeGemDescriptors (env@Env{..}) (Item {..}) effIndexList =
         itemType = uType (iBaseUnitType iBase)
         socketItemTypes = ["SOCKETABLE", "BLOOD EMBER", "VOID EMBER", "CHAOS EMBER", "IRON EMBER"]
         isSocket = any (itemType ==) socketItemTypes
-    in if not isSocket then iEffectsRaw -- No change to descriptors
+    in if not isSocket then iEffectsRaw -- No change to descriptors if not a gem or quest item
        else armorSpecifier:armorDescriptor:weaponSpecifier:weaponDescriptor:[]
 
 
@@ -521,9 +528,9 @@ makeTrigDescriptors env (bytes@ItemBytes{..}) = concat $ mapMaybe (getDescrip en
 
 effectsOf item = iBytesEffects item ++ iBytesEffects2 item
 
-decodeItemBytes env (itemBytes@ItemBytes {..}) =
+decodeItemBytes env id (itemBytes@ItemBytes {..}) =
     let (useNormal, useEnchants, innateDef) = selectSpecialEffects env itemBytes
-        gemItems = map (decodeItemBytes env) iBytesGems
+        gemItems = map (decodeItemBytes env Nothing) iBytesGems
         base = getItemBase env (GUID $ fromIntegral iBytesGUID) iBytesLevel
 
         effectIndexList = map (eBytesIndex) $ effectsOf itemBytes
@@ -537,6 +544,7 @@ decodeItemBytes env (itemBytes@ItemBytes {..}) =
                (fromIntegral iBytesQuantity)
                (fromIntegral iBytesNumSockets)
                (map (getGemDesc env) $ gemItems )
+               gemItems
                innateDef
                useNormal
                (makeGemDescriptors env item effectIndexList)
@@ -544,31 +552,27 @@ decodeItemBytes env (itemBytes@ItemBytes {..}) =
                (makeTrigDescriptors env itemBytes)
                iBytesPartition
                base
+               id
     in item
 
 
+-- Returns a list of all descriptors for the item.  The Name is not included in
+-- in the returned list
 allDescriptorsOf (Item{..}) =
     -- first Descriptors from the ItemBase
      iBaseOtherReqs iBase ++ [iBaseLevelReq iBase] ++ iBaseInnates iBase ++ iBaseDescription iBase
         ++
     -- now the binary-specific stuff of Item
-    [iName, iLevel] ++ gems ++ innateDefs ++ iEffects ++ iEnchantments ++ iTriggerables
+    [iLevel] ++ gems ++ innateDefs ++ iEffects ++ iEnchantments ++ iTriggerables
     where
         gems = flip concatMap iGems $ \(_, n, d) -> [n,d]
         innateDefs = map snd iInnateDefs
     
 putItem env (Item {..}) = putPartition (encodeLocationBytes env iLocation) iPartition
+
+
+
 itemAsBS env item = runPut $ putItem env item
-
-
-
-
-
-
-
-
-
-    
 
 
 
