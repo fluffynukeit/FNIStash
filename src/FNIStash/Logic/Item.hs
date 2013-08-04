@@ -340,7 +340,7 @@ mkModDescriptor (EffectDescription {..}) =
 isEnchant (EffectBytes{..}) =
     let byteTest = eBytesType .&. 0x0000FF00
         notEnchant = [0x8000, 0x8100, 0xA000] -- list of bytes for nameless skills but NOT enchants
-    in null eBytesName && all (byteTest /=) notEnchant
+    in (null eBytesName && all (byteTest /=) notEnchant) || eBytesType == 0x8541
 
 instance Convertible AddedDamageBytes EffectBytes where
     safeConvert (AddedDamageBytes{..}) = Right $
