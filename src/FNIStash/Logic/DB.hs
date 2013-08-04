@@ -28,6 +28,7 @@ module FNIStash.Logic.DB
 , locationChange
 , allLocationContents
 , allGUIDs
+, commitDB
 , ItemClass(..)
 , ItemSummary(..)
 , ItemMatch(..)
@@ -100,6 +101,8 @@ data RegisterSummary = RegisterSummary
 -- DB stuff
 
 handleDB = handleSql
+commitDB Env{..} = commit dbConn
+
 
 initializeDB appRoot = do
     let dbPath = appRoot </> "fnistash.db"
@@ -107,7 +110,7 @@ initializeDB appRoot = do
     conn <- connectSqlite3 $ encodeString dbPath
 
     -- need to enable foreign keys for each connection
-    run conn "PRAGMA foreign_keys = ON;" []
+    runRaw conn "PRAGMA foreign_keys = ON;"
 
     if dbExists then
         return () -- don't need to make a new table
@@ -120,7 +123,7 @@ initializeDB appRoot = do
 -- returns the newly registered items in a list
 register env@Env{..} items = do
     setStashedToElsewhere env
-    registerResults <- withTransaction dbConn $ const $ forM items $ \item@(Item {..}) -> do
+    registerResults <- forM items $ \item@(Item {..}) -> do
         getReg <- getRegistered env item
 
         case getReg of
@@ -400,7 +403,7 @@ insertDescriptorSet (Env {..}) itemID descIDValPairs =
 
 setUpAllTables conn =
     forM_ [setUpDescriptors, setUpTrailData, setUpItems, setUpDescriptorSets]
-        (\q -> run conn q [])
+        (\q -> runRaw conn q )
 
 
 data DescriptorType = Innate | Effect | Socket | Enchant | RequiredLevel | Level | StatReq

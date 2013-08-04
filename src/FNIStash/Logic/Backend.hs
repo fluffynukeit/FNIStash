@@ -117,7 +117,7 @@ registerStash env sharedStash =
     in register env parsedItems
 
 -- This is the main backend event queue
-handleMessages env m cryptoFile (msg:rest) = do
+handleMessages env@Env{..} m cryptoFile (msg:rest) = do
     outMessages <- case msg of
 
         -- Move an item from one location to another
@@ -137,8 +137,9 @@ handleMessages env m cryptoFile (msg:rest) = do
                 saveNotice = if length errorNotices > 0
                              then []
                              else [Notice . Saved $ filePath]
-            when (length errorNotices == 0) $ -- only write out the file if there are no errors
+            when (length errorNotices == 0) $ do-- only write out the file if there are no errors
                 writeCryptoFile filePath newSaveFile
+                commitDB env    -- also commit changes to DB
             return $ errorNotices ++ saveNotice
 
         -- Find items matching keywords
