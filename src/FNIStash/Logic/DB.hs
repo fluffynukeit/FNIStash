@@ -118,21 +118,23 @@ initializeDB appRoot = do
 
 -- Given a list of items, registers those that have not been registered yet and
 -- returns the newly registered items in a list
-register env items = do
-    let conn = dbConn env
-    registerResults <- withTransaction conn $ const $ forM items $ \item@(Item {..}) -> do
+register env@Env{..} items = do
+    setStashedToElsewhere env
+    registerResults <- withTransaction dbConn $ const $ forM items $ \item@(Item {..}) -> do
         getReg <- getRegistered env item
 
         case getReg of
             Just id -> do
                 dataHasChanged <- dataChange env id item
                 case dataHasChanged of
-                    True  -> do
+                    True  -> do     -- Item data has changed.  Remove and re-insert
                         deleteID env id
                         addItemToDB env item
                         return $ (Updated, item)
-                    False -> return $ (NoChange, item)
-            Nothing -> do
+                    False -> do -- Item data the same.  Only update location
+                        updateLocation env id iLocation
+                        return $ (NoChange, item)
+            Nothing -> do -- Item not previously registered
                 addItemToDB env item
                 return $ (New, item)
 
@@ -142,6 +144,11 @@ register env items = do
         upda = map snd $ filter ((== Updated) . fst) registerResults
         noch = map snd $ filter ((== NoChange) . fst) registerResults
     return $ RegisterSummary news upda noch
+
+
+setStashedToElsewhere Env{..} = do
+    let query = "update ITEMS set STATUS=? where STATUS=?;"
+    void $ run dbConn query [toSql $ show Elsewhere, toSql Stashed]
 
 
 cleanUpDB Env{..} = do
@@ -156,6 +163,16 @@ dataChange env id item = do
     (Right (Just oldData)) <- getItemFromDb env (Archive id) -- dangerous pattern matching...
     return $ iPartition oldData /= iPartition item
 
+updateLocation Env{..} id Location{..} = do
+    void $ run dbConn updateLocStatById [toSql locContainer, toSql locIndex, toSql Stashed, toSql id]
+
+updateLocation Env{..} id InsertedInSocket = do
+    void $ run dbConn updateLocStatById [ toSql ("SHARED_STASH_BAG_ARMS"::String)
+                                 , toSql (0::Int)
+                                 , toSql Inserted
+                                 , toSql id]
+
+updateLocation _ _ Elsewhere = return ()
 
 keywordStatus :: Env -> String -> IO (Either String [ItemMatch])
 keywordStatus env (parseKeywords -> Left error) = return . Left . show $ error
@@ -291,8 +308,8 @@ locationChange :: Env -> Location -> Location -> IO (Either String [(Location, M
 locationChange (env@Env{..}) (arch@(Archive id)) (loc@Location{..}) = do
     -- For any item at the destination and stashed, mark it as Archived
     updates1 <- locationChange env loc arch
-    -- Now set new data
-    run dbConn queryToStash [toSql locContainer, toSql locIndex, toSql Stashed, toSql id]
+    -- Now set new location data
+    updateLocation env id loc
     item <- getItemFromDb env loc
     return $ updates1 >>= const item >>= \i -> (++) <$> updates1 <*> Right [(loc, i), (arch, Nothing)]
 
@@ -354,7 +371,7 @@ insertItem (Env {..}) item@(Item {..}) trailDataID = do
     zonedTime <- getZonedTime
     let localTime = zonedTimeToLocalTime zonedTime
         (container, slot, position, status) = case iLocation of
-            Location a b c   -> (a,b, c, Stashed)
+            Location a b c   -> (a, b, c, Stashed)
             InsertedInSocket -> ("SHARED_STASH_BAG_ARMS", "BAG_ARMS_SLOT", 0, Inserted) -- gems always go in Arms
 
     ensureExists dbConn "ITEMS" [ ("RANDOM_ID", toSql iRandomID)
@@ -477,7 +494,7 @@ getItemDataQueryID = getItemDataQuery ++
 
 getItemDataQueryLoc = getItemDataQuery ++ whereContPosStat
 
-queryToStash  = "update ITEMS set CONTAINER=?, POSITION=?, STATUS=? \
+updateLocStatById  = "update ITEMS set CONTAINER=?, POSITION=?, STATUS=? \
                 \where ID = (?);"
 queryToArchive = "update ITEMS set STATUS=? " ++ whereContPosStat
 

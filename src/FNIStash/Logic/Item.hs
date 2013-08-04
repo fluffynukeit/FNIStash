@@ -212,6 +212,7 @@ data Location = Location
     }
     | InsertedInSocket
     | Archive {rowID :: Int}
+    | Elsewhere
     | UnknownLocation
     deriving (Eq, Ord, Show)
 
