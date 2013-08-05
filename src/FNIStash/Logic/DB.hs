@@ -20,6 +20,7 @@
 module FNIStash.Logic.DB
 ( handleDB
 , initializeDB
+, closeDB
 , register
 , keywordStatus
 , allItemSummaries
@@ -118,6 +119,8 @@ initializeDB appRoot = do
             setUpAllTables conn >> commit conn
 
     return conn
+
+closeDB Env{..} = disconnect dbConn
 
 -- Given a list of items, registers those that have not been registered yet and
 -- returns the newly registered items in a list

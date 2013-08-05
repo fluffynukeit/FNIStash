@@ -159,9 +159,10 @@ ensureGUIAssets root cfg = do
         createTree assetPath
         guiPAK <- readPAKPrefixes cfg guiAssets
         -- writeHTML will go here to write out HTML page? maybe use quasi quotes
-        withAssetsContaining guiPAK ".IMAGESET" $ processImageSet assetPath guiPAK
         withAssetsContaining guiPAK ".TTF" $ writeAssetFile assetPath -- for fonts
         withAssetsContaining guiPAK "SCREENS" $ exportScreen assetPath -- for backgrounds
+        withAssetsContaining guiPAK ".IMAGESET" $ processImageSet assetPath guiPAK
+       
 
 withAssetsContaining guiPAK subStr action =
     let pathDataTuples = mapsnd entryData $ M.toList $ pakWithKeysContaining subStr guiPAK

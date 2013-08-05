@@ -57,7 +57,7 @@ ensurePaths = do
     return (appRoot, guiRoot)
 
 sendErrIO :: Messages -> IOException -> IO ()
-sendErrIO msg exc = writeBMessage msg $ Notice $ Error ("DB: " ++ show exc)
+sendErrIO msg exc = writeBMessage msg $ Notice $ Error ("IO: " ++ show exc)
 sendErrDB msg exc = writeBMessage msg $ Notice $ Error ("DB: " ++ show exc)
 
 -- The real meat of the program

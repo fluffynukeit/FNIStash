@@ -24,6 +24,7 @@ import FNIStash.Comm.Messages
 
 import Control.Concurrent
 import Control.Monad.Trans
+import Control.Exception
 import Filesystem
 import Filesystem.Path.CurrentOS
 
@@ -43,3 +44,4 @@ launchAll appRoot guiRoot = do
     messages <- liftIO newMessages
     liftIO $ forkIO $ backend messages appRoot guiRoot
     frontend messages
+

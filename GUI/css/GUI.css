@@ -479,7 +479,7 @@ input[type=text] {
 	}
 .reportcell {
 	display: table-cell;
-	background-color: none;
+	background-color: transparent;
 	border-style: none;
 	text-align: left;
     }

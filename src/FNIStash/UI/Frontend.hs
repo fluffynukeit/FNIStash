@@ -49,14 +49,21 @@ frontend messages = do
     (stash, updateTxt) <- stash messages
     forM_ msgList $ \x -> do
         case x of
-            Initializing AssetsComplete -> return stash #+ frame # unit
+            Initializing AssetsComplete ->
+                return stash #+ frame # unit
+
             Initializing Complete -> do
                 assignRandomBackground underlay
                 crossFade overlay underlay 350
-            Initializing (ArchiveData summs) -> populateArchiveTable messages summs
-            Initializing (ReportData iReport)-> mkReport stash iReport 
+
+            Initializing (ArchiveData summs) ->
+                populateArchiveTable messages summs
+
+            Initializing (ReportData iReport)->
+                mkReport stash iReport 
                 
-            Initializing x                -> handleInit x overlayMsg
+            Initializing x ->
+                handleInit x overlayMsg
                 
             LocationContents locItemsList -> do
                 withLocVals locItemsList updateCell

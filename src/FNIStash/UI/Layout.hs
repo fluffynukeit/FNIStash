@@ -40,7 +40,7 @@ import Control.Monad.Trans
 import Data.Maybe
 import Data.List.Split
 import Data.List (zip4)
-
+import Text.Printf
 import Debug.Trace
 
 sharedStashArms = (Location "SHARED_STASH_BAG_ARMS" "BAG_ARMS_SLOT", "ig_inventorytabs_arms")
@@ -292,7 +292,7 @@ mkReport stash ItemsReport{..} = do
         "Closes grail report" (setVis False cont # unit)
     return closeBtn ## "reportclosebutton" #+ cont
     new ## "reporttitle" #= "Grail Achievement Report" #+ cont
-    new ## "reportpercent" #= (take 6 $ show reportPercentFound) ++ "% complete" #+ cont
+    new ## "reportpercent" #= (printf "%.3f" reportPercentFound) ++ "% complete" #+ cont
     new ## "reportsum1" #= "Distinct items registered: " ++ show reportGUIDsRegistered #+ cont
     new ## "reportsum2" #= "Total items in Torchlight 2: " ++ show reportGUIDsAllItems #+ cont
     new ## "reportsum3" #= "Remaining " ++ (show remaining)
@@ -320,6 +320,6 @@ mkReport stash ItemsReport{..} = do
     (btn, txt) <- makeRedButton "Shows progress of finding all items" (setVis True cont # unit)
     return btn ## "reportbutton"
     return btn #+ stash
-    return txt #= "Grail: " ++ (take 5 $ show reportPercentFound) ++ "%" # unit
+    return txt #= "Grail: " ++ (printf "%.3f" reportPercentFound) ++ "%" # unit
 
     
