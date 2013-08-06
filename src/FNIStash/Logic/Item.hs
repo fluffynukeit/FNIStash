@@ -432,8 +432,13 @@ selectSpecialEffects env (ItemBytes{..}) =
 
         defenseFiles = map (fileLookup . mEffectName) innates
         useInnateDef = zip defenseFiles innateDefDescriptors
-        
-    in (useNormal, useEnchants, useInnateDef)
+
+        armor = case decodePoints iBytesDamage iBytesArmor of
+                    ArmorVal 0 -> Nothing
+                    ArmorVal i -> Just ("resist_physicalc", mkDescriptor "[*] Phyiscal Armor" (fromIntegral i) 0)
+                    _          -> Nothing
+                
+    in (useNormal, useEnchants, maybe [] (:[]) armor ++ useInnateDef)
 
 
 maybeToBool Nothing = False
@@ -533,7 +538,6 @@ decodeItemBytes env id (itemBytes@ItemBytes {..}) =
         base = getItemBase env (GUID $ fromIntegral iBytesGUID) iBytesLevel
 
         effectIndexList = map (eBytesIndex) $ effectsOf itemBytes
-
         item = Item
                (mkDescriptor iBytesName 0 0)
                iBytesRandomID
