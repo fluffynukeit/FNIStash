@@ -27,10 +27,13 @@ import Control.Monad.Trans
 import Control.Exception
 import Filesystem
 import Filesystem.Path.CurrentOS
+import Safe
+import System.Environment
 
 main = do
     setWorkingDirectory "C:\\Users\\Dan\\My Code\\FNIStash" -- only for testing
-    (appRoot, guiRoot) <- ensurePaths
+    args <- getArgs
+    (appRoot, guiRoot) <- ensurePaths $ headMay args
     mvar <- newEmptyMVar
 
     

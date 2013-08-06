@@ -113,8 +113,10 @@ initialize messages appRoot guiRoot envMVar = do
 -}
 
 -- Create the program directory if it doesn't exist, location at AppData/Roaming/FNIStash
-ensureAppRoot = do
-    appRoot <- getAppDataDirectory "FNIStash"
+ensureAppRoot maybeName = do
+    appRoot <- case maybeName of
+        Nothing -> getAppDataDirectory "FNIStash"
+        Just n  -> getAppDataDirectory $ "FNIStash-" `T.append` T.pack n
     createTree appRoot
     return appRoot
 

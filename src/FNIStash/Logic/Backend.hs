@@ -50,9 +50,9 @@ textOutputPath = testDir </> "sharedStashTxt.txt"
 savePath = testDir </> "testSave.bin"
 
 -- Gets/makes the necessary application paths
-ensurePaths = do
+ensurePaths maybeName = do
     -- Ensure we have an app path for both backend and GUI to access
-    appRoot <- ensureAppRoot
+    appRoot <- ensureAppRoot maybeName
     guiRoot <- ensureHtml appRoot
     return (appRoot, guiRoot)
 
