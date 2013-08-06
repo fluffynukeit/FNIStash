@@ -20,7 +20,7 @@
 module FNIStash.Logic.DB
 ( handleDB
 , initializeDB
-, closeDB
+, rollbackDB
 , register
 , keywordStatus
 , allItemSummaries
@@ -120,7 +120,7 @@ initializeDB appRoot = do
 
     return conn
 
-closeDB Env{..} = disconnect dbConn
+rollbackDB Env{..} = rollback dbConn
 
 -- Given a list of items, registers those that have not been registered yet and
 -- returns the newly registered items in a list

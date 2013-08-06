@@ -57,12 +57,12 @@ ensurePaths = do
     return (appRoot, guiRoot)
 
 sendErrIO :: Messages -> IOException -> IO ()
-sendErrIO msg exc = writeBMessage msg $ Notice $ Error ("IO: " ++ show exc)
-sendErrDB msg exc = writeBMessage msg $ Notice $ Error ("DB: " ++ show exc)
+sendErrIO msg exc = traceShow exc $ writeBMessage msg $ Notice $ Error ("IO: " ++ show exc)
+sendErrDB msg exc = traceShow exc $ writeBMessage msg $ Notice $ Error ("DB: " ++ show exc)
 
 -- The real meat of the program
-backend msg appRoot guiRoot = handle (sendErrIO msg) $ handleDB (sendErrDB msg) $ do
-    env <- initialize msg appRoot guiRoot
+backend msg appRoot guiRoot mvar = handle (sendErrIO msg) $ handleDB (sendErrDB msg) $ do
+    env <- initialize msg appRoot guiRoot mvar
 
      -- Descramble the scrambled shared stash file.  Just reads the test file for now. Needs to
     -- eventually read the file defined by cfg

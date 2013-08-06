@@ -31,17 +31,19 @@ import Filesystem.Path.CurrentOS
 main = do
     setWorkingDirectory "C:\\Users\\Dan\\My Code\\FNIStash" -- only for testing
     (appRoot, guiRoot) <- ensurePaths
+    mvar <- newEmptyMVar
+
     
     serve Config
         { tpPort = 10001
         , tpRun = runTP
-        , tpWorker = launchAll appRoot guiRoot
+        , tpWorker = launchAll appRoot guiRoot mvar
         , tpInitHTML = Just "GUI.html"
         , tpStatic = encodeString guiRoot
         }
 
-launchAll appRoot guiRoot = do
+launchAll appRoot guiRoot mvar = do
     messages <- liftIO newMessages
-    liftIO $ forkIO $ backend messages appRoot guiRoot
+    liftIO $ forkIO $ backend messages appRoot guiRoot mvar
     frontend messages
 

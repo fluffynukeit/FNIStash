@@ -45,6 +45,7 @@ import Data.Maybe
 import Data.Configurator
 import Data.Monoid
 import Control.Monad
+import Control.Concurrent
 import Prelude hiding (readFile, writeFile)
 
 -- Stuff for XML parsing
@@ -68,34 +69,41 @@ import Data.Word
 --import Debug.Trace
 
 -- Sets up paths, generates files, and builds the text environment
-initialize messages appRoot guiRoot = do
+initialize messages appRoot guiRoot envMVar = do
 
-    -- First do one time initialization stuff
-    writeBMessage messages  $ Initializing $ CfgStart
-    cfg <- ensureConfig appRoot
+    envNotBuiltYet <- isEmptyMVar envMVar
 
-    -- Construct the DB
-    writeBMessage messages $ Initializing DBStart
-    conn <- initializeDB appRoot
+    -- At app start up, build the ENV and save it for all future session in mvar
+    when envNotBuiltYet $ do
+        -- First do one time initialization stuff
+        writeBMessage messages  $ Initializing $ CfgStart
+        cfg <- ensureConfig appRoot
+        
+        -- Construct the DB
+        writeBMessage messages $ Initializing DBStart
+        conn <- initializeDB appRoot
 
-    writeBMessage messages $ Initializing AssetsStart
-    ensureGUIAssets guiRoot cfg
-    writeBMessage messages $ Initializing AssetsComplete    
+        writeBMessage messages $ Initializing AssetsStart
+        ensureGUIAssets guiRoot cfg
+        writeBMessage messages $ Initializing AssetsComplete    
 
-    writeBMessage messages $ Initializing EnvStart
-    pak <- readPAKPrefixes cfg envPrefixes
+        writeBMessage messages $ Initializing EnvStart
+        pak <- readPAKPrefixes cfg envPrefixes
 
--- -- This part is for writing out a particular DAT file for testing.  TODO clean up later
---    let dest = "C:\\Users\\Dan\\Desktop\\FNI Testing\\dump\\"
---        writeDatFile f d = let t = fromJust $lkupPAKFile f pak >>= return . textDAT . (runGetSuppress getDAT)
---            in T.writeFile (dest <> d) t
---
---    trace "about to write---------" $ return ()
---    writeDatFile "MEDIA/INVENTORY/BAG_ARMS_SLOT.DAT" "BAG_ARMS_SLOT.DAT"
---    trace "end write -----------" $ return ()
+        -- Build the data lookup environment
+        putMVar envMVar $ buildEnv pak conn
 
-    -- Build the data lookup environment
-    let env = buildEnv pak conn
+    -- If we are returning the cached value, be sure to send all events
+    when (not envNotBuiltYet) $ mapM_ (writeBMessage messages)
+        [ Initializing CfgStart
+        , Initializing DBStart
+        , Initializing AssetsStart
+        , Initializing AssetsComplete
+        , Initializing EnvStart ]
+
+    -- Now extract the already built ENV data and reset and staged changes
+    env <- readMVar envMVar
+    rollbackDB env
     
     return env
 
