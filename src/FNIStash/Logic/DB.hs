@@ -74,7 +74,7 @@ instance Convertible GUID SqlValue where
 
 -- Record types for returning data from DB
 
-data ItemStatus = Stashed | Inserted | Archived deriving (Eq, Show, Read, Ord)
+data ItemStatus = Stashed | Inserted | Archived | Elsewhere deriving (Eq, Show, Read, Ord)
 data ItemSummary = ItemSummary
     { summaryName :: String
     , summaryDbID :: Int
@@ -178,7 +178,6 @@ updateLocation Env{..} id InsertedInSocket = do
                                  , toSql Inserted
                                  , toSql id]
 
-updateLocation _ _ Elsewhere = return ()
 
 keywordStatus :: Env -> String -> IO (Either String [ItemMatch])
 keywordStatus env (parseKeywords -> Left error) = return . Left . show $ error
