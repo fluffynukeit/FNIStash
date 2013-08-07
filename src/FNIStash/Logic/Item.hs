@@ -435,7 +435,7 @@ selectSpecialEffects env (ItemBytes{..}) =
 
         armor = case decodePoints iBytesDamage iBytesArmor of
                     ArmorVal 0 -> Nothing
-                    ArmorVal i -> Just ("resist_physicalc", mkDescriptor "[*] Phyiscal Armor" (fromIntegral i) 0)
+                    ArmorVal i -> Just ("resist_physicalc", mkDescriptor "[*] Physical Armor" (fromIntegral i) 0)
                     _          -> Nothing
                 
     in (useNormal, useEnchants, maybe [] (:[]) armor ++ useInnateDef)
