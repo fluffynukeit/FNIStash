@@ -13,6 +13,7 @@
 -----------------------------------------------------------------------------
 {-# LANGUAGE FlexibleContexts, OverloadedStrings #-}
 
+
 module FNIStash.File.General 
 ( getTorchText
 , getTorchTextL
@@ -32,6 +33,7 @@ module FNIStash.File.General
 , toStrict
 , copyLazy
 , copyStrict
+, include2
 )
 where
 
@@ -52,6 +54,21 @@ import Data.Array.ST (newArray, readArray, MArray, STUArray)
 import Data.Array.Unsafe (castSTUArray)
 import GHC.ST (runST, ST)
 import Filesystem.Path.CurrentOS
+
+
+-- Quasiquote stuff
+import Data.Functor
+import qualified Language.Haskell.TH as TH
+import Language.Haskell.TH.Quote
+
+-- I shamelessly copied this code from TPG.  Thanks, Heinrich!
+rootPath = ""
+include2 = QuasiQuoter { quoteExp = e }
+    where
+    e s = TH.LitE . TH.StringL <$> TH.runIO (readFile $ rootPath ++ s)
+
+
+
 
 showListString f = foldl (\a b -> a <> f b) (""::String)
 

@@ -13,6 +13,7 @@
 -----------------------------------------------------------------------------
 
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module FNIStash.Logic.Initialize (
     initialize,
@@ -31,6 +32,7 @@ import FNIStash.File.SharedStash
 import FNIStash.File.Crypto
 import FNIStash.File.PAK
 import FNIStash.Comm.Messages
+import FNIStash.File.General
 
 -- Filesystem stuff
 import Filesystem
@@ -126,9 +128,15 @@ ensureHtml appRoot = do
     htmlExists <- isDirectory htmlRoot
     if htmlExists then
         return ()
-        else
-            copyDirContents "GUI" htmlRoot
+        else do
+            createTree $ htmlRoot </> "css"
+            writeTextFile (htmlRoot </> "css" </> "GUI.css") cssFile
+            writeTextFile (htmlRoot </> "GUI.html") htmlFile
+            
     return htmlRoot
+
+cssFile = T.pack  [include2|GUI/css/GUI.css|]
+htmlFile = T.pack [include2|GUI/GUI.html|]
 
 -- Do I really need to roll my own copy directory function? Ugh.
 copyDirContents curDir curDestDir = do

@@ -31,11 +31,10 @@ import Safe
 import System.Environment
 
 main = do
-    setWorkingDirectory "C:\\Users\\Dan\\My Code\\FNIStash" -- only for testing
+
     args <- getArgs
     (appRoot, guiRoot) <- ensurePaths $ headMay args
     mvar <- newEmptyMVar
-
     
     serve Config
         { tpPort = 10001

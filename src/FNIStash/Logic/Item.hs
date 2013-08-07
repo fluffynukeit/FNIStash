@@ -201,7 +201,7 @@ resolveClassReq "RAILMAN"   = mkDescriptor "Requires Class: Engineer" 0 0
 resolveClassReq "OUTLANDER" = mkDescriptor "Requires Class: Outlander" 0 0
 resolveClassReq "BERSERKER" = mkDescriptor "Requires Class: Berserker" 0 0
 resolveClassReq "EMBERMAGE" = mkDescriptor "Requires Class: Embermage" 0 0
-resolveClassReq _                      = mkDescriptor "Requires Class: Unknown Class" 0 0
+resolveClassReq _           = mkDescriptor "Requires Class: Unknown Class" 0 0
 
 ----- LOCATION STUFF
 

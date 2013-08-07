@@ -18,8 +18,9 @@ executable FNIStash-Debug
                    configurator -any, containers ==0.4.2.1, convertible -any,
                    data-endian -any, errors -any, filepath -any, monad-loops -any,
                    mtl -any, parsec -any, random -any, safe -any, split -any,
-                   system-fileio -any, system-filepath -any, text -any,
-                   threepenny-gui -any, time -any, tuple -any, xml -any, zlib -any
+                   system-fileio -any, system-filepath -any, template-haskell -any,
+                   text -any, threepenny-gui -any, time -any, tuple -any, xml -any,
+                   zlib -any
     main-is: Main.hs
     buildable: True
     extra-libraries: libIL sqlite3
@@ -31,7 +32,7 @@ executable FNIStash-Debug
                    FNIStash.File.Variables FNIStash.File.SharedStash FNIStash.File.PAK
                    FNIStash.File.Item FNIStash.File.General FNIStash.File.DAT
                    FNIStash.File.Crypto FNIStash.Comm.Messages
-    ghc-options: -O2 -prof -rtsopts -auto-all -threaded
+    ghc-options: -O2 -rtsopts -auto-all -threaded
  
 executable FNIStash
     build-depends: Codec-Image-DevIL -any, HDBC -any,
@@ -40,8 +41,9 @@ executable FNIStash
                    configurator -any, containers ==0.4.2.1, convertible -any,
                    data-endian -any, errors -any, filepath -any, monad-loops -any,
                    mtl -any, parsec -any, random -any, safe -any, split -any,
-                   system-fileio -any, system-filepath -any, text -any,
-                   threepenny-gui -any, time -any, tuple -any, xml -any, zlib -any
+                   system-fileio -any, system-filepath -any, template-haskell -any,
+                   text -any, threepenny-gui -any, time -any, tuple -any, xml -any,
+                   zlib -any
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
