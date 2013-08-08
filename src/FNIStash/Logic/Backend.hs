@@ -70,13 +70,13 @@ backend msg appRoot guiRoot mvar = handle (sendErrIO msg) $ handleDB (sendErrDB 
             -- eventually read the file defined by cfg
             cryptoFile <- readCryptoFile sharedStashCrypted
             let ssData = fileGameData cryptoFile
-
-            let sharedStashResult = parseSharedStash env ssData
+                fileVers = fileVersion cryptoFile
+                sharedStashResult = parseSharedStash env ssData
             case sharedStashResult of
                 Left error -> writeBMessage msg $ Initializing $ InitError $ "Error reading shared stash: " ++ error
                 Right sharedStash -> do
                     writeBMessage msg $ Initializing RegisterStart
-                    dumpRegistrations env msg sharedStash
+                    dumpRegistrations env msg fileVers sharedStash
                     dumpItemLocs msg env
                     writeBMessage msg $ Initializing ArchiveDataStart
                     dumpArchive env msg
@@ -102,9 +102,9 @@ dumpArchive env msg = do
     allItems <- allItemSummaries env
     writeBMessage msg $ Initializing $ ArchiveData allItems
 
-dumpRegistrations env messages sharedStash = do
+dumpRegistrations env messages fVers sharedStash = do
 
-    RegisterSummary newItems updatedItems noChange <- registerStash env sharedStash
+    RegisterSummary newItems updatedItems noChange <- registerStash env fVers sharedStash
     let numNew = length newItems
         numUpd = length updatedItems
         numNoC = length noChange
@@ -114,9 +114,9 @@ dumpRegistrations env messages sharedStash = do
 
 -- Tries to register all non-registered items into the DB.  Retuns list of newly
 -- registered items.
-registerStash env sharedStash =
+registerStash env fVers sharedStash =
     let parsedItems = rights sharedStash
-    in register env parsedItems
+    in register env fVers parsedItems
 
 -- This is the main backend event queue
 handleMessages env@Env{..} savePath m cryptoFile (msg:rest) = do

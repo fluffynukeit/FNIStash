@@ -60,6 +60,7 @@ import GHC.Float
 import Text.Parsec
 import Data.Binary.Strict.Get
 import Data.Binary.Put
+import Data.Word
 
 import Filesystem.Path.CurrentOS hiding (FilePath)
 import Filesystem
@@ -124,7 +125,7 @@ rollbackDB Env{..} = rollback dbConn
 
 -- Given a list of items, registers those that have not been registered yet and
 -- returns the newly registered items in a list
-register env@Env{..} items = do
+register env@Env{..} fVers items = do
     setStashedToElsewhere env
     registerResults <- forM items $ \item@(Item {..}) -> do
         getReg <- getRegistered env item
@@ -135,13 +136,13 @@ register env@Env{..} items = do
                 case dataHasChanged of
                     True  -> do     -- Item data has changed.  Remove and re-insert
                         deleteID env id
-                        addItemToDB env item
+                        addItemToDB env fVers item
                         return $ (Updated, item)
-                    False -> do -- Item data the same.  Only update location
+                    False -> do -- Item data the same.  Only update location.
                         updateLocation env id iLocation
                         return $ (NoChange, item)
             Nothing -> do -- Item not previously registered
-                addItemToDB env item
+                addItemToDB env fVers item
                 return $ (New, item)
 
     -- now clean up any trail_data entries that are irrelevant.
@@ -259,10 +260,10 @@ getRegistered env (Item {..}) = do
     matchingGuys <- quickQuery' (dbConn env) "select ID from ITEMS where RANDOM_ID = ?" [toSql iRandomID]
     if length matchingGuys == 0 then return Nothing else return $ Just (fromSql $ head matchingGuys !! 0)
 
-addItemToDB env item@(Item {..}) = do
+addItemToDB env fVers item@(Item {..}) = do
     -- First register the item data, starting with the Trail data
     trailID <- insertTrailData env item
-    itemID <- insertItem env item trailID
+    itemID <- insertItem env fVers item trailID
     -- First collect all the descriptors for the item
     let descriptorList = allDescriptorsOf item
     
@@ -272,7 +273,7 @@ addItemToDB env item@(Item {..}) = do
     insertDescriptorSet env itemID descListWithValue
 
     -- Finally, insert any socketed gems into the DB as well
-    forM_ (iGemsAsItems) (addItemToDB env) 
+    forM_ (iGemsAsItems) (addItemToDB env fVers) 
 
 
 getItemFromDb :: Env -> Location -> IO (Either String (Maybe Item))
@@ -371,8 +372,8 @@ insertTrailData :: Env -> Item -> IO (ID TrailData)
 insertTrailData (Env {..}) item@(Item {..}) =
     ensureExists dbConn "TRAIL_DATA" [("DATA", toSql $ pAfterLocation iPartition)]
 
-insertItem :: Env -> Item -> ID TrailData -> IO (ID Items)
-insertItem (Env {..}) item@(Item {..}) trailDataID = do
+insertItem :: Env -> Word32 -> Item -> ID TrailData -> IO (ID Items)
+insertItem (Env {..}) fVers item@(Item {..}) trailDataID = do
     zonedTime <- getZonedTime
     let localTime = zonedTimeToLocalTime zonedTime
         (container, slot, position, status) = case iLocation of
@@ -381,6 +382,7 @@ insertItem (Env {..}) item@(Item {..}) trailDataID = do
 
     ensureExists dbConn "ITEMS" [ ("RANDOM_ID", toSql iRandomID)
                                 , ("GUID", toSql $ iBaseGUID iBase)
+                                , ("FILE_VERSION", toSql fVers)
                                 , ("NAME", toSql $ descriptorString iName)
                                 , ("CONTAINER", toSql container)
                                 , ("SLOT", toSql slot)
@@ -458,6 +460,7 @@ setUpItems =
     \( ID integer primary key not null \
     \, RANDOM_ID blob not null \
     \, GUID integer not null \
+    \, FILE_VERSION integer not null \
     \, NAME text not null \
     \, CONTAINER text not null\
     \, SLOT text not null\
