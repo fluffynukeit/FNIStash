@@ -18,6 +18,7 @@
 module FNIStash.Logic.Env 
     ( buildEnv
     , searchAncestryFor
+    , sharedStashPath
     , Env (..)
     , EffectKey (..)
     ) where
@@ -31,6 +32,7 @@ import FNIStash.File.DAT
 import FNIStash.File.Variables
 import FNIStash.File.General
 import FNIStash.File.Item (LocationBytes(..))
+import FNIStash.Logic.Config
 
 -- General stuff
 import qualified Data.Text as T
@@ -42,6 +44,13 @@ import Data.Int
 import qualified Data.Map as M
 import qualified Data.List as L
 import Database.HDBC.Sqlite3
+import Data.Configurator.Types
+import Data.Configurator
+
+import Control.Monad (forM)
+import System.Directory (doesDirectoryExist, getDirectoryContents)
+import System.FilePath ((</>))
+import System.FilePath.Windows
 
 import Debug.Trace
 
@@ -62,6 +71,7 @@ data Env = Env
     , lkupSpawnClass :: T.Text -> Maybe DATNode -- map of spawnclass object's UNIT variable to the spawnclass itself
     , allItems :: DATFiles GUID -- map of GUID to item nodes
     , dbConn :: Connection
+    , config :: Config
     }
 
 data EffectKey = EffectIndex
@@ -73,7 +83,7 @@ data EffectKey = EffectIndex
 
 
 -- build the lookup environment needed for app operations
-buildEnv pak conn =
+buildEnv pak conn cfg =
     let effects = effectLookup pak
         skills = skillLookup pak
         (bytesToNodesFxn, nodesToBytesFxn) = locLookup pak
@@ -89,6 +99,36 @@ buildEnv pak conn =
             nodesToBytesFxn itemsGUID trigs stats byPath graph
             spawn
             allItemsMap conn
+            cfg
+
+-- Thanks, Real World Haskell!
+getRecursiveContents :: FilePath -> IO [FilePath]
+getRecursiveContents topdir = do
+  names <- getDirectoryContents topdir
+  let properNames = filter (`notElem` [".", ".."]) names
+  paths <- forM properNames $ \name -> do
+    let path = topdir </> name
+    isDirectory <- doesDirectoryExist path
+    if isDirectory
+      then getRecursiveContents path
+      else return [path]
+  return (concat paths)
+
+simpleFind :: (FilePath -> Bool) -> FilePath -> IO (Maybe FilePath)
+simpleFind p path = do
+  names <- getRecursiveContents path
+  let r = (filter p names)
+  return $ case r of
+    [] -> Nothing
+    x:_-> Just x
+
+
+sharedStashPath Env{..} = do
+    searchHead <- require config $ T.pack $ show SHAREDSTASHLOCATION
+    searchName <- require config $ T.pack $ show SHAREDSTASHFILE
+    rightFile  <- simpleFind ((searchName ==) . takeFileName) searchHead
+    return (rightFile, searchName, searchHead)
+
 
 -- Each of the functions below returns a lookup function.  This is how we can keep the loaded PAK
 -- handy for repeated lookups since we cannot have a global.  The PAK stays on the stack.

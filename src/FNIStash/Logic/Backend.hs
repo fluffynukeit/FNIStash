@@ -43,12 +43,6 @@ import qualified Data.Set as S
 
 import Debug.Trace
 
--- These are paths to test assets, so I don't mess up my real ones.  Delete later.
-testDir = "C:\\Users\\Dan\\Desktop\\FNI Testing"
-sharedStashCrypted = testDir </> "sharedstash_v2.bin"
-textOutputPath = testDir </> "sharedStashTxt.txt"
-savePath = testDir </> "testSave.bin"
-
 -- Gets/makes the necessary application paths
 ensurePaths maybeName = do
     -- Ensure we have an app path for both backend and GUI to access
@@ -64,25 +58,33 @@ sendErrDB msg exc = traceShow exc $ writeBMessage msg $ Notice $ Error ("DB: " +
 backend msg appRoot guiRoot mvar = handle (sendErrIO msg) $ handleDB (sendErrDB msg) $ do
     env <- initialize msg appRoot guiRoot mvar
 
-     -- Descramble the scrambled shared stash file.  Just reads the test file for now. Needs to
-    -- eventually read the file defined by cfg
-    cryptoFile <- readCryptoFile (encodeString sharedStashCrypted)
-    let ssData = fileGameData cryptoFile
+    -- Try to read the shared stash file
+    (mSharedStashCrypted, file, dir) <- sharedStashPath env
 
-    let sharedStashResult = parseSharedStash env ssData
-    case sharedStashResult of
-        Left error -> writeBMessage msg $ Initializing $ InitError $ "Error reading shared stash: " ++ error
-        Right sharedStash -> do
-            writeBMessage msg $ Initializing RegisterStart
-            dumpRegistrations env msg sharedStash
-            dumpItemLocs msg env
-            writeBMessage msg $ Initializing ArchiveDataStart
-            dumpArchive env msg
-            writeBMessage msg $ Initializing ReportStart
-            dumpItemReport env msg
-            writeBMessage msg $ Initializing Complete
-            msgList <- liftIO $ onlyFMessages msg
-            handleMessages env msg cryptoFile msgList
+    case mSharedStashCrypted of
+        Nothing -> writeBMessage msg $ Initializing $ InitError $
+            "Could not find " ++ file ++ " under the directory " ++ dir ++
+            ". Verify Backend.conf is defined correctly for your installation."
+        Just sharedStashCrypted -> do
+            -- Descramble the scrambled shared stash file.  Just reads the test file for now. Needs to
+            -- eventually read the file defined by cfg
+            cryptoFile <- readCryptoFile sharedStashCrypted
+            let ssData = fileGameData cryptoFile
+
+            let sharedStashResult = parseSharedStash env ssData
+            case sharedStashResult of
+                Left error -> writeBMessage msg $ Initializing $ InitError $ "Error reading shared stash: " ++ error
+                Right sharedStash -> do
+                    writeBMessage msg $ Initializing RegisterStart
+                    dumpRegistrations env msg sharedStash
+                    dumpItemLocs msg env
+                    writeBMessage msg $ Initializing ArchiveDataStart
+                    dumpArchive env msg
+                    writeBMessage msg $ Initializing ReportStart
+                    dumpItemReport env msg
+                    writeBMessage msg $ Initializing Complete
+                    msgList <- liftIO $ onlyFMessages msg
+                    handleMessages env (decodeString sharedStashCrypted) msg cryptoFile msgList
 
 dumpItemLocs messages env = do
     eitherConts <- allLocationContents env
@@ -117,7 +119,7 @@ registerStash env sharedStash =
     in register env parsedItems
 
 -- This is the main backend event queue
-handleMessages env@Env{..} m cryptoFile (msg:rest) = do
+handleMessages env@Env{..} savePath m cryptoFile (msg:rest) = do
     outMessages <- case msg of
 
         -- Move an item from one location to another
@@ -160,7 +162,7 @@ handleMessages env@Env{..} m cryptoFile (msg:rest) = do
     forM_ outMessages $ \msg -> writeBMessage m msg
 
     -- and then process next message
-    handleMessages env m cryptoFile rest
+    handleMessages env savePath m cryptoFile rest
 
 
 sharedStashToBS env ss = runPut (putSharedStash env ss)

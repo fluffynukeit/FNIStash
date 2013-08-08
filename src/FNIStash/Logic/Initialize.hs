@@ -93,7 +93,7 @@ initialize messages appRoot guiRoot envMVar = do
         pak <- readPAKPrefixes cfg envPrefixes
 
         -- Build the data lookup environment
-        putMVar envMVar $ buildEnv pak conn
+        putMVar envMVar $ buildEnv pak conn cfg
 
     -- If we are returning the cached value, be sure to send all events
     when (not envNotBuiltYet) $ mapM_ (writeBMessage messages)
@@ -278,10 +278,10 @@ instance IsString QName where
 -- Reads a PAK file, but restricts the data read in to only those files matching as
 -- specific file path prefix, such as MEDIA/UI/ICONS
 readPAKPrefixes cfg prefs = do
-    pakMANFileBinary <- require cfg "MANFILE"
+    pakMANFileBinary <- require cfg $ T.pack $ show MANFILE
     man <- readPAKMAN pakMANFileBinary
     let subMan = filterMANByPrefix man prefs
-    pakFileBinary <- require cfg "PAKFILE"
+    pakFileBinary <- require cfg $ T.pack $ show PAKFILE
     pakFiles subMan pakFileBinary
 
 -- PAK file path prefixes that contain game data needed to build the data lookup environment
