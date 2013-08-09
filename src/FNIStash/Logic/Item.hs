@@ -374,7 +374,8 @@ data Item = Item
     , iIdentified :: Bool
     , iLocation :: Location
     , iLevel :: Descriptor
-    , iQuantity :: Int
+    , iQuantityRaw :: Int
+    , iQuantity :: Maybe Descriptor
     , iNumSockets :: Int
     , iGems :: [(FilePath, Descriptor, Descriptor)] -- (icon, title, desc) triplet for each gem
     , iGemsAsItems :: [Item]
@@ -545,6 +546,9 @@ decodeItemBytes env id (itemBytes@ItemBytes {..}) =
                (decodeLocationBytes env iBytesLocation)
                (Descriptor "Level [*]" (fromIntegral iBytesLevel) 0)
                (fromIntegral iBytesQuantity)
+               (case iBytesQuantity of
+                    1 -> Nothing
+                    _ -> Just $ mkDescriptor "QTY: [*]" (fromIntegral iBytesQuantity) 0)
                (fromIntegral iBytesNumSockets)
                (map (getGemDesc env) $ gemItems )
                gemItems
@@ -566,7 +570,7 @@ allDescriptorsOf (Item{..}) =
      iBaseOtherReqs iBase ++ [iBaseLevelReq iBase] ++ iBaseInnates iBase ++ iBaseDescription iBase
         ++
     -- now the binary-specific stuff of Item
-    [iLevel] ++ gems ++ innateDefs ++ iEffects ++ iEnchantments ++ iTriggerables
+    [iLevel] ++ gems ++ (maybe [] (:[]) iQuantity) ++ innateDefs ++ iEffects ++ iEnchantments ++ iTriggerables
     where
         gems = flip concatMap iGems $ \(_, n, d) -> [n,d]
         innateDefs = map snd iInnateDefs

@@ -184,6 +184,7 @@ input[type=text] {
 .socket6 { top: 30px; 	right: 0px; position: absolute; }
 .socket7 { top: 45px; 	left:  0px; position: absolute; }
 .socket8 { top: 45px; 	right: 0px; position: absolute; }
+.qty 	 { top: 45px; 	right: 0px; position: absolute; font-size: 8pt; color: white;}
 	
 /* Item display popup */
 .itempopup {

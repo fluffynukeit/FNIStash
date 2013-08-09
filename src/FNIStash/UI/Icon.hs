@@ -46,6 +46,10 @@ newItemIcon (item@Item {..}) = do
     forM_ [numFullSockets+1..iNumSockets] $ \ind ->
         newIcon "socket_empty" #. ("socket" ++ show ind) #+ container
 
+    case iQuantityRaw of
+        1   -> return ()
+        qty -> new #. "qty" #= show qty #+ container # unit
+    
     killPopUp
 
     onHover container $ \_ -> killPopUp >> makePopUp item container
@@ -86,6 +90,9 @@ makePopUpBox (Item{..}) = do
 
     forM_ (iInnateDefs) $ \pair -> makeInnateDef pair dataArea
 
+    case iQuantity of
+        Nothing -> return ()
+        Just des-> new #. "popinnate" #= show des #+ dataArea # unit
 
     -- Sockets
     forM_ iGems $ \gem -> makeFullSocket gem dataArea
