@@ -328,7 +328,7 @@ locationChange (env@Env{..}) (loc@Location{..}) (arch@Archive{..}) = do
             return $ (++) [(loc, Nothing)] (if rows > 0 then [(Archive (fromJust . iID $ fromJust i), i)] else [])
     return $ result
 
-locationChange (env@Env{..}) locFrom locTo = do
+locationChange (env@Env{..}) locFrom@(Location _ _ _) locTo@(Location _ _ _) = do
     let selQuery = "select ID from ITEMS " ++ whereContPosStat
         upQuery = "update ITEMS set CONTAINER=?, POSITION=?, STATUS=?"
         contPosStatVals loc = [toSql $ locContainer loc, toSql $ locIndex loc, toSql Stashed]
@@ -349,6 +349,7 @@ locationChange (env@Env{..}) locFrom locTo = do
     itemT <- getItemFromDb env locTo
     return $ sequence [itemF, itemT] >>= \(f:t:[]) -> Right [(locFrom, f), (locTo, t)]
 
+locationChange _ (Archive _) (Archive _) = return $ Right []
 
 -- Use like this: ensureExists conn "ITEMS" ["RANDOM_ID", "GUID"] [toSql itemRandomID, toSql itemGUID]
 -- Tries to do an insert and ignores if constraint is broken.  Returns the ID of the row with
