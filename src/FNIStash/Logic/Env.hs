@@ -47,9 +47,6 @@ import Database.HDBC.Sqlite3
 import Data.Configurator.Types
 import Data.Configurator
 
-import Control.Monad (forM)
-import System.Directory (doesDirectoryExist, getDirectoryContents)
-import System.FilePath ((</>))
 import System.FilePath.Windows
 
 import Debug.Trace
@@ -102,27 +99,6 @@ buildEnv pak conn cfg =
             spawn sets
             allItemsMap conn
             cfg
-
--- Thanks, Real World Haskell!
-getRecursiveContents :: FilePath -> IO [FilePath]
-getRecursiveContents topdir = do
-  names <- getDirectoryContents topdir
-  let properNames = filter (`notElem` [".", ".."]) names
-  paths <- forM properNames $ \name -> do
-    let path = topdir </> name
-    isDirectory <- doesDirectoryExist path
-    if isDirectory
-      then getRecursiveContents path
-      else return [path]
-  return (concat paths)
-
-simpleFind :: (FilePath -> Bool) -> FilePath -> IO (Maybe FilePath)
-simpleFind p path = do
-  names <- getRecursiveContents path
-  let r = (filter p names)
-  return $ case r of
-    [] -> Nothing
-    x:_-> Just x
 
 
 sharedStashPath Env{..} = do

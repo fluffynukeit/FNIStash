@@ -35,6 +35,8 @@ module FNIStash.File.General
 , copyLazy
 , copyStrict
 , include2
+, getRecursiveContents
+, simpleFind
 )
 where
 
@@ -54,13 +56,19 @@ import Data.Monoid
 import Data.Array.ST (newArray, readArray, MArray, STUArray)
 import Data.Array.Unsafe (castSTUArray)
 import GHC.ST (runST, ST)
-import Filesystem.Path.CurrentOS
 
 
 -- Quasiquote stuff
 import Data.Functor
 import qualified Language.Haskell.TH as TH
 import Language.Haskell.TH.Quote
+
+-- File searching stuff
+import Control.Monad (forM)
+import System.Directory (doesDirectoryExist, getDirectoryContents)
+import System.FilePath ((</>))
+import System.FilePath.Windows
+
 
 -- I shamelessly copied this code from TPG.  Thanks, Heinrich!
 rootPath = ""
@@ -69,7 +77,26 @@ include2 = QuasiQuoter { quoteExp = e }
     e s = TH.LitE . TH.StringL <$> TH.runIO (readFile $ rootPath ++ s)
 
 
+-- Thanks, Real World Haskell!
+getRecursiveContents :: FilePath -> IO [FilePath]
+getRecursiveContents topdir = do
+  names <- getDirectoryContents topdir
+  let properNames = filter (`notElem` [".", ".."]) names
+  paths <- forM properNames $ \name -> do
+    let path = topdir </> name
+    isDirectory <- doesDirectoryExist path
+    if isDirectory
+      then getRecursiveContents path
+      else return [path]
+  return (concat paths)
 
+simpleFind :: (FilePath -> Bool) -> FilePath -> IO (Maybe FilePath)
+simpleFind p path = do
+  names <- getRecursiveContents path
+  let r = (filter p names)
+  return $ case r of
+    [] -> Nothing
+    x:_-> Just x
 
 showListString f = foldl (\a b -> a <> f b) (""::String)
 

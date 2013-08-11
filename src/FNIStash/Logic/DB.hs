@@ -125,7 +125,7 @@ rollbackDB Env{..} = rollback dbConn
 
 -- Given a list of items, registers those that have not been registered yet and
 -- returns the newly registered items in a list
-register env@Env{..} fVers items = do
+register env@Env{..} fVers status items = do
     setStashedToElsewhere env
     registerResults <- forM items $ \item@(Item {..}) -> do
         getReg <- getRegistered env item
@@ -136,13 +136,13 @@ register env@Env{..} fVers items = do
                 case dataHasChanged of
                     True  -> do     -- Item data has changed.  Remove and re-insert
                         deleteID env id
-                        addItemToDB env fVers item
+                        addItemToDB env fVers status item
                         return $ (Updated, item)
                     False -> do -- Item data the same.  Only update location.
-                        updateLocation env id iLocation
+                        updateLocation env id iLocation status
                         return $ (NoChange, item)
             Nothing -> do -- Item not previously registered
-                addItemToDB env fVers item
+                addItemToDB env fVers status item
                 return $ (New, item)
 
     -- now clean up any trail_data entries that are irrelevant.
@@ -170,10 +170,10 @@ dataChange env id item = do
     (Right (Just oldData)) <- getItemFromDb env (Archive id) -- dangerous pattern matching...
     return $ iPartition oldData /= iPartition item
 
-updateLocation Env{..} id Location{..} = do
-    void $ run dbConn updateLocStatById [toSql locContainer, toSql locIndex, toSql Stashed, toSql id]
+updateLocation Env{..} id Location{..} status = do
+    void $ run dbConn updateLocStatById [toSql locContainer, toSql locIndex, toSql status, toSql id]
 
-updateLocation Env{..} id InsertedInSocket = do
+updateLocation Env{..} id InsertedInSocket _ = do
     void $ run dbConn updateLocStatById [ toSql ("SHARED_STASH_BAG_ARMS"::String)
                                  , toSql (0::Int)
                                  , toSql Inserted
@@ -260,10 +260,10 @@ getRegistered env (Item {..}) = do
     matchingGuys <- quickQuery' (dbConn env) "select ID from ITEMS where RANDOM_ID = ?" [toSql iRandomID]
     if length matchingGuys == 0 then return Nothing else return $ Just (fromSql $ head matchingGuys !! 0)
 
-addItemToDB env fVers item@(Item {..}) = do
+addItemToDB env fVers status item@(Item {..}) = do
     -- First register the item data, starting with the Trail data
     trailID <- insertTrailData env item
-    itemID <- insertItem env fVers item trailID
+    itemID <- insertItem env fVers item trailID status
     -- First collect all the descriptors for the item
     let descriptorList = allDescriptorsOf item
     
@@ -273,7 +273,7 @@ addItemToDB env fVers item@(Item {..}) = do
     insertDescriptorSet env itemID descListWithValue
 
     -- Finally, insert any socketed gems into the DB as well
-    forM_ (iGemsAsItems) (addItemToDB env fVers) 
+    forM_ (iGemsAsItems) (addItemToDB env fVers status) 
 
 
 getItemFromDb :: Env -> Location -> IO (Either String (Maybe Item))
@@ -315,7 +315,7 @@ locationChange (env@Env{..}) (arch@(Archive id)) (loc@Location{..}) = do
     -- For any item at the destination and stashed, mark it as Archived
     updates1 <- locationChange env loc arch
     -- Now set new location data
-    updateLocation env id loc
+    updateLocation env id loc Stashed
     item <- getItemFromDb env loc
     return $ updates1 >>= const item >>= \i -> (++) <$> updates1 <*> Right [(loc, i), (arch, Nothing)]
 
@@ -373,12 +373,12 @@ insertTrailData :: Env -> Item -> IO (ID TrailData)
 insertTrailData (Env {..}) item@(Item {..}) =
     ensureExists dbConn "TRAIL_DATA" [("DATA", toSql $ pAfterLocation iPartition)]
 
-insertItem :: Env -> Word32 -> Item -> ID TrailData -> IO (ID Items)
-insertItem (Env {..}) fVers item@(Item {..}) trailDataID = do
+insertItem :: Env -> Word32 -> Item -> ID TrailData -> ItemStatus -> IO (ID Items)
+insertItem (Env {..}) fVers item@(Item {..}) trailDataID statusIn = do
     zonedTime <- getZonedTime
     let localTime = zonedTimeToLocalTime zonedTime
         (container, slot, position, status) = case iLocation of
-            Location a b c   -> (a, b, c, Stashed)
+            Location a b c   -> (a, b, c, statusIn)
             InsertedInSocket -> ("SHARED_STASH_BAG_ARMS", "BAG_ARMS_SLOT", 0, Inserted) -- gems always go in Arms
 
     ensureExists dbConn "ITEMS" [ ("RANDOM_ID", toSql iRandomID)

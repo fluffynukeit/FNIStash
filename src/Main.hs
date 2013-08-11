@@ -33,19 +33,19 @@ import System.Environment
 main = do
 
     args <- getArgs
-    (appRoot, guiRoot) <- ensurePaths $ headMay args
+    paths <- ensurePaths $ headMay args
     mvar <- newEmptyMVar
     
     serve Config
         { tpPort = 10001
         , tpRun = runTP
-        , tpWorker = launchAll appRoot guiRoot mvar
+        , tpWorker = launchAll paths mvar
         , tpInitHTML = Just "GUI.html"
-        , tpStatic = encodeString guiRoot
+        , tpStatic = encodeString (guiRoot paths)
         }
 
-launchAll appRoot guiRoot mvar = do
+launchAll paths mvar = do
     messages <- liftIO newMessages
-    liftIO $ forkIO $ backend messages appRoot guiRoot mvar
+    liftIO $ forkIO $ backend messages paths mvar
     frontend messages
 

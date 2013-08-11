@@ -14,11 +14,14 @@
 
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE RecordWildCards #-}
 
-module FNIStash.Logic.Initialize (
-    initialize,
-    ensureAppRoot,
-    ensureHtml
+module FNIStash.Logic.Initialize
+( initialize
+, ensureAppRoot
+, ensureHtml
+, ensureImportExport
+, Paths(..)
 ) where
 
 -- This file contains stuff for initialization before normal processing.
@@ -38,6 +41,7 @@ import FNIStash.File.General
 import Filesystem
 import Filesystem.Path
 import Filesystem.Path.CurrentOS
+import qualified Filesystem.Path.CurrentOS as F
 
 -- General stuff
 import qualified Data.Text as T
@@ -64,14 +68,15 @@ import GHC.Exts
 import Data.Word
 
 
--- Debug stuff
---import FNIStash.File.General
---import FNIStash.File.DAT
---import qualified Data.Text.IO as T
---import Debug.Trace
+data Paths = Paths
+    { appRoot :: F.FilePath
+    , guiRoot :: F.FilePath
+    , importDir :: F.FilePath
+    , exportDir :: F.FilePath
+    } deriving (Eq, Show)
 
 -- Sets up paths, generates files, and builds the text environment
-initialize messages appRoot guiRoot envMVar = do
+initialize messages Paths{..} envMVar = do
 
     envNotBuiltYet <- isEmptyMVar envMVar
 
@@ -126,13 +131,11 @@ ensureAppRoot maybeName = do
 ensureHtml appRoot = do
     let htmlRoot = (appRoot </> "GUI")
     htmlExists <- isDirectory htmlRoot
-    if htmlExists then
-        return ()
-        else do
-            createTree $ htmlRoot </> "css"
-            writeTextFile (htmlRoot </> "css" </> "GUI.css") cssFile
-            writeTextFile (htmlRoot </> "GUI.html") htmlFile
-            
+    when htmlExists $ do
+        createTree $ htmlRoot </> "css"
+        writeTextFile (htmlRoot </> "css" </> "GUI.css") cssFile
+        writeTextFile (htmlRoot </> "GUI.html") htmlFile
+        
     return htmlRoot
 
 cssFile = T.pack  [include2|GUI/css/GUI.css|]
@@ -168,7 +171,6 @@ ensureConfig appRoot = do
             writeConfigOut confPath $ defaultConfigOut docPath
     load [Required (encodeString confPath)]
 
-
 -- If the necessary GUI files do not exist, then generate them.
 ensureGUIAssets root cfg = do
     let assetPath = root </> "GUIAssets"
@@ -180,8 +182,18 @@ ensureGUIAssets root cfg = do
         withAssetsContaining guiPAK ".TTF" $ writeAssetFile assetPath -- for fonts
         withAssetsContaining guiPAK "SCREENS" $ exportScreen assetPath -- for backgrounds
         withAssetsContaining guiPAK ".IMAGESET" $ processImageSet assetPath guiPAK
-       
 
+ensureImportExport appRoot =
+    let importDir = appRoot </> "Import"
+        exportDir = appRoot </> "Export"
+        makeIfMissing dir = do
+            dirExists <- isDirectory dir
+            when (not dirExists) $ createDirectory True dir
+    in do
+        makeIfMissing importDir
+        makeIfMissing exportDir
+        return (importDir, exportDir)
+        
 withAssetsContaining guiPAK subStr action =
     let pathDataTuples = mapsnd entryData $ M.toList $ pakWithKeysContaining subStr guiPAK
         mapsnd f list = map (\(x,y) -> (x,f y)) list

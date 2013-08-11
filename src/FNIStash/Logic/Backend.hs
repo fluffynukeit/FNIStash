@@ -18,6 +18,7 @@
 module FNIStash.Logic.Backend
     ( ensurePaths
     , backend
+    , Paths(..)
 ) where
 
 import FNIStash.Logic.Initialize
@@ -27,9 +28,11 @@ import FNIStash.File.SharedStash
 import FNIStash.Logic.DB
 import FNIStash.Logic.Env
 import FNIStash.File.Variables
+import FNIStash.File.General
 
 import Filesystem.Path
 import Filesystem.Path.CurrentOS
+import Filesystem
 import Control.Monad.Trans
 import Control.Monad
 import Control.Exception
@@ -40,23 +43,26 @@ import Data.Binary.Put
 import qualified Data.List as L
 import qualified Data.Map as M
 import qualified Data.Set as S
+import qualified Data.ByteString as BS
 
 import Debug.Trace
+
 
 -- Gets/makes the necessary application paths
 ensurePaths maybeName = do
     -- Ensure we have an app path for both backend and GUI to access
     appRoot <- ensureAppRoot maybeName
     guiRoot <- ensureHtml appRoot
-    return (appRoot, guiRoot)
+    (importDir, exportDir) <- ensureImportExport appRoot
+    return $ Paths appRoot guiRoot importDir exportDir
 
 sendErrIO :: Messages -> IOException -> IO ()
 sendErrIO msg exc = traceShow exc $ writeBMessage msg $ Notice $ Error ("IO: " ++ show exc)
 sendErrDB msg exc = traceShow exc $ writeBMessage msg $ Notice $ Error ("DB: " ++ show exc)
 
 -- The real meat of the program
-backend msg appRoot guiRoot mvar = handle (sendErrIO msg) $ handleDB (sendErrDB msg) $ do
-    env <- initialize msg appRoot guiRoot mvar
+backend msg paths@Paths{..} mvar = handle (sendErrIO msg) $ handleDB (sendErrDB msg) $ do
+    env <- initialize msg paths mvar
 
     -- Try to read the shared stash file
     (mSharedStashCrypted, file, dir) <- sharedStashPath env
@@ -75,6 +81,8 @@ backend msg appRoot guiRoot mvar = handle (sendErrIO msg) $ handleDB (sendErrDB 
             case sharedStashResult of
                 Left error -> writeBMessage msg $ Initializing $ InitError $ "Error reading shared stash: " ++ error
                 Right sharedStash -> do
+                    writeBMessage msg $ Initializing ImportsStart
+                    processImports env msg importDir fileVers
                     writeBMessage msg $ Initializing RegisterStart
                     dumpRegistrations env msg fileVers sharedStash
                     dumpItemLocs msg env
@@ -104,7 +112,7 @@ dumpArchive env msg = do
 
 dumpRegistrations env messages fVers sharedStash = do
 
-    RegisterSummary newItems updatedItems noChange <- registerStash env fVers sharedStash
+    RegisterSummary newItems updatedItems noChange <- registerStash env fVers Stashed sharedStash
     let numNew = length newItems
         numUpd = length updatedItems
         numNoC = length noChange
@@ -112,11 +120,33 @@ dumpRegistrations env messages fVers sharedStash = do
     when (numUpd > 0) $ writeBMessage messages $ Notice $ Info $ "Updated items: " ++ (show numUpd)
     -- writeBMessage messages $ Notice $ Info $ "No change items: " ++ (show numNoC)
 
+processImports env@Env{..} messages importDir fVers = do
+    importDirExists <- isDirectory importDir
+    when importDirExists $ do
+        -- read in each file
+        files <- getRecursiveContents (encodeString importDir)
+                    >>= return . filter (flip hasExtension "tl2i" . decodeString)
+        itemResults <- forM files $ \f -> BS.readFile f >>= \bs ->
+            return $ runGetWithFail f (getItem env Nothing bs) bs
+        RegisterSummary newItems updatedItems noChange <- registerStash env fVers Archived itemResults
+        -- determine which files succeeded import and delete them
+        let failedFiles = lefts itemResults
+            successFiles = files L.\\ failedFiles
+        forM_ successFiles (removeFile . decodeString)
+        when (length files > 0) $ do
+            writeBMessage messages $ Notice $ Info $ "New registrations due to import: " ++ show (length newItems)
+            writeBMessage messages $ Notice $ Info $ "Updated registrations due to import: " ++ show (length updatedItems)
+            writeBMessage messages $ Notice $ Info $ "No change due to import: " ++ show (length noChange)
+            when (length failedFiles > 0) $
+                writeBMessage messages $ Notice $ Error $ "Failed imports (still in Import directory): " ++ show (length failedFiles)
+
+
+
 -- Tries to register all non-registered items into the DB.  Retuns list of newly
 -- registered items.
-registerStash env fVers sharedStash =
+registerStash env fVers status sharedStash =
     let parsedItems = rights sharedStash
-    in register env fVers parsedItems
+    in register env fVers status parsedItems
 
 -- This is the main backend event queue
 handleMessages env@Env{..} savePath m cryptoFile (msg:rest) = do
