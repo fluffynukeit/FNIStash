@@ -97,8 +97,6 @@ stash mes = do
     let gStack = tabbedGridStack mes 5 8 locTemplates
     gStack ## "sharedstash_stack" #+ cont
 
-    batchArchiveButton mes #+ cont
-
     (updateBtn, txt) <- updateStashButton mes
     return updateBtn #+ cont
     
@@ -107,8 +105,8 @@ stash mes = do
 tabbedGridStack messages r c templates = do
     div <- new #. "tabbed_grid_stack"
     -- make a triplet of grid, tab for grid, and tab image prefix
-    gridTabTrips <- forM templates (\(loc, tabImg) -> do
-        trip1 <- grid messages r c (locIdGenerator $ loc 0)
+    gridTabTrips <- forM templates (\(locMaker, tabImg) -> do
+        trip1 <- grid messages r c locMaker
         trip2 <- newIcon (tabImg ++ "_unselected_") #. "inventory_tab" ## tabImg
         return (trip1, trip2, tabImg)
         )
@@ -147,8 +145,9 @@ complements list =
     in map elemsNotMe pairList
 
 
-grid messages r c gen = do
-    let rowStarts = [0, c .. r*c-1]
+grid messages r c locMaker = do
+    let gen = locIdGenerator $ locMaker 0
+        rowStarts = [0, c .. r*c-1]
     grid <- new #. "grid"
     mapM (\startId -> gridRow messages startId c gen #+ grid) rowStarts
 
@@ -156,6 +155,10 @@ grid messages r c gen = do
     return grid #+ cont
     archiveEl <- archive messages (gen "ARCHIVE")
     return archiveEl #+ cont
+
+    -- make an Archive All button specific to each grid
+    batchArchiveButton messages locMaker #+ cont
+    
     return cont
 
 archive msg bodyID = do
@@ -215,9 +218,8 @@ notifyMove mes eString toId = do
 
 notifySave mes = writeFMessage mes Save
 notifySearch mes str = writeFMessage mes $ Search str
-notifyBatchArchive mes =
-    let applyToIndices k = map k [0..39]
-        allLocations = concat $ map (applyToIndices.fst) locTemplates
+notifyBatchArchive mes locMaker =
+    let allLocations = map locMaker [0..39]
         moveCommands = zip allLocations $ repeat (Archive (-1))
     in writeFMessage mes $ Move moveCommands
 
@@ -264,11 +266,11 @@ makeButton offImg overImg explanation clickAction = do
     return (cont, text)
 
 
-batchArchiveButton mes = do
+batchArchiveButton mes locMaker = do
     (btn, txt) <- makeButton "arrow_down" "arrow_down_highlight"
-                  "Archive all"
-                  (liftIO $ notifyBatchArchive mes)
-    return btn ## "batcharchivebutton"
+                  "Archive all items from this tab"
+                  (liftIO $ notifyBatchArchive mes locMaker)
+    return btn #. "batcharchivebutton"
 
 makeRedButton = makeButton "ig_abandon_button" "ig_abandon_button_rollover"
 

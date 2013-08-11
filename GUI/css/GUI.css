@@ -78,10 +78,10 @@ input[type=text] {
     top:300px;
 	}
 
-#batcharchivebutton {
+.batcharchivebutton {
 	position:absolute;
-	left:238px;
-	top:405px;
+	left:218px;
+	top:360px;
 }
 	
 /* General layout */
