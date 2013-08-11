@@ -188,7 +188,8 @@ input[type=text] {
 	
 /* Item display popup */
 .itempopup {
-    max-width: 350px;
+    max-width: 325px;
+	min-width: 200px;
     position: absolute;
     /*top: 65px;
     left: 630px;*/
@@ -220,84 +221,71 @@ input[type=text] {
 	border-radius: 3px;
 	float: left;
 	}
-	
-.popunique {
-    font-size: 16pt;
-    color: orange;
+
+.poptitle {
+	font-size: 14pt;
 	font-family: huge;
 	position: relative;
 	top: 15px;
+	}
+	
+.popunique {
+    color: orange;
     }
 
 .popnormal {
-    font-size: 16pt;
     color: white;
-	font-family: huge;
-	position: relative;
-	top: 15px;
     }
 
 .popmagic {
-    font-size: 16pt;
     color: #3366FF;
-	font-family: huge;
-	position: relative;
-	top: 15px;
     }
 
 .poplegendary {
-    font-size: 16pt;
     color: #E60000;
-	font-family: huge;
-	position: relative;
-	top: 15px;
     }
 
 .popinnatedeficon {
-	max-height: 18px;
-	height: 18px;
+	max-height: 17px;
+	height: 17px;
 	float: left;
 	}
 	
+.poptext {
+	font-size:11pt;
+	}
+	
 .popinnate {
-	font-size:12pt;
 	color: white;
 	}
 	
 .popeffect {
-    font-size: 12pt;
     color: blue;
     }
 
 .popenchant {
-	font-size:12pt;
 	color: #00FF99;
 	}
 
 .poptriggerable {
-	font-size: 12pt;
 	color: #FFD633;
 	}
 	
 .popstatreq {
-	font-size: 12pt;
 	color: white;
 	}
 
 .popdescription {
-	font-size: 12pt;
 	color: #00FF00;
 	}
 
 .popemptysocket {
-	font-size: 12pt;
 	color: #747474;
 }
 .popemptysocketicon {
 	float: left;
 	}
 .popemptysockettext {
-	font-size: inherit;
 	}
 	
 .popfullsocketicon {
@@ -306,12 +294,10 @@ input[type=text] {
 	}
 	
 .popfullsockettext {
-	font-size: 12pt;
 	color: #E6E600;
 	}
 	
 .popfullsocketeffect {
-	font-size: 12pt;
 	color: #E6E600;
 	}
 
