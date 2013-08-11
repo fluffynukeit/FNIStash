@@ -69,6 +69,7 @@ data Env = Env
     , lkupPath :: T.Text -> Maybe DATNode
     , lkupGraph :: T.Text -> Float -> Float
     , lkupSpawnClass :: T.Text -> Maybe DATNode -- map of spawnclass object's UNIT variable to the spawnclass itself
+    , lkupSet :: T.Text -> Maybe DATNode
     , allItems :: DATFiles GUID -- map of GUID to item nodes
     , dbConn :: Connection
     , config :: Config
@@ -95,9 +96,10 @@ buildEnv pak conn cfg =
         trigs = triggerableLookup pak
         stats = statLookup pak
         spawn = spawnclassLookup pak
+        sets = setLookup pak
     in  Env effects affixes skills monsters bytesToNodesFxn
             nodesToBytesFxn itemsGUID trigs stats byPath graph
-            spawn
+            spawn sets
             allItemsMap conn
             cfg
 
@@ -160,6 +162,7 @@ makeLookupByName path pak =
 affixLookup = makeLookupByName "MEDIA/AFFIXES/ITEMS"
 skillLookup = makeLookupByName "MEDIA/SKILLS/"
 monsterLookup = makeLookupByName "MEDIA/UNITS/MONSTERS/PETS/"
+setLookup = makeLookupByName "MEDIA/SETS/"
 
 spawnclassLookup pak =
     let dat = readDATFiles pak "MEDIA/SPAWNCLASSES" vNAME

@@ -181,3 +181,12 @@ vY d = grab 0x79000000 d >>= floatVar
 
 -- Stats
 vUNIQUE_GUID d = grab 0xf9560fcb d >>= int64Var
+
+
+-- Sets and set bonuses
+vSET d = grab 0xf4c40000 d >>= textVar
+vCOUNT d = grab 0x94dd160e d >>= intVar
+vMIN d = grab 0x6ebd0000 d >>= floatVar
+vMAX d = grab 0x78bc0000 d >>= floatVar
+vDURATION d = grab 0x9b273be0 d >>= floatVar
+vAFFIX d = grab 0x7811320e d >>= textVar

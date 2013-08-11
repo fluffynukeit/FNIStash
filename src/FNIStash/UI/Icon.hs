@@ -111,6 +111,9 @@ makePopUpBox (Item{..}) = do
         new #. "poptriggerable poptext" #= show trig #+ dataArea
 
 
+    forM_ (iBaseSetDescriptors iBase) $ \setDes ->
+        new #. "popset poptext" #= show setDes #+ dataArea
+    
     -- Level req
     new #. "popstatreq poptext" #= show (iBaseLevelReq iBase) #+ dataArea
 

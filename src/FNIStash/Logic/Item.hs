@@ -116,6 +116,7 @@ data ItemBase = ItemBase
     , iBaseMaxSockets :: Maybe Int
     , iBaseRarity :: Maybe Int
     , iBaseDescription :: [Descriptor] -- 1 descriptor per line of description
+    , iBaseSetDescriptors :: [Descriptor] -- descriptors for all set bonuses
     } deriving (Eq, Ord)
 
 
@@ -159,6 +160,40 @@ getItemBase (env@Env{..}) guid itemLevel =
         (find vMAX_SOCKETS)
         (find vRARITY)
         (maybe [] id $ find vDESCRIPTION >>= return . fixNewLineDesc)
+
+        -- Set bonuses
+        (resolveSetBonuses env item)
+
+-- Set bonuses
+
+resolveSetBonuses env@Env{..} itemDat =
+    let set = return itemDat >>= vSET >>= lkupSet
+        setName = set >>= vDISPLAYNAME
+        nameDesc = mkDescriptor ("Set: " ++ maybe "!UNKNOWN SET" id setName) 0 0
+        affixNodes = maybe [] datSubNodes set
+        bonusDescriptors = map (affixToBonusDescriptor env) affixNodes
+    in case set of
+        Nothing -> []
+        Just _  -> nameDesc:bonusDescriptors
+
+
+affixToBonusDescriptor Env{..} aff =
+    let itemCount = return aff >>= vCOUNT
+        setAff = return aff >>= vAFFIX >>= lkupAffix
+        duration = setAff >>= vDURATION
+        affixEffect = setAff >>= nEFFECT
+        eff = affixEffect >>= vTYPE >>= lkupEffect . EffectName
+        valMin = affixEffect >>= vMIN
+        valMax = affixEffect >>= vMAX
+        val = maybe 0 id valMin
+        descType = maybe 0 (\x -> if x > 0 then 0x02 else 0x00) duration
+        listLength = 4 :: Int
+        fakeEBytes = EffectBytes 0 "Fake Set Name" Nothing Nothing (fromIntegral listLength)
+                    (replicate listLength $ floatToWord val) 0 0 descType 0 0 (floatToWord val) 0 Nothing
+        (prec, descRaw) = effectDescription Nothing eff fakeEBytes
+        descModOnly = mkModDescription descRaw
+        desc = maybe "!Unknown set count!" show itemCount ++ " pieces: " ++ descModOnly
+    in mkDescriptor desc val prec
 
 -- Stat calculations
 
@@ -259,8 +294,9 @@ descTypeLookup 0x03 = BADDES  -- This is just a guess
 descTypeLookup 0x04 = BADDESOT -- This is also a guess
 descTypeLookup _    = UnknownDescriptionType
 
-effectDescription prec maybeName effectNode (eff@EffectBytes {..}) =
-    let descType = case descTypeLookup eBytesDescriptionType of
+effectDescription maybeName effectNode (eff@EffectBytes {..}) =
+    let prec = effectPrecisionVal effectNode
+        descType = case descTypeLookup eBytesDescriptionType of
             GOODDES     -> vGOODDES
             GOODDESOT   -> vGOODDESOT
             BADDES      -> vBADDES
@@ -269,11 +305,12 @@ effectDescription prec maybeName effectNode (eff@EffectBytes {..}) =
                 vUnknown (EffectDescription UnknownDescriptionType $
                     "!Effect (type, index): " ++ show (eBytesType, eBytesIndex))
         maybeSentence = (effectNode >>= descType)
-    in case maybeSentence of
+    in (prec , case maybeSentence of
         Just (EffectDescription a sentence) -> EffectDescription a $
                             translateSentence (effectTranslator prec maybeName eff) sentence
         Nothing -> EffectDescription UnknownDescriptionType $
                     "!No description of " ++ show eBytesDescriptionType ++ " for index " ++ show eBytesIndex
+        )
 
 effectPrecisionVal effectNode =
     let maybePrecision = effectNode >>= vDISPLAYPRECISION
@@ -318,16 +355,15 @@ decodeEffectBytes (Env{..}) (eff@EffectBytes {..}) =
     let effIndex = EffectIndex eBytesIndex
         effNode = lkupEffect effIndex
         value = wordToFloat eBytesValue
-        precision = effectPrecisionVal effNode
         skillname = lkupSkill $ T.pack eBytesName
         monstername = lkupMonster $ T.pack eBytesName
         nameToUse = (skillname <|> monstername) >>= vDISPLAYNAME
-        description = effectDescription precision nameToUse effNode eff
+        (precision, description) = effectDescription nameToUse effNode eff
         ench = isEnchant eff
         effName = fromJust $ effNode >>= vNAME
-    in Mod ench effName $ mkDescriptor (mkModDescriptor description) value precision
+    in Mod ench effName $ mkDescriptor (mkModDescription description) value precision
 
-mkModDescriptor (EffectDescription {..}) =
+mkModDescription (EffectDescription {..}) =
     let nominal = effDesc
     in case effDescType of
         GOODDES ->  nominal
@@ -567,7 +603,7 @@ decodeItemBytes env id (itemBytes@ItemBytes {..}) =
 -- in the returned list
 allDescriptorsOf (Item{..}) =
     -- first Descriptors from the ItemBase
-     iBaseOtherReqs iBase ++ [iBaseLevelReq iBase] ++ iBaseInnates iBase ++ iBaseDescription iBase
+     iBaseOtherReqs iBase ++ [iBaseLevelReq iBase] ++ iBaseInnates iBase ++ iBaseDescription iBase ++ iBaseSetDescriptors iBase
         ++
     -- now the binary-specific stuff of Item
     [iLevel] ++ gems ++ (maybe [] (:[]) iQuantity) ++ innateDefs ++ iEffects ++ iEnchantments ++ iTriggerables

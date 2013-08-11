@@ -21,6 +21,7 @@ module FNIStash.File.General
 , getTorchString1Byte
 , maybeAction
 , wordToFloat
+, floatToWord
 , wordToDouble
 , showHex
 , streamToHex

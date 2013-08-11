@@ -260,7 +260,7 @@ input[type=text] {
 	}
 	
 .popeffect {
-    color: blue;
+    color: #0066FF;
     }
 
 .popenchant {
@@ -279,6 +279,10 @@ input[type=text] {
 	color: #00FF00;
 	}
 
+.popset {
+	color: #CC00CC;
+	}
+	
 .popemptysocket {
 	color: #747474;
 }
