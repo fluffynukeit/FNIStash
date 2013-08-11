@@ -282,8 +282,8 @@ updateStashButton mes = do
     updateButtonSaved False txt
     return (btn, txt)
 
-updateButtonSaved True  txt = return txt #= "Update Stash"
-updateButtonSaved False txt = return txt #= "Update Stash*"
+updateButtonSaved True  txt = return txt #= "Save Changes"
+updateButtonSaved False txt = return txt #= "Save Changes*"
 
 mkReport stash ItemsReport{..} = do
     let remaining = reportGUIDsAllItems - reportGUIDsRegistered
