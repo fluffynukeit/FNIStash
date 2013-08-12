@@ -99,6 +99,9 @@ stash mes = do
 
     (updateBtn, txt) <- updateStashButton mes
     return updateBtn #+ cont
+
+    exButt <- exportButton mes
+    return exButt #+ cont
     
     return (cont, txt)
 
@@ -222,6 +225,7 @@ notifyBatchArchive mes locMaker =
     let allLocations = map locMaker [0..39]
         moveCommands = zip allLocations $ repeat (Archive (-1))
     in writeFMessage mes $ Move moveCommands
+notifyExport mes = writeFMessage mes ExportDB
 
 
 withLocVals locValList actionOfElValId = do
@@ -325,3 +329,7 @@ mkReport stash ItemsReport{..} = do
     return txt #= "Grail: " ++ (printf "%.3f" reportPercentFound) ++ "%" # unit
 
     
+exportButton mes = do
+    e <- new ## "export" #= "Export database"
+    onClick e $ \_ -> liftIO $ notifyExport mes
+    return e

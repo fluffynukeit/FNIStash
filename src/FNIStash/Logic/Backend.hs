@@ -33,6 +33,7 @@ import FNIStash.File.General
 import Filesystem.Path
 import Filesystem.Path.CurrentOS
 import Filesystem
+import qualified Filesystem as F
 import Control.Monad.Trans
 import Control.Monad
 import Control.Exception
@@ -40,10 +41,12 @@ import Control.Applicative
 import Data.Either
 import Data.List.Split
 import Data.Binary.Put
+import Data.Maybe
 import qualified Data.List as L
 import qualified Data.Map as M
 import qualified Data.Set as S
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BSL
 
 import Debug.Trace
 
@@ -92,7 +95,7 @@ backend msg paths@Paths{..} mvar = handle (sendErrIO msg) $ handleDB (sendErrDB 
                     dumpItemReport env msg
                     writeBMessage msg $ Initializing Complete
                     msgList <- liftIO $ onlyFMessages msg
-                    handleMessages env (decodeString sharedStashCrypted) msg cryptoFile msgList
+                    handleMessages env (decodeString sharedStashCrypted) msg cryptoFile paths msgList
 
 dumpItemLocs messages env = do
     eitherConts <- allLocationContents env
@@ -149,7 +152,7 @@ registerStash env fVers status sharedStash =
     in register env fVers status parsedItems
 
 -- This is the main backend event queue
-handleMessages env@Env{..} savePath m cryptoFile (msg:rest) = do
+handleMessages env@Env{..} savePath m cryptoFile paths@Paths{..} (msg:rest) = do
     outMessages <- case msg of
 
         -- Move an item from one location to another
@@ -188,11 +191,16 @@ handleMessages env@Env{..} savePath m cryptoFile (msg:rest) = do
                 Left requestErr -> [Notice . Error $ requestErr]
                 Right mitem     -> [ResponseItem elem mitem]
 
+        ExportDB -> do
+            writeBMessage m $ Notice . Info $ "Exporting database to " ++ encodeString exportDir ++ "..."
+            (_, succs) <- exportDB env m paths
+            return $ [Notice . Info $ "Exported " ++ (show $ length succs) ++ " items to " ++ encodeString exportDir]
+
     -- send GUI updates
     forM_ outMessages $ \msg -> writeBMessage m msg
 
     -- and then process next message
-    handleMessages env savePath m cryptoFile rest
+    handleMessages env savePath m cryptoFile paths rest
 
 
 sharedStashToBS env ss = runPut (putSharedStash env ss)
@@ -202,6 +210,20 @@ buildSaveFile env c ss =
         i = sharedStashToBS env ss
         newSaveFile = CryptoFile (fileVersion c) (fileDummy c) (0) (i) (0)
     in (itemErrors, newSaveFile)
+
+exportDB env@Env{..} msg Paths{..} = do
+    items <- allDBItems env
+    let errors = lefts items
+        succs = catMaybes . rights $ items
+        numberedItems = zip [1..] succs
+    when (length errors > 0) $ do
+        forM_ errors $ \e -> writeBMessage msg $ Notice . Error $ "Database export parse error: " ++ e
+        writeBMessage msg $ Notice . Error $ "Total database export parse errors: " ++ (show $ length errors)
+    forM_ numberedItems $ \(i, item) -> do
+        let dataBS  = runPut $ putItem env item
+        F.writeFile (exportDir </> (decodeString $ show i) <.> "tl2i") (toStrict $ BSL.drop 4 dataBS)
+    return (errors, succs)
+
 
 dumpItemReport env mes = do
     guids <- allGUIDs env

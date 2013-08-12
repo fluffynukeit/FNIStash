@@ -305,7 +305,18 @@ input[type=text] {
 	color: #E6E600;
 	}
 
+#export {
+	color: #999999;
+	position: absolute;
+	top: 685px;
+	left: 55px;
+	}
 
+#export:hover{
+	color: #0066FF;
+	}
+	
+	
 /* Message window stuff */
 #msgwindow {
 	width: 95%;
@@ -379,7 +390,7 @@ input[type=text] {
 
 #reportbutton {
 	position: absolute;
-	top:405px;
+	top:400px;
 	left:350px;
 	font-family:huge;
 	font-size:1em;

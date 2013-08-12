@@ -30,6 +30,7 @@ module FNIStash.Logic.DB
 , allLocationContents
 , allGUIDs
 , commitDB
+, allDBItems
 , ItemClass(..)
 , ItemSummary(..)
 , ItemMatch(..)
@@ -214,9 +215,19 @@ allItemSummaries (env@(Env{..})) = do
     itemData <- quickQuery' dbConn query []
     return $ map makeSumm itemData
 
-allLocationContents (env@Env{..}) = do
-    let query = getItemDataQuery ++ " where STATUS=?"
-    rows <- quickQuery' dbConn query [toSql Stashed]
+allLocationContents (env@Env{..}) = allItemsSatisfying env " where STATUS=?" [toSql Stashed]
+
+contToClass "SHARED_STASH_BAG_ARMS" = Arms
+contToClass "SHARED_STASH_BAG_CONSUMABLES" = Consumables
+contToClass "SHARED_STASH_BAG_SPELLS" = Spells
+
+allDBItems env = do
+    allItemResults <- allItemsSatisfying env " where STATUS<>?" [toSql Inserted] -- returns all items in DB (not inserted)
+    return $ flip map allItemResults $ \r -> r >>= return . snd -- toss out the location data but keep errors
+
+allItemsSatisfying env@Env{..} whereClause params = do
+    let query = getItemDataQuery ++ whereClause
+    rows <- quickQuery' dbConn query params
     return $ flip map rows $ \(dbID:lead:trail:cont:slot:pos:name:_) ->
         let bs = buildItemBytes env lead trail cont slot pos
         in case fst $ runGet (getItem env (Just $ fromSql dbID) bs) bs of
@@ -224,9 +235,7 @@ allLocationContents (env@Env{..}) = do
                 " failed binary parsing with error: " ++ err
             Right item -> Right (iLocation item, Just item)
 
-contToClass "SHARED_STASH_BAG_ARMS" = Arms
-contToClass "SHARED_STASH_BAG_CONSUMABLES" = Consumables
-contToClass "SHARED_STASH_BAG_SPELLS" = Spells
+
 
 allGUIDs :: Env -> IO [GUID]
 allGUIDs Env{..} =

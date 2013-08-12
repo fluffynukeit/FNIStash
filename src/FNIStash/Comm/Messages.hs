@@ -80,6 +80,7 @@ data FMessage = Move [(Location, Location)] -- order is FROM then TO
               | Save
               | Search String
               | RequestItem Element Location
+              | ExportDB
               deriving Show
 
 data Messages = Messages
