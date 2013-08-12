@@ -192,9 +192,13 @@ handleMessages env@Env{..} savePath m cryptoFile paths@Paths{..} (msg:rest) = do
                 Right mitem     -> [ResponseItem elem mitem]
 
         ExportDB -> do
-            writeBMessage m $ Notice . Info $ "Exporting database to " ++ encodeString exportDir ++ "..."
-            (_, succs) <- exportDB env m paths
-            return $ [Notice . Info $ "Exported " ++ (show $ length succs) ++ " items to " ++ encodeString exportDir]
+            files <- getRecursiveContents (encodeString exportDir)
+            if (length files > 0) then
+                return [Notice . Error $ "Please empty Export directory before exporting: " ++ encodeString exportDir]
+                else do
+                    writeBMessage m $ Notice . Info $ "Exporting database to " ++ encodeString exportDir ++ "..."
+                    (_, succs) <- exportDB env m paths
+                    return $ [Notice . Info $ "Exported " ++ (show $ length succs) ++ " items to " ++ encodeString exportDir]
 
     -- send GUI updates
     forM_ outMessages $ \msg -> writeBMessage m msg
