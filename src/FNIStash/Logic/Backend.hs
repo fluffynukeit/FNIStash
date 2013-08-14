@@ -43,6 +43,7 @@ import Data.List.Split
 import Data.Binary.Put
 import Data.Maybe
 import Data.Time
+import Text.Printf
 import qualified Data.List as L
 import qualified Data.Map as M
 import qualified Data.Set as S
@@ -109,7 +110,7 @@ makeBackups Paths{..} stashFile = do
     let t = zonedTimeToLocalTime zonedTime
         (y, m, d) = toGregorian $ localDay t
         (hr, min) = (todHour.localTimeOfDay $ t, todMin.localTimeOfDay $ t)
-        newDirName = L.intercalate "-" . map show $ [fromIntegral y, m, d, hr, min]
+        newDirName = L.intercalate "-" $ show y : map (printf "%02d") [m, d, hr, min]
         newDirectory = backupsDir </> (decodeString newDirName)
     oldDirectories <- getSubDirectoriesSorted (encodeString backupsDir)
     traceShow oldDirectories $ return ()
