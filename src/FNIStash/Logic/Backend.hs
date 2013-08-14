@@ -42,6 +42,7 @@ import Data.Either
 import Data.List.Split
 import Data.Binary.Put
 import Data.Maybe
+import Data.Time
 import qualified Data.List as L
 import qualified Data.Map as M
 import qualified Data.Set as S
@@ -56,8 +57,8 @@ ensurePaths maybeName = do
     -- Ensure we have an app path for both backend and GUI to access
     appRoot <- ensureAppRoot maybeName
     guiRoot <- ensureHtml appRoot
-    (importDir, exportDir) <- ensureImportExport appRoot
-    return $ Paths appRoot guiRoot importDir exportDir
+    (importDir, exportDir, backupDir) <- ensureImportExportBackups appRoot
+    return $ Paths appRoot guiRoot importDir exportDir backupDir
 
 sendErrIO :: Messages -> IOException -> IO ()
 sendErrIO msg exc = traceShow exc $ writeBMessage msg $ Notice $ Error ("IO: " ++ show exc)
@@ -84,6 +85,8 @@ backend msg paths@Paths{..} mvar = handle (sendErrIO msg) $ handleDB (sendErrDB 
             case sharedStashResult of
                 Left error -> writeBMessage msg $ Initializing $ InitError $ "Error reading shared stash: " ++ error
                 Right sharedStash -> do
+                    writeBMessage msg $ Initializing BackupsStart
+                    makeBackups paths (decodeString sharedStashCrypted)
                     writeBMessage msg $ Initializing ImportsStart
                     processImports env msg importDir fileVers
                     writeBMessage msg $ Initializing RegisterStart
@@ -96,6 +99,27 @@ backend msg paths@Paths{..} mvar = handle (sendErrIO msg) $ handleDB (sendErrDB 
                     writeBMessage msg $ Initializing Complete
                     msgList <- liftIO $ onlyFMessages msg
                     handleMessages env (decodeString sharedStashCrypted) msg cryptoFile paths msgList
+
+-- copy the shared stash and DB files to a backups directory, dated with the time
+makeBackups Paths{..} stashFile = do
+    backupsExists <- isDirectory backupsDir
+    when (not backupsExists) $ createDirectory True backupsDir
+    let backupLimit = 5
+    zonedTime <- getZonedTime
+    let t = zonedTimeToLocalTime zonedTime
+        (y, m, d) = toGregorian $ localDay t
+        (hr, min) = (todHour.localTimeOfDay $ t, todMin.localTimeOfDay $ t)
+        newDirName = L.intercalate "-" . map show $ [fromIntegral y, m, d, hr, min]
+        newDirectory = backupsDir </> (decodeString newDirName)
+    oldDirectories <- getSubDirectoriesSorted (encodeString backupsDir)
+    traceShow oldDirectories $ return ()
+    when (length oldDirectories >= backupLimit && notElem newDirName oldDirectories) $
+        removeTree . decodeString $ head oldDirectories -- remove older directories
+    createDirectory True newDirectory
+   -- copyFile (appRoot </> "fnistash.db") newDirectory
+    copyFile stashFile (newDirectory </> filename stashFile)
+
+
 
 dumpItemLocs messages env = do
     eitherConts <- allLocationContents env

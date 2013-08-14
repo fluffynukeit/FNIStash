@@ -119,4 +119,5 @@ handleInit (InitError s) = initMsg s
 handleInit ArchiveDataStart = initMsg "Retrieving archived items..."
 handleInit ReportStart = initMsg "Building grail report..."
 handleInit ImportsStart = initMsg "Importing from Import directory..."
+handleInit BackupsStart = initMsg "Backing up stash and database..."
 handleInit _        = initMsg "Unknown initialization event!"

@@ -63,6 +63,7 @@ data InitEvent = CfgStart
                | AssetsStart
                | AssetsComplete
                | EnvStart
+               | BackupsStart
                | ImportsStart
                | RegisterStart
                | Complete

@@ -37,6 +37,7 @@ module FNIStash.File.General
 , include2
 , getRecursiveContents
 , simpleFind
+, getSubDirectoriesSorted
 )
 where
 
@@ -52,11 +53,12 @@ import Numeric
 import Control.Applicative
 import Data.Word
 import Data.Monoid
+import Control.Monad
 
 import Data.Array.ST (newArray, readArray, MArray, STUArray)
 import Data.Array.Unsafe (castSTUArray)
 import GHC.ST (runST, ST)
-
+import qualified Data.List as L
 
 -- Quasiquote stuff
 import Data.Functor
@@ -97,6 +99,12 @@ simpleFind p path = do
   return $ case r of
     [] -> Nothing
     x:_-> Just x
+
+getSubDirectoriesSorted topdir = do
+    names <- getDirectoryContents topdir
+    let properNames = filter (`notElem` [".", ".."]) names
+    onlyDirectories <- filterM doesDirectoryExist $ map (topdir </>) properNames
+    return $ L.sort onlyDirectories
 
 showListString f = foldl (\a b -> a <> f b) (""::String)
 
