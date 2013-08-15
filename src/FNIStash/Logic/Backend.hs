@@ -117,7 +117,10 @@ makeBackups Paths{..} stashFile = do
     when (length oldDirectories >= backupLimit && notElem newDirName oldDirectories) $
         removeTree . decodeString $ head oldDirectories -- remove older directories
     createDirectory True newDirectory
-   -- copyFile (appRoot </> "fnistash.db") newDirectory
+    let dbBackupPath = appRoot </> "fnistash.db_bak"
+    dbBackupExists <- isFile dbBackupPath
+    when dbBackupExists $ copyFile dbBackupPath (newDirectory </> filename dbBackupPath)
+                      >> removeFile dbBackupPath
     copyFile stashFile (newDirectory </> filename stashFile)
 
 

@@ -110,15 +110,15 @@ commitDB Env{..} = commit dbConn
 initializeDB appRoot = do
     let dbPath = appRoot </> "fnistash.db"
     dbExists <- isFile dbPath
+
+    when dbExists $ copyFile dbPath (appRoot </> "fnistash.db_bak")
+    
     conn <- connectSqlite3 $ encodeString dbPath
 
     -- need to enable foreign keys for each connection
     runRaw conn "PRAGMA foreign_keys = ON;"
 
-    if dbExists then
-        return () -- don't need to make a new table
-        else
-            setUpAllTables conn >> commit conn
+    when (not dbExists) $ setUpAllTables conn >> commit conn
 
     return conn
 

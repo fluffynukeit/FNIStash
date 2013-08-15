@@ -132,7 +132,7 @@ ensureAppRoot maybeName = do
 ensureHtml appRoot = do
     let htmlRoot = (appRoot </> "GUI")
     htmlExists <- isDirectory htmlRoot
-    when htmlExists $ do
+    when (not htmlExists) $ do
         createTree $ htmlRoot </> "css"
         writeTextFile (htmlRoot </> "css" </> "GUI.css") cssFile
         writeTextFile (htmlRoot </> "GUI.html") htmlFile
