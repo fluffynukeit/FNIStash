@@ -496,7 +496,7 @@ makeGemDescriptors (env@Env{..}) (Item {..}) effIndexList =
 
         checkValidLength ind = if ind < length iEffectsRaw
             then Just ind
-            else traceShow ("=========== Exceeded!!!", ind, length iEffectsRaw, iName) $ Nothing
+            else Nothing
 
         -- This is the code for getting effect from a unique socketable
         getMatchingTypeBy d = nEFFECT d >>= vTYPE >>= return . lkupEffect . EffectName

@@ -105,7 +105,7 @@ backend msg paths@Paths{..} mvar = handle (sendErrIO msg) $ handleDB (sendErrDB 
 makeBackups Paths{..} stashFile = do
     backupsExists <- isDirectory backupsDir
     when (not backupsExists) $ createDirectory True backupsDir
-    let backupLimit = 5
+    let backupLimit = 10
     zonedTime <- getZonedTime
     let t = zonedTimeToLocalTime zonedTime
         (y, m, d) = toGregorian $ localDay t

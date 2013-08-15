@@ -306,14 +306,23 @@ input[type=text] {
 	}
 
 #export {
-	color: #999999;
 	position: absolute;
 	top: 685px;
 	left: 55px;
 	}
 
-#export:hover{
+#donate {
+	position: absolute;
+	top: 685px;
+	left: 415px;
+	}
+	
+.link:hover{
 	color: #0066FF;
+	}
+
+.link {
+	color: #999999;
 	}
 	
 	

@@ -100,8 +100,8 @@ stash mes = do
     (updateBtn, txt) <- updateStashButton mes
     return updateBtn #+ cont
 
-    exButt <- exportButton mes
-    return exButt #+ cont
+    exportButton mes #+ cont
+    donateButton #+ cont
     
     return (cont, txt)
 
@@ -330,6 +330,14 @@ mkReport stash ItemsReport{..} = do
 
     
 exportButton mes = do
-    e <- new ## "export" #= "Export database"
+    e <- new ## "export" #. "link" #= "Export database"
     onClick e $ \_ -> liftIO $ notifyExport mes
     return e
+
+donateButton = do
+    d <- newAnchor
+         # set "href" "https://secure90.inmotionhosting.com/~fluffy5/?page_id=497"
+         # set "target" "_blank"
+         #. "link" ## "donate" #= "Donate"
+    return d
+
