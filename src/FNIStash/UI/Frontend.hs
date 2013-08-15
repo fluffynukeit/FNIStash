@@ -111,7 +111,8 @@ initMsg msg overlayMsg = return overlayMsg #= msg # unit
 
 handleInit CfgStart = initMsg "Reading configuration file..."
 handleInit DBStart  = initMsg "Instantiating database..."
-handleInit AssetsStart = initMsg "Extracting assets for first time startup.  Please wait..."
+handleInit AssetsStart = initMsg "Extracting assets for first time startup.  This can \
+    \take several minutes.  If the GUI looks weird when it loads up, refresh the page."
 handleInit EnvStart = initMsg "Building lookup environment..."
 handleInit RegisterStart = initMsg "Registering new items..."
 handleInit Complete = initMsg "Startup complete."
