@@ -27,13 +27,13 @@ import Control.Monad.Trans
 import Control.Exception
 import Filesystem
 import Filesystem.Path.CurrentOS
-import Safe
 import System.Environment
+import Data.Maybe
 
 main = do
 
     args <- getArgs
-    paths <- ensurePaths $ headMay args
+    paths <- ensurePaths $ listToMaybe args
     mvar <- newEmptyMVar
     
     serve Config
