@@ -49,14 +49,21 @@ frontend messages = do
     (stash, updateTxt) <- stash messages
     forM_ msgList $ \x -> do
         case x of
-            Initializing AssetsComplete -> return stash #+ frame # unit
+            Initializing AssetsComplete ->
+                return stash #+ frame # unit
+
             Initializing Complete -> do
                 assignRandomBackground underlay
                 crossFade overlay underlay 350
-            Initializing (ArchiveData summs) -> populateArchiveTable messages summs
-            Initializing (ReportData iReport)-> mkReport stash iReport 
+
+            Initializing (ArchiveData summs) ->
+                populateArchiveTable messages summs
+
+            Initializing (ReportData iReport)->
+                mkReport stash iReport 
                 
-            Initializing x                -> handleInit x overlayMsg
+            Initializing x ->
+                handleInit x overlayMsg
                 
             LocationContents locItemsList -> do
                 withLocVals locItemsList updateCell
@@ -104,11 +111,14 @@ initMsg msg overlayMsg = return overlayMsg #= msg # unit
 
 handleInit CfgStart = initMsg "Reading configuration file..."
 handleInit DBStart  = initMsg "Instantiating database..."
-handleInit AssetsStart = initMsg "Extracting assets for first time startup.  Please wait..."
+handleInit AssetsStart = initMsg "Extracting assets for first time startup.  This can \
+    \take several minutes.  If the GUI looks weird when it loads up, refresh the page."
 handleInit EnvStart = initMsg "Building lookup environment..."
 handleInit RegisterStart = initMsg "Registering new items..."
 handleInit Complete = initMsg "Startup complete."
 handleInit (InitError s) = initMsg s
 handleInit ArchiveDataStart = initMsg "Retrieving archived items..."
 handleInit ReportStart = initMsg "Building grail report..."
+handleInit ImportsStart = initMsg "Importing from Import directory..."
+handleInit BackupsStart = initMsg "Backing up stash and database..."
 handleInit _        = initMsg "Unknown initialization event!"

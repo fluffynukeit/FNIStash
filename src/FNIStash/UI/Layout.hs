@@ -40,7 +40,7 @@ import Control.Monad.Trans
 import Data.Maybe
 import Data.List.Split
 import Data.List (zip4)
-
+import Text.Printf
 import Debug.Trace
 
 sharedStashArms = (Location "SHARED_STASH_BAG_ARMS" "BAG_ARMS_SLOT", "ig_inventorytabs_arms")
@@ -97,18 +97,19 @@ stash mes = do
     let gStack = tabbedGridStack mes 5 8 locTemplates
     gStack ## "sharedstash_stack" #+ cont
 
-    batchArchiveButton mes #+ cont
-
     (updateBtn, txt) <- updateStashButton mes
     return updateBtn #+ cont
+
+    exportButton mes #+ cont
+    donateButton #+ cont
     
     return (cont, txt)
 
 tabbedGridStack messages r c templates = do
     div <- new #. "tabbed_grid_stack"
     -- make a triplet of grid, tab for grid, and tab image prefix
-    gridTabTrips <- forM templates (\(loc, tabImg) -> do
-        trip1 <- grid messages r c (locIdGenerator $ loc 0)
+    gridTabTrips <- forM templates (\(locMaker, tabImg) -> do
+        trip1 <- grid messages r c locMaker
         trip2 <- newIcon (tabImg ++ "_unselected_") #. "inventory_tab" ## tabImg
         return (trip1, trip2, tabImg)
         )
@@ -147,8 +148,9 @@ complements list =
     in map elemsNotMe pairList
 
 
-grid messages r c gen = do
-    let rowStarts = [0, c .. r*c-1]
+grid messages r c locMaker = do
+    let gen = locIdGenerator $ locMaker 0
+        rowStarts = [0, c .. r*c-1]
     grid <- new #. "grid"
     mapM (\startId -> gridRow messages startId c gen #+ grid) rowStarts
 
@@ -156,6 +158,10 @@ grid messages r c gen = do
     return grid #+ cont
     archiveEl <- archive messages (gen "ARCHIVE")
     return archiveEl #+ cont
+
+    -- make an Archive All button specific to each grid
+    batchArchiveButton messages locMaker #+ cont
+    
     return cont
 
 archive msg bodyID = do
@@ -215,11 +221,11 @@ notifyMove mes eString toId = do
 
 notifySave mes = writeFMessage mes Save
 notifySearch mes str = writeFMessage mes $ Search str
-notifyBatchArchive mes =
-    let applyToIndices k = map k [0..39]
-        allLocations = concat $ map (applyToIndices.fst) locTemplates
+notifyBatchArchive mes locMaker =
+    let allLocations = map locMaker [0..39]
         moveCommands = zip allLocations $ repeat (Archive (-1))
     in writeFMessage mes $ Move moveCommands
+notifyExport mes = writeFMessage mes ExportDB
 
 
 withLocVals locValList actionOfElValId = do
@@ -264,11 +270,11 @@ makeButton offImg overImg explanation clickAction = do
     return (cont, text)
 
 
-batchArchiveButton mes = do
+batchArchiveButton mes locMaker = do
     (btn, txt) <- makeButton "arrow_down" "arrow_down_highlight"
-                  "Archive all"
-                  (liftIO $ notifyBatchArchive mes)
-    return btn ## "batcharchivebutton"
+                  "Archive all items from this tab"
+                  (liftIO $ notifyBatchArchive mes locMaker)
+    return btn #. "batcharchivebutton"
 
 makeRedButton = makeButton "ig_abandon_button" "ig_abandon_button_rollover"
 
@@ -280,8 +286,8 @@ updateStashButton mes = do
     updateButtonSaved False txt
     return (btn, txt)
 
-updateButtonSaved True  txt = return txt #= "Update Stash"
-updateButtonSaved False txt = return txt #= "Update Stash*"
+updateButtonSaved True  txt = return txt #= "Save Changes"
+updateButtonSaved False txt = return txt #= "Save Changes*"
 
 mkReport stash ItemsReport{..} = do
     let remaining = reportGUIDsAllItems - reportGUIDsRegistered
@@ -292,7 +298,7 @@ mkReport stash ItemsReport{..} = do
         "Closes grail report" (setVis False cont # unit)
     return closeBtn ## "reportclosebutton" #+ cont
     new ## "reporttitle" #= "Grail Achievement Report" #+ cont
-    new ## "reportpercent" #= (take 6 $ show reportPercentFound) ++ "% complete" #+ cont
+    new ## "reportpercent" #= (printf "%.3f" reportPercentFound) ++ "% complete" #+ cont
     new ## "reportsum1" #= "Distinct items registered: " ++ show reportGUIDsRegistered #+ cont
     new ## "reportsum2" #= "Total items in Torchlight 2: " ++ show reportGUIDsAllItems #+ cont
     new ## "reportsum3" #= "Remaining " ++ (show remaining)
@@ -320,6 +326,18 @@ mkReport stash ItemsReport{..} = do
     (btn, txt) <- makeRedButton "Shows progress of finding all items" (setVis True cont # unit)
     return btn ## "reportbutton"
     return btn #+ stash
-    return txt #= "Grail: " ++ (take 5 $ show reportPercentFound) ++ "%" # unit
+    return txt #= "Grail: " ++ (printf "%.3f" reportPercentFound) ++ "%" # unit
 
     
+exportButton mes = do
+    e <- new ## "export" #. "link" #= "Export database"
+    onClick e $ \_ -> liftIO $ notifyExport mes
+    return e
+
+donateButton = do
+    d <- newAnchor
+         # set "href" "https://secure90.inmotionhosting.com/~fluffy5/?page_id=497"
+         # set "target" "_blank"
+         #. "link" ## "donate" #= "Donate"
+    return d
+

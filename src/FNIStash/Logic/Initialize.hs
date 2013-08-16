@@ -13,11 +13,15 @@
 -----------------------------------------------------------------------------
 
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE RecordWildCards #-}
 
-module FNIStash.Logic.Initialize (
-    initialize,
-    ensureAppRoot,
-    ensureHtml
+module FNIStash.Logic.Initialize
+( initialize
+, ensureAppRoot
+, ensureHtml
+, ensureImportExportBackups
+, Paths(..)
 ) where
 
 -- This file contains stuff for initialization before normal processing.
@@ -31,11 +35,13 @@ import FNIStash.File.SharedStash
 import FNIStash.File.Crypto
 import FNIStash.File.PAK
 import FNIStash.Comm.Messages
+import FNIStash.File.General
 
 -- Filesystem stuff
 import Filesystem
 import Filesystem.Path
 import Filesystem.Path.CurrentOS
+import qualified Filesystem.Path.CurrentOS as F
 
 -- General stuff
 import qualified Data.Text as T
@@ -45,6 +51,7 @@ import Data.Maybe
 import Data.Configurator
 import Data.Monoid
 import Control.Monad
+import Control.Concurrent
 import Prelude hiding (readFile, writeFile)
 
 -- Stuff for XML parsing
@@ -61,41 +68,50 @@ import GHC.Exts
 import Data.Word
 
 
--- Debug stuff
---import FNIStash.File.General
---import FNIStash.File.DAT
---import qualified Data.Text.IO as T
---import Debug.Trace
+data Paths = Paths
+    { appRoot :: F.FilePath
+    , guiRoot :: F.FilePath
+    , importDir :: F.FilePath
+    , exportDir :: F.FilePath
+    , backupsDir :: F.FilePath
+    } deriving (Eq, Show)
 
 -- Sets up paths, generates files, and builds the text environment
-initialize messages appRoot guiRoot = do
+initialize messages Paths{..} envMVar = do
 
-    -- First do one time initialization stuff
-    writeBMessage messages  $ Initializing $ CfgStart
-    cfg <- ensureConfig appRoot
+    envNotBuiltYet <- isEmptyMVar envMVar
 
-    -- Construct the DB
-    writeBMessage messages $ Initializing DBStart
-    conn <- initializeDB appRoot
+    -- At app start up, build the ENV and save it for all future session in mvar
+    when envNotBuiltYet $ do
+        -- First do one time initialization stuff
+        writeBMessage messages  $ Initializing $ CfgStart
+        cfg <- ensureConfig appRoot
+        
+        -- Construct the DB
+        writeBMessage messages $ Initializing DBStart
+        conn <- initializeDB appRoot
 
-    writeBMessage messages $ Initializing AssetsStart
-    ensureGUIAssets guiRoot cfg
-    writeBMessage messages $ Initializing AssetsComplete    
+        writeBMessage messages $ Initializing AssetsStart
+        ensureGUIAssets guiRoot cfg
+        writeBMessage messages $ Initializing AssetsComplete    
 
-    writeBMessage messages $ Initializing EnvStart
-    pak <- readPAKPrefixes cfg envPrefixes
+        writeBMessage messages $ Initializing EnvStart
+        pak <- readPAKPrefixes cfg envPrefixes
 
--- -- This part is for writing out a particular DAT file for testing.  TODO clean up later
---    let dest = "C:\\Users\\Dan\\Desktop\\FNI Testing\\dump\\"
---        writeDatFile f d = let t = fromJust $lkupPAKFile f pak >>= return . textDAT . (runGetSuppress getDAT)
---            in T.writeFile (dest <> d) t
---
---    trace "about to write---------" $ return ()
---    writeDatFile "MEDIA/INVENTORY/BAG_ARMS_SLOT.DAT" "BAG_ARMS_SLOT.DAT"
---    trace "end write -----------" $ return ()
+        -- Build the data lookup environment
+        putMVar envMVar $ buildEnv pak conn cfg
 
-    -- Build the data lookup environment
-    let env = buildEnv pak conn
+    -- If we are returning the cached value, be sure to send all events
+    when (not envNotBuiltYet) $ mapM_ (writeBMessage messages)
+        [ Initializing CfgStart
+        , Initializing DBStart
+        , Initializing AssetsStart
+        , Initializing AssetsComplete
+        , Initializing EnvStart ]
+
+    -- Now extract the already built ENV data and reset and staged changes
+    env <- readMVar envMVar
+    rollbackDB env
     
     return env
 
@@ -105,8 +121,10 @@ initialize messages appRoot guiRoot = do
 -}
 
 -- Create the program directory if it doesn't exist, location at AppData/Roaming/FNIStash
-ensureAppRoot = do
-    appRoot <- getAppDataDirectory "FNIStash"
+ensureAppRoot maybeName = do
+    appRoot <- case maybeName of
+        Nothing -> getAppDataDirectory "FNIStash"
+        Just n  -> getAppDataDirectory $ "FNIStash-" `T.append` T.pack n
     createTree appRoot
     return appRoot
 
@@ -114,11 +132,15 @@ ensureAppRoot = do
 ensureHtml appRoot = do
     let htmlRoot = (appRoot </> "GUI")
     htmlExists <- isDirectory htmlRoot
-    if htmlExists then
-        return ()
-        else
-            copyDirContents "GUI" htmlRoot
+    when (not htmlExists) $ do
+        createTree $ htmlRoot </> "css"
+        writeTextFile (htmlRoot </> "css" </> "GUI.css") cssFile
+        writeTextFile (htmlRoot </> "GUI.html") htmlFile
+        
     return htmlRoot
+
+cssFile = T.pack  [include2|GUI/css/GUI.css|]
+htmlFile = T.pack [include2|GUI/GUI.html|]
 
 -- Do I really need to roll my own copy directory function? Ugh.
 copyDirContents curDir curDestDir = do
@@ -150,7 +172,6 @@ ensureConfig appRoot = do
             writeConfigOut confPath $ defaultConfigOut docPath
     load [Required (encodeString confPath)]
 
-
 -- If the necessary GUI files do not exist, then generate them.
 ensureGUIAssets root cfg = do
     let assetPath = root </> "GUIAssets"
@@ -159,10 +180,23 @@ ensureGUIAssets root cfg = do
         createTree assetPath
         guiPAK <- readPAKPrefixes cfg guiAssets
         -- writeHTML will go here to write out HTML page? maybe use quasi quotes
-        withAssetsContaining guiPAK ".IMAGESET" $ processImageSet assetPath guiPAK
         withAssetsContaining guiPAK ".TTF" $ writeAssetFile assetPath -- for fonts
         withAssetsContaining guiPAK "SCREENS" $ exportScreen assetPath -- for backgrounds
+        withAssetsContaining guiPAK ".IMAGESET" $ processImageSet assetPath guiPAK
 
+ensureImportExportBackups appRoot =
+    let importDir = appRoot </> "Import"
+        exportDir = appRoot </> "Export"
+        backupDir = appRoot </> "Backups"
+        makeIfMissing dir = do
+            dirExists <- isDirectory dir
+            when (not dirExists) $ createDirectory True dir
+    in do
+        makeIfMissing importDir
+        makeIfMissing exportDir
+        makeIfMissing backupDir
+        return (importDir, exportDir, backupDir)
+        
 withAssetsContaining guiPAK subStr action =
     let pathDataTuples = mapsnd entryData $ M.toList $ pakWithKeysContaining subStr guiPAK
         mapsnd f list = map (\(x,y) -> (x,f y)) list
@@ -259,17 +293,17 @@ instance IsString QName where
 -- Reads a PAK file, but restricts the data read in to only those files matching as
 -- specific file path prefix, such as MEDIA/UI/ICONS
 readPAKPrefixes cfg prefs = do
-    pakMANFileBinary <- require cfg "MANFILE"
+    pakMANFileBinary <- require cfg $ T.pack $ show MANFILE
     man <- readPAKMAN pakMANFileBinary
     let subMan = filterMANByPrefix man prefs
-    pakFileBinary <- require cfg "PAKFILE"
+    pakFileBinary <- require cfg $ T.pack $ show PAKFILE
     pakFiles subMan pakFileBinary
 
 -- PAK file path prefixes that contain game data needed to build the data lookup environment
 envPrefixes = [ "MEDIA/EFFECTSLIST.DAT", "MEDIA/UNITS/ITEMS", "MEDIA/SKILLS", "MEDIA/INVENTORY"
               , "MEDIA/GRAPHS/STATS", "MEDIA/AFFIXES/ITEMS", "MEDIA/AFFIXES/GEMS"
               , "MEDIA/TRIGGERABLES", "MEDIA/STATS", "MEDIA/UNITS/MONSTERS/PETS"
-              , "MEDIA/SPAWNCLASSES"]
+              , "MEDIA/SPAWNCLASSES", "MEDIA/SETS"]
 
 
 

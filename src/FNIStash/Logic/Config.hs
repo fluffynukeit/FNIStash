@@ -17,7 +17,8 @@
 module FNIStash.Logic.Config (
     defaultConfigOut,
     writeConfigOut,
-    updateConfigOut
+    updateConfigOut,
+    ConfigName(..)
 ) where
 
 -- This file contains utilities for writing out a configuration file into the Configurator format
@@ -41,7 +42,7 @@ data ConfigItem = Comment {comment :: String }
                 | Item {description:: String, name :: ConfigName, value :: String}
 
 -- Use a data type deriving Show to get extra type safey for our config keys
-data ConfigName = MANFILE | PAKFILE | SHAREDSTASH
+data ConfigName = MANFILE | PAKFILE | SHAREDSTASHLOCATION | SHAREDSTASHFILE
     deriving (Eq, Show)
 
 -- A configuration file is a list of config items.
@@ -51,16 +52,18 @@ type ConfigOut = [ConfigItem]
 -- Defines the default config file.
 defaultConfigOut docDirectory =
           [ Comment "This file configures the FNIStash backend.",
-            Comment $ slashPath "Please ensure all file paths are defined using double back slashes (\\)",
+            Comment $ slashPath "Please ensure all file paths are defined using double back slashes (\\) and surrounded by quotes (\")",
             Item "The location of the TL2 PAK.MAN file, which describes the PAK asset file."
                  MANFILE $
                  slashPath "\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Torchlight II\\PAKS\\DATA.PAK.MAN\"",
             Item "The location of the TL2 PAK archive that contains game data and assets."
                  PAKFILE $
                  slashPath "\"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Torchlight II\\PAKS\\DATA.PAK\"",
-            Item "The location of the shared stash file."
-                 SHAREDSTASH $
-                 slashPath $ "\"" <> (encodeString $ docDirectory </> "My Games\\Runic Games\\Torchlight 2\\save") <> "\""
+            Item "A directory containing the shared stash file somewhere withing its subdirectory hierarchy."
+                 SHAREDSTASHLOCATION $
+                 slashPath $ "\"" <> (encodeString $ docDirectory </> "My Games\\Runic Games\\Torchlight 2\\save") <> "\"",
+            Item "The file name of the shared stash file."
+                SHAREDSTASHFILE "\"sharedstash_v2.bin\""
           ]
 
 -- Utility method for transforming normal slashes to \\.  Configurator doesn't like normal slashes in strings.

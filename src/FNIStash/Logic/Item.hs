@@ -116,6 +116,7 @@ data ItemBase = ItemBase
     , iBaseMaxSockets :: Maybe Int
     , iBaseRarity :: Maybe Int
     , iBaseDescription :: [Descriptor] -- 1 descriptor per line of description
+    , iBaseSetDescriptors :: [Descriptor] -- descriptors for all set bonuses
     } deriving (Eq, Ord)
 
 
@@ -160,6 +161,40 @@ getItemBase (env@Env{..}) guid itemLevel =
         (find vRARITY)
         (maybe [] id $ find vDESCRIPTION >>= return . fixNewLineDesc)
 
+        -- Set bonuses
+        (resolveSetBonuses env item)
+
+-- Set bonuses
+
+resolveSetBonuses env@Env{..} itemDat =
+    let set = return itemDat >>= vSET >>= lkupSet
+        setName = set >>= vDISPLAYNAME
+        nameDesc = mkDescriptor ("Set: " ++ maybe "!UNKNOWN SET" id setName) 0 0
+        affixNodes = maybe [] datSubNodes set
+        bonusDescriptors = map (affixToBonusDescriptor env) affixNodes
+    in case set of
+        Nothing -> []
+        Just _  -> nameDesc:bonusDescriptors
+
+
+affixToBonusDescriptor Env{..} aff =
+    let itemCount = return aff >>= vCOUNT
+        setAff = return aff >>= vAFFIX >>= lkupAffix
+        duration = setAff >>= vDURATION
+        affixEffect = setAff >>= nEFFECT
+        eff = affixEffect >>= vTYPE >>= lkupEffect . EffectName
+        valMin = affixEffect >>= vMIN
+        valMax = affixEffect >>= vMAX
+        val = maybe 0 id valMin
+        descType = maybe 0 (\x -> if x > 0 then 0x02 else 0x00) duration
+        listLength = 4 :: Int
+        fakeEBytes = EffectBytes 0 "Fake Set Name" Nothing Nothing (fromIntegral listLength)
+                    (replicate listLength $ floatToWord val) 0 0 descType 0 0 (floatToWord val) 0 Nothing
+        (prec, descRaw) = effectDescription Nothing eff fakeEBytes
+        descModOnly = mkModDescription descRaw
+        desc = maybe "!Unknown set count!" show itemCount ++ " pieces: " ++ descModOnly
+    in mkDescriptor desc val prec
+
 -- Stat calculations
 
 resolveStat (Env{..}) itemLevel (StatReq stat val) =
@@ -201,7 +236,7 @@ resolveClassReq "RAILMAN"   = mkDescriptor "Requires Class: Engineer" 0 0
 resolveClassReq "OUTLANDER" = mkDescriptor "Requires Class: Outlander" 0 0
 resolveClassReq "BERSERKER" = mkDescriptor "Requires Class: Berserker" 0 0
 resolveClassReq "EMBERMAGE" = mkDescriptor "Requires Class: Embermage" 0 0
-resolveClassReq _                      = mkDescriptor "Requires Class: Unknown Class" 0 0
+resolveClassReq _           = mkDescriptor "Requires Class: Unknown Class" 0 0
 
 ----- LOCATION STUFF
 
@@ -212,7 +247,6 @@ data Location = Location
     }
     | InsertedInSocket
     | Archive {rowID :: Int}
-    | Elsewhere
     | UnknownLocation
     deriving (Eq, Ord, Show)
 
@@ -260,8 +294,9 @@ descTypeLookup 0x03 = BADDES  -- This is just a guess
 descTypeLookup 0x04 = BADDESOT -- This is also a guess
 descTypeLookup _    = UnknownDescriptionType
 
-effectDescription prec maybeName effectNode (eff@EffectBytes {..}) =
-    let descType = case descTypeLookup eBytesDescriptionType of
+effectDescription maybeName effectNode (eff@EffectBytes {..}) =
+    let prec = effectPrecisionVal effectNode
+        descType = case descTypeLookup eBytesDescriptionType of
             GOODDES     -> vGOODDES
             GOODDESOT   -> vGOODDESOT
             BADDES      -> vBADDES
@@ -270,11 +305,12 @@ effectDescription prec maybeName effectNode (eff@EffectBytes {..}) =
                 vUnknown (EffectDescription UnknownDescriptionType $
                     "!Effect (type, index): " ++ show (eBytesType, eBytesIndex))
         maybeSentence = (effectNode >>= descType)
-    in case maybeSentence of
+    in (prec , case maybeSentence of
         Just (EffectDescription a sentence) -> EffectDescription a $
                             translateSentence (effectTranslator prec maybeName eff) sentence
         Nothing -> EffectDescription UnknownDescriptionType $
                     "!No description of " ++ show eBytesDescriptionType ++ " for index " ++ show eBytesIndex
+        )
 
 effectPrecisionVal effectNode =
     let maybePrecision = effectNode >>= vDISPLAYPRECISION
@@ -319,16 +355,15 @@ decodeEffectBytes (Env{..}) (eff@EffectBytes {..}) =
     let effIndex = EffectIndex eBytesIndex
         effNode = lkupEffect effIndex
         value = wordToFloat eBytesValue
-        precision = effectPrecisionVal effNode
         skillname = lkupSkill $ T.pack eBytesName
         monstername = lkupMonster $ T.pack eBytesName
         nameToUse = (skillname <|> monstername) >>= vDISPLAYNAME
-        description = effectDescription precision nameToUse effNode eff
+        (precision, description) = effectDescription nameToUse effNode eff
         ench = isEnchant eff
         effName = fromJust $ effNode >>= vNAME
-    in Mod ench effName $ mkDescriptor (mkModDescriptor description) value precision
+    in Mod ench effName $ mkDescriptor (mkModDescription description) value precision
 
-mkModDescriptor (EffectDescription {..}) =
+mkModDescription (EffectDescription {..}) =
     let nominal = effDesc
     in case effDescType of
         GOODDES ->  nominal
@@ -375,7 +410,8 @@ data Item = Item
     , iIdentified :: Bool
     , iLocation :: Location
     , iLevel :: Descriptor
-    , iQuantity :: Int
+    , iQuantityRaw :: Int
+    , iQuantity :: Maybe Descriptor
     , iNumSockets :: Int
     , iGems :: [(FilePath, Descriptor, Descriptor)] -- (icon, title, desc) triplet for each gem
     , iGemsAsItems :: [Item]
@@ -433,8 +469,13 @@ selectSpecialEffects env (ItemBytes{..}) =
 
         defenseFiles = map (fileLookup . mEffectName) innates
         useInnateDef = zip defenseFiles innateDefDescriptors
-        
-    in (useNormal, useEnchants, useInnateDef)
+
+        armor = case decodePoints iBytesDamage iBytesArmor of
+                    ArmorVal 0 -> Nothing
+                    ArmorVal i -> Just ("resist_physicalc", mkDescriptor "[*] Physical Armor" (fromIntegral i) 0)
+                    _          -> Nothing
+                
+    in (useNormal, useEnchants, maybe [] (:[]) armor ++ useInnateDef)
 
 
 maybeToBool Nothing = False
@@ -455,7 +496,7 @@ makeGemDescriptors (env@Env{..}) (Item {..}) effIndexList =
 
         checkValidLength ind = if ind < length iEffectsRaw
             then Just ind
-            else traceShow ("=========== Exceeded!!!", ind, length iEffectsRaw, iName) $ Nothing
+            else Nothing
 
         -- This is the code for getting effect from a unique socketable
         getMatchingTypeBy d = nEFFECT d >>= vTYPE >>= return . lkupEffect . EffectName
@@ -534,7 +575,6 @@ decodeItemBytes env id (itemBytes@ItemBytes {..}) =
         base = getItemBase env (GUID $ fromIntegral iBytesGUID) iBytesLevel
 
         effectIndexList = map (eBytesIndex) $ effectsOf itemBytes
-
         item = Item
                (mkDescriptor iBytesName 0 0)
                iBytesRandomID
@@ -542,6 +582,9 @@ decodeItemBytes env id (itemBytes@ItemBytes {..}) =
                (decodeLocationBytes env iBytesLocation)
                (Descriptor "Level [*]" (fromIntegral iBytesLevel) 0)
                (fromIntegral iBytesQuantity)
+               (case iBytesQuantity of
+                    1 -> Nothing
+                    _ -> Just $ mkDescriptor "QTY: [*]" (fromIntegral iBytesQuantity) 0)
                (fromIntegral iBytesNumSockets)
                (map (getGemDesc env) $ gemItems )
                gemItems
@@ -560,10 +603,10 @@ decodeItemBytes env id (itemBytes@ItemBytes {..}) =
 -- in the returned list
 allDescriptorsOf (Item{..}) =
     -- first Descriptors from the ItemBase
-     iBaseOtherReqs iBase ++ [iBaseLevelReq iBase] ++ iBaseInnates iBase ++ iBaseDescription iBase
+     iBaseOtherReqs iBase ++ [iBaseLevelReq iBase] ++ iBaseInnates iBase ++ iBaseDescription iBase ++ iBaseSetDescriptors iBase
         ++
     -- now the binary-specific stuff of Item
-    [iLevel] ++ gems ++ innateDefs ++ iEffects ++ iEnchantments ++ iTriggerables
+    [iLevel] ++ gems ++ (maybe [] (:[]) iQuantity) ++ innateDefs ++ iEffects ++ iEnchantments ++ iTriggerables
     where
         gems = flip concatMap iGems $ \(_, n, d) -> [n,d]
         innateDefs = map snd iInnateDefs

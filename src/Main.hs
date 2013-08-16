@@ -24,22 +24,28 @@ import FNIStash.Comm.Messages
 
 import Control.Concurrent
 import Control.Monad.Trans
+import Control.Exception
 import Filesystem
 import Filesystem.Path.CurrentOS
+import Safe
+import System.Environment
 
 main = do
-    setWorkingDirectory "C:\\Users\\Dan\\My Code\\FNIStash" -- only for testing
-    (appRoot, guiRoot) <- ensurePaths
+
+    args <- getArgs
+    paths <- ensurePaths $ headMay args
+    mvar <- newEmptyMVar
     
     serve Config
         { tpPort = 10001
         , tpRun = runTP
-        , tpWorker = launchAll appRoot guiRoot
+        , tpWorker = launchAll paths mvar
         , tpInitHTML = Just "GUI.html"
-        , tpStatic = encodeString guiRoot
+        , tpStatic = encodeString (guiRoot paths)
         }
 
-launchAll appRoot guiRoot = do
+launchAll paths mvar = do
     messages <- liftIO newMessages
-    liftIO $ forkIO $ backend messages appRoot guiRoot
+    liftIO $ forkIO $ backend messages paths mvar
     frontend messages
+

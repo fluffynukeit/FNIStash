@@ -46,6 +46,10 @@ newItemIcon (item@Item {..}) = do
     forM_ [numFullSockets+1..iNumSockets] $ \ind ->
         newIcon "socket_empty" #. ("socket" ++ show ind) #+ container
 
+    case iQuantityRaw of
+        1   -> return ()
+        qty -> new #. "qty" #= show qty #+ container # unit
+    
     killPopUp
 
     onHover container $ \_ -> killPopUp >> makePopUp item container
@@ -56,8 +60,8 @@ newItemIcon (item@Item {..}) = do
 
 moveScript = "var pop = document.getElementById(\"itempopup\"); pop.style.visibility = \"inherit\";\
              \if (event.clientX < document.body.clientWidth/2) \
-             \{pop.style.left=(event.clientX+5)+\"px\";}\
-             \else {pop.style.right=(document.body.clientWidth - event.clientX+20)+\"px\";}\
+             \{pop.style.left=(event.clientX+50)+\"px\";}\
+             \else {pop.style.right=(document.body.clientWidth - event.clientX+65)+\"px\";}\
              \pop.style.top=\
                 \(event.clientY - (event.clientY*1.0/document.body.clientHeight)*pop.offsetHeight)+\"px\""
 
@@ -72,20 +76,23 @@ makePopUpBox (Item{..}) = do
     newIcon (iBaseIcon iBase) #. "popicon" #+ titleArea
 
     let qualityClass = case (uQuality . iBaseUnitType $ iBase) of
-            NormalQ     -> "popnormal"
-            MagicQ      -> "popmagic"
-            UniqueQ     -> "popunique"
-            LegendaryQ  -> "poplegendary"
-            _           -> "popnormal"
+            NormalQ     -> "popnormal poptitle"
+            MagicQ      -> "popmagic poptitle"
+            UniqueQ     -> "popunique poptitle"
+            LegendaryQ  -> "poplegendary poptitle"
+            _           -> "popnormal poptitle"
     
     new #. qualityClass #= show iName #+ titleArea
 
     dataArea <- new #. "popdataarea"
     forM_ (iBaseInnates iBase) $ \inn ->
-        new #. "popinnate" #= show inn #+ dataArea
+        new #. "popinnate poptext" #= show inn #+ dataArea
 
     forM_ (iInnateDefs) $ \pair -> makeInnateDef pair dataArea
 
+    case iQuantity of
+        Nothing -> return ()
+        Just des-> new #. "popinnate poptext" #= show des #+ dataArea # unit
 
     -- Sockets
     forM_ iGems $ \gem -> makeFullSocket gem dataArea
@@ -95,27 +102,30 @@ makePopUpBox (Item{..}) = do
     -- Item effects
     
     forM_ iEffects $ \mod -> 
-        new #. "popeffect" #= show mod #+ dataArea
+        new #. "popeffect poptext" #= show mod #+ dataArea
 
     forM_ iEnchantments $ \mod ->
-        new #. "popenchant" #= show mod #+ dataArea
+        new #. "popenchant poptext" #= show mod #+ dataArea
 
     forM_ iTriggerables $ \trig -> 
-        new #. "poptriggerable" #= show trig #+ dataArea
+        new #. "poptriggerable poptext" #= show trig #+ dataArea
 
 
+    forM_ (iBaseSetDescriptors iBase) $ \setDes ->
+        new #. "popset poptext" #= show setDes #+ dataArea
+    
     -- Level req
-    new #. "popstatreq" #= show (iBaseLevelReq iBase) #+ dataArea
+    new #. "popstatreq poptext" #= show (iBaseLevelReq iBase) #+ dataArea
 
     when (length (iBaseOtherReqs iBase) > 0) $
-        new #. "popstatreq" #= "   Or" #+ dataArea # unit
+        new #. "popstatreq poptext" #= "   Or" #+ dataArea # unit
 
     -- Stat reqs and other reqs
     forM_ (iBaseOtherReqs iBase) $ \req ->
-        new #. "popstatreq" #= show req #+ dataArea
+        new #. "popstatreq poptext" #= show req #+ dataArea
 
     forM_ (iBaseDescription iBase) $ \line ->
-        new #. "popdescription" #= (show line) #+ dataArea # unit
+        new #. "popdescription poptext" #= (show line) #+ dataArea # unit
 
     return titleArea #+ container
     return dataArea #+ container
@@ -125,20 +135,20 @@ makePopUpBox (Item{..}) = do
 makeEmptySocket container = do
     line <- new #. "popemptysocket"
     newIcon "socket_empty" #. "popemptysocketicon" #+ line
-    new #. "popemptysockettext" #= "Empty Socket" #+ line
+    new #. "popemptysockettext poptext" #= "Empty Socket" #+ line
     return line #+ container
 
 makeFullSocket (icon, name, effect) container = do
     line <- new #. "popfullsocket"
     newIcon icon #. "popfullsocketicon" #+ line
-    new #. "popfullsockettext" #= show name #+ line
-    new #. "popfullsocketeffect" #= show effect #+ line
+    new #. "popfullsockettext poptext" #= show name #+ line
+    new #. "popfullsocketeffect poptext" #= show effect #+ line
     return line #+ container
 
 makeInnateDef (icon, descriptor) container = do
     line <- new #. "popinnatedef"
     newIcon icon #. "popinnatedeficon" #+ line
-    new #. "popinnate" #= show descriptor #+ line
+    new #. "popinnate poptext" #= show descriptor #+ line
     return line #+ container
 
 killPopUp :: MonadTP m => m ()

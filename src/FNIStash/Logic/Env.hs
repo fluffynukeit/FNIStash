@@ -18,6 +18,7 @@
 module FNIStash.Logic.Env 
     ( buildEnv
     , searchAncestryFor
+    , sharedStashPath
     , Env (..)
     , EffectKey (..)
     ) where
@@ -31,6 +32,7 @@ import FNIStash.File.DAT
 import FNIStash.File.Variables
 import FNIStash.File.General
 import FNIStash.File.Item (LocationBytes(..))
+import FNIStash.Logic.Config
 
 -- General stuff
 import qualified Data.Text as T
@@ -42,6 +44,10 @@ import Data.Int
 import qualified Data.Map as M
 import qualified Data.List as L
 import Database.HDBC.Sqlite3
+import Data.Configurator.Types
+import Data.Configurator
+
+import System.FilePath.Windows
 
 import Debug.Trace
 
@@ -60,8 +66,10 @@ data Env = Env
     , lkupPath :: T.Text -> Maybe DATNode
     , lkupGraph :: T.Text -> Float -> Float
     , lkupSpawnClass :: T.Text -> Maybe DATNode -- map of spawnclass object's UNIT variable to the spawnclass itself
+    , lkupSet :: T.Text -> Maybe DATNode
     , allItems :: DATFiles GUID -- map of GUID to item nodes
     , dbConn :: Connection
+    , config :: Config
     }
 
 data EffectKey = EffectIndex
@@ -73,7 +81,7 @@ data EffectKey = EffectIndex
 
 
 -- build the lookup environment needed for app operations
-buildEnv pak conn =
+buildEnv pak conn cfg =
     let effects = effectLookup pak
         skills = skillLookup pak
         (bytesToNodesFxn, nodesToBytesFxn) = locLookup pak
@@ -85,10 +93,20 @@ buildEnv pak conn =
         trigs = triggerableLookup pak
         stats = statLookup pak
         spawn = spawnclassLookup pak
+        sets = setLookup pak
     in  Env effects affixes skills monsters bytesToNodesFxn
             nodesToBytesFxn itemsGUID trigs stats byPath graph
-            spawn
+            spawn sets
             allItemsMap conn
+            cfg
+
+
+sharedStashPath Env{..} = do
+    searchHead <- require config $ T.pack $ show SHAREDSTASHLOCATION
+    searchName <- require config $ T.pack $ show SHAREDSTASHFILE
+    rightFile  <- simpleFind ((searchName ==) . takeFileName) searchHead
+    return (rightFile, searchName, searchHead)
+
 
 -- Each of the functions below returns a lookup function.  This is how we can keep the loaded PAK
 -- handy for repeated lookups since we cannot have a global.  The PAK stays on the stack.
@@ -120,6 +138,7 @@ makeLookupByName path pak =
 affixLookup = makeLookupByName "MEDIA/AFFIXES/ITEMS"
 skillLookup = makeLookupByName "MEDIA/SKILLS/"
 monsterLookup = makeLookupByName "MEDIA/UNITS/MONSTERS/PETS/"
+setLookup = makeLookupByName "MEDIA/SETS/"
 
 spawnclassLookup pak =
     let dat = readDATFiles pak "MEDIA/SPAWNCLASSES" vNAME

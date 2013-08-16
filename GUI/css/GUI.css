@@ -78,10 +78,10 @@ input[type=text] {
     top:300px;
 	}
 
-#batcharchivebutton {
+.batcharchivebutton {
 	position:absolute;
-	left:238px;
-	top:405px;
+	left:218px;
+	top:360px;
 }
 	
 /* General layout */
@@ -184,10 +184,12 @@ input[type=text] {
 .socket6 { top: 30px; 	right: 0px; position: absolute; }
 .socket7 { top: 45px; 	left:  0px; position: absolute; }
 .socket8 { top: 45px; 	right: 0px; position: absolute; }
+.qty 	 { top: 45px; 	right: 0px; position: absolute; font-size: 8pt; color: white;}
 	
 /* Item display popup */
 .itempopup {
-    max-width: 350px;
+    max-width: 325px;
+	min-width: 200px;
     position: absolute;
     /*top: 65px;
     left: 630px;*/
@@ -219,84 +221,75 @@ input[type=text] {
 	border-radius: 3px;
 	float: left;
 	}
-	
-.popunique {
-    font-size: 16pt;
-    color: orange;
+
+.poptitle {
+	font-size: 14pt;
 	font-family: huge;
 	position: relative;
 	top: 15px;
+	}
+	
+.popunique {
+    color: orange;
     }
 
 .popnormal {
-    font-size: 16pt;
     color: white;
-	font-family: huge;
-	position: relative;
-	top: 15px;
     }
 
 .popmagic {
-    font-size: 16pt;
     color: #3366FF;
-	font-family: huge;
-	position: relative;
-	top: 15px;
     }
 
 .poplegendary {
-    font-size: 16pt;
     color: #E60000;
-	font-family: huge;
-	position: relative;
-	top: 15px;
     }
 
 .popinnatedeficon {
-	max-height: 18px;
-	height: 18px;
+	max-height: 17px;
+	height: 17px;
 	float: left;
 	}
 	
+.poptext {
+	font-size:11pt;
+	}
+	
 .popinnate {
-	font-size:12pt;
 	color: white;
 	}
 	
 .popeffect {
-    font-size: 12pt;
-    color: blue;
+    color: #0066FF;
     }
 
 .popenchant {
-	font-size:12pt;
 	color: #00FF99;
 	}
 
 .poptriggerable {
-	font-size: 12pt;
 	color: #FFD633;
 	}
 	
 .popstatreq {
-	font-size: 12pt;
 	color: white;
 	}
 
 .popdescription {
-	font-size: 12pt;
 	color: #00FF00;
 	}
 
+.popset {
+	color: #CC00CC;
+	}
+	
 .popemptysocket {
-	font-size: 12pt;
 	color: #747474;
 }
 .popemptysocketicon {
 	float: left;
 	}
 .popemptysockettext {
-	font-size: inherit;
 	}
 	
 .popfullsocketicon {
@@ -305,19 +298,38 @@ input[type=text] {
 	}
 	
 .popfullsockettext {
-	font-size: 12pt;
 	color: #E6E600;
 	}
 	
 .popfullsocketeffect {
-	font-size: 12pt;
 	color: #E6E600;
 	}
 
+#export {
+	position: absolute;
+	top: 685px;
+	left: 55px;
+	}
 
+#donate {
+	position: absolute;
+	top: 685px;
+	left: 415px;
+	}
+	
+.link:hover{
+	color: #0066FF;
+	}
+
+.link {
+	color: #999999;
+	}
+	
+	
 /* Message window stuff */
 #msgwindow {
 	width: 95%;
+	max-width: 500px;
 	margin-left: auto;
 	margin-right: auto;
 	height: 45px;
@@ -387,7 +399,7 @@ input[type=text] {
 
 #reportbutton {
 	position: absolute;
-	top:405px;
+	top:400px;
 	left:350px;
 	font-family:huge;
 	font-size:1em;
@@ -479,7 +491,7 @@ input[type=text] {
 	}
 .reportcell {
 	display: table-cell;
-	background-color: none;
+	background-color: transparent;
 	border-style: none;
 	text-align: left;
     }
@@ -514,6 +526,7 @@ input[type=text] {
 	border-radius: 15px;
 	padding: 10px;
 	display: inline-block;
+	width:400px;
 	}
 	
 #overlaylogo {

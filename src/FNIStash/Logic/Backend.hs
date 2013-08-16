@@ -18,6 +18,7 @@
 module FNIStash.Logic.Backend
     ( ensurePaths
     , backend
+    , Paths(..)
 ) where
 
 import FNIStash.Logic.Initialize
@@ -27,9 +28,12 @@ import FNIStash.File.SharedStash
 import FNIStash.Logic.DB
 import FNIStash.Logic.Env
 import FNIStash.File.Variables
+import FNIStash.File.General
 
 import Filesystem.Path
 import Filesystem.Path.CurrentOS
+import Filesystem
+import qualified Filesystem as F
 import Control.Monad.Trans
 import Control.Monad
 import Control.Exception
@@ -37,52 +41,89 @@ import Control.Applicative
 import Data.Either
 import Data.List.Split
 import Data.Binary.Put
+import Data.Maybe
+import Data.Time
+import Text.Printf
 import qualified Data.List as L
 import qualified Data.Map as M
 import qualified Data.Set as S
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BSL
 
 import Debug.Trace
 
--- These are paths to test assets, so I don't mess up my real ones.  Delete later.
-testDir = "C:\\Users\\Dan\\Desktop\\FNI Testing"
-sharedStashCrypted = testDir </> "sharedstash_v2.bin"
-textOutputPath = testDir </> "sharedStashTxt.txt"
-savePath = testDir </> "testSave.bin"
 
 -- Gets/makes the necessary application paths
-ensurePaths = do
+ensurePaths maybeName = do
     -- Ensure we have an app path for both backend and GUI to access
-    appRoot <- ensureAppRoot
+    appRoot <- ensureAppRoot maybeName
     guiRoot <- ensureHtml appRoot
-    return (appRoot, guiRoot)
+    (importDir, exportDir, backupDir) <- ensureImportExportBackups appRoot
+    return $ Paths appRoot guiRoot importDir exportDir backupDir
 
 sendErrIO :: Messages -> IOException -> IO ()
-sendErrIO msg exc = writeBMessage msg $ Notice $ Error ("DB: " ++ show exc)
-sendErrDB msg exc = writeBMessage msg $ Notice $ Error ("DB: " ++ show exc)
+sendErrIO msg exc = traceShow exc $ writeBMessage msg $ Notice $ Error ("IO: " ++ show exc)
+sendErrDB msg exc = traceShow exc $ writeBMessage msg $ Notice $ Error ("DB: " ++ show exc)
 
 -- The real meat of the program
-backend msg appRoot guiRoot = handle (sendErrIO msg) $ handleDB (sendErrDB msg) $ do
-    env <- initialize msg appRoot guiRoot
+backend msg paths@Paths{..} mvar = handle (sendErrIO msg) $ handleDB (sendErrDB msg) $ do
+    env <- initialize msg paths mvar
 
-     -- Descramble the scrambled shared stash file.  Just reads the test file for now. Needs to
-    -- eventually read the file defined by cfg
-    cryptoFile <- readCryptoFile (encodeString sharedStashCrypted)
-    let ssData = fileGameData cryptoFile
+    -- Try to read the shared stash file
+    (mSharedStashCrypted, file, dir) <- sharedStashPath env
 
-    let sharedStashResult = parseSharedStash env ssData
-    case sharedStashResult of
-        Left error -> writeBMessage msg $ Initializing $ InitError $ "Error reading shared stash: " ++ error
-        Right sharedStash -> do
-            writeBMessage msg $ Initializing RegisterStart
-            dumpRegistrations env msg sharedStash
-            dumpItemLocs msg env
-            writeBMessage msg $ Initializing ArchiveDataStart
-            dumpArchive env msg
-            writeBMessage msg $ Initializing ReportStart
-            dumpItemReport env msg
-            writeBMessage msg $ Initializing Complete
-            msgList <- liftIO $ onlyFMessages msg
-            handleMessages env msg cryptoFile msgList
+    case mSharedStashCrypted of
+        Nothing -> writeBMessage msg $ Initializing $ InitError $
+            "Could not find " ++ file ++ " under the directory " ++ dir ++
+            ". Verify Backend.conf is defined correctly for your installation."
+        Just sharedStashCrypted -> do
+            -- Descramble the scrambled shared stash file.  Just reads the test file for now. Needs to
+            -- eventually read the file defined by cfg
+            cryptoFile <- readCryptoFile sharedStashCrypted
+            let ssData = fileGameData cryptoFile
+                fileVers = fileVersion cryptoFile
+                sharedStashResult = parseSharedStash env ssData
+            case sharedStashResult of
+                Left error -> writeBMessage msg $ Initializing $ InitError $ "Error reading shared stash: " ++ error
+                Right sharedStash -> do
+                    writeBMessage msg $ Initializing BackupsStart
+                    makeBackups paths (decodeString sharedStashCrypted)
+                    writeBMessage msg $ Initializing ImportsStart
+                    processImports env msg importDir fileVers
+                    writeBMessage msg $ Initializing RegisterStart
+                    dumpRegistrations env msg fileVers sharedStash
+                    dumpItemLocs msg env
+                    writeBMessage msg $ Initializing ArchiveDataStart
+                    dumpArchive env msg
+                    writeBMessage msg $ Initializing ReportStart
+                    dumpItemReport env msg
+                    writeBMessage msg $ Initializing Complete
+                    msgList <- liftIO $ onlyFMessages msg
+                    handleMessages env (decodeString sharedStashCrypted) msg cryptoFile paths msgList
+
+-- copy the shared stash and DB files to a backups directory, dated with the time
+makeBackups Paths{..} stashFile = do
+    backupsExists <- isDirectory backupsDir
+    when (not backupsExists) $ createDirectory True backupsDir
+    let backupLimit = 10
+    zonedTime <- getZonedTime
+    let t = zonedTimeToLocalTime zonedTime
+        (y, m, d) = toGregorian $ localDay t
+        (hr, min) = (todHour.localTimeOfDay $ t, todMin.localTimeOfDay $ t)
+        newDirName = L.intercalate "-" $ show y : map (printf "%02d") [m, d, hr, min]
+        newDirectory = backupsDir </> (decodeString newDirName)
+    oldDirectories <- getSubDirectoriesSorted (encodeString backupsDir)
+    traceShow oldDirectories $ return ()
+    when (length oldDirectories >= backupLimit && notElem newDirName oldDirectories) $
+        removeTree . decodeString $ head oldDirectories -- remove older directories
+    createDirectory True newDirectory
+    let dbBackupPath = appRoot </> "fnistash.db_bak"
+    dbBackupExists <- isFile dbBackupPath
+    when dbBackupExists $ copyFile dbBackupPath (newDirectory </> filename dbBackupPath)
+                      >> removeFile dbBackupPath
+    copyFile stashFile (newDirectory </> filename stashFile)
+
+
 
 dumpItemLocs messages env = do
     eitherConts <- allLocationContents env
@@ -100,9 +141,9 @@ dumpArchive env msg = do
     allItems <- allItemSummaries env
     writeBMessage msg $ Initializing $ ArchiveData allItems
 
-dumpRegistrations env messages sharedStash = do
+dumpRegistrations env messages fVers sharedStash = do
 
-    RegisterSummary newItems updatedItems noChange <- registerStash env sharedStash
+    RegisterSummary newItems updatedItems noChange <- registerStash env fVers Stashed sharedStash
     let numNew = length newItems
         numUpd = length updatedItems
         numNoC = length noChange
@@ -110,14 +151,36 @@ dumpRegistrations env messages sharedStash = do
     when (numUpd > 0) $ writeBMessage messages $ Notice $ Info $ "Updated items: " ++ (show numUpd)
     -- writeBMessage messages $ Notice $ Info $ "No change items: " ++ (show numNoC)
 
+processImports env@Env{..} messages importDir fVers = do
+    importDirExists <- isDirectory importDir
+    when importDirExists $ do
+        -- read in each file
+        files <- getRecursiveContents (encodeString importDir)
+                    >>= return . filter (flip hasExtension "tl2i" . decodeString)
+        itemResults <- forM files $ \f -> BS.readFile f >>= \bs ->
+            return $ runGetWithFail f (getItem env Nothing bs) bs
+        RegisterSummary newItems updatedItems noChange <- registerStash env fVers Archived itemResults
+        -- determine which files succeeded import and delete them
+        let failedFiles = lefts itemResults
+            successFiles = files L.\\ failedFiles
+        forM_ successFiles (removeFile . decodeString)
+        when (length files > 0) $ do
+            writeBMessage messages $ Notice $ Info $ "New registrations due to import: " ++ show (length newItems)
+            writeBMessage messages $ Notice $ Info $ "Updated registrations due to import: " ++ show (length updatedItems)
+            writeBMessage messages $ Notice $ Info $ "No change due to import: " ++ show (length noChange)
+            when (length failedFiles > 0) $
+                writeBMessage messages $ Notice $ Error $ "Failed imports (still in Import directory): " ++ show (length failedFiles)
+
+
+
 -- Tries to register all non-registered items into the DB.  Retuns list of newly
 -- registered items.
-registerStash env sharedStash =
+registerStash env fVers status sharedStash =
     let parsedItems = rights sharedStash
-    in register env parsedItems
+    in register env fVers status parsedItems
 
 -- This is the main backend event queue
-handleMessages env@Env{..} m cryptoFile (msg:rest) = do
+handleMessages env@Env{..} savePath m cryptoFile paths@Paths{..} (msg:rest) = do
     outMessages <- case msg of
 
         -- Move an item from one location to another
@@ -156,11 +219,20 @@ handleMessages env@Env{..} m cryptoFile (msg:rest) = do
                 Left requestErr -> [Notice . Error $ requestErr]
                 Right mitem     -> [ResponseItem elem mitem]
 
+        ExportDB -> do
+            files <- getRecursiveContents (encodeString exportDir)
+            if (length files > 0) then
+                return [Notice . Error $ "Please empty Export directory before exporting: " ++ encodeString exportDir]
+                else do
+                    writeBMessage m $ Notice . Info $ "Exporting database to " ++ encodeString exportDir ++ "..."
+                    (_, succs) <- exportDB env m paths
+                    return $ [Notice . Info $ "Exported " ++ (show $ length succs) ++ " items to " ++ encodeString exportDir]
+
     -- send GUI updates
     forM_ outMessages $ \msg -> writeBMessage m msg
 
     -- and then process next message
-    handleMessages env m cryptoFile rest
+    handleMessages env savePath m cryptoFile paths rest
 
 
 sharedStashToBS env ss = runPut (putSharedStash env ss)
@@ -170,6 +242,20 @@ buildSaveFile env c ss =
         i = sharedStashToBS env ss
         newSaveFile = CryptoFile (fileVersion c) (fileDummy c) (0) (i) (0)
     in (itemErrors, newSaveFile)
+
+exportDB env@Env{..} msg Paths{..} = do
+    items <- allDBItems env
+    let errors = lefts items
+        succs = catMaybes . rights $ items
+        numberedItems = zip [1..] succs
+    when (length errors > 0) $ do
+        forM_ errors $ \e -> writeBMessage msg $ Notice . Error $ "Database export parse error: " ++ e
+        writeBMessage msg $ Notice . Error $ "Total database export parse errors: " ++ (show $ length errors)
+    forM_ numberedItems $ \(i, item) -> do
+        let dataBS  = runPut $ putItem env item
+        F.writeFile (exportDir </> (decodeString $ show i) <.> "tl2i") (toStrict $ BSL.drop 4 dataBS)
+    return (errors, succs)
+
 
 dumpItemReport env mes = do
     guids <- allGUIDs env
