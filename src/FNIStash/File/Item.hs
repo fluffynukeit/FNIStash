@@ -100,10 +100,11 @@ getItemBytes itemBinaryData = do
     bytes7 <- getByteString 4 -- different for equal items?
     bytes8 <- getByteString 12 -- 12x FF
     nDmgTypes <- getWord16le
-    let tryDmgParse dmgAction = do
+    let not8002Effects = filter ((0x8002 /=) . eBytesType) -- these show up on Plumb-Bob pants!!!
+        tryDmgParse dmgAction = do
             addedDamages <- replicateM (fromIntegral nDmgTypes) dmgAction
-            effectList <- getEffectLists >>= return . concat
-            effectList2 <- getEffectLists >>= return . concat
+            effectList <-  getEffectLists >>= return . not8002Effects . concat
+            effectList2 <- getEffectLists >>= return . not8002Effects . concat
             
             trigList <- getListOf getTriggerableBytes
             statList <- getListOf getStatBytes
