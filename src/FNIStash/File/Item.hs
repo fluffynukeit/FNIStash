@@ -86,7 +86,7 @@ getItemBytes itemBinaryData = do
     nEnchants <- fromIntegral <$> getWord32le
     nBytesBeforeLocation <- bytesRead
     location <- getLocationBytes
-    bytes2 <- getByteString 6 -- always 00 01 01 01 01 00 01?
+    bytes2 <- getByteString 6 -- always 00 01 01 01 01 00?
     identified <- getWord8
     bytes3 <- getByteString 8 -- can be different for equal items..more than just 8
     bytes4 <- replicateM 4 $ getByteString 20
@@ -100,18 +100,21 @@ getItemBytes itemBinaryData = do
     bytes7 <- getByteString 4 -- different for equal items?
     bytes8 <- getByteString 12 -- 12x FF
     nDmgTypes <- getWord16le
-    addedDamages <- replicateM (fromIntegral nDmgTypes) getAddedDamageBytes
-    effectList <- getEffectLists >>= return . concat
-    effectList2 <- getEffectLists >>= return . concat
-    
-    trigList <- getListOf getTriggerableBytes
-    statList <- getListOf getStatBytes
+    let tryDmgParse dmgAction = do
+            addedDamages <- replicateM (fromIntegral nDmgTypes) dmgAction
+            effectList <- getEffectLists >>= return . concat
+            effectList2 <- getEffectLists >>= return . concat
+            
+            trigList <- getListOf getTriggerableBytes
+            statList <- getListOf getStatBytes
 
-    return $ ItemBytes guid name prefix suffix randomID nEnchants location identified level
-                       quantity nSockets gems maxDmg armor addedDamages effectList effectList2
-                       trigList statList
-                       $ Partition (BS.take nBytesBeforeLocation itemBinaryData)
-                                   (BS.drop (nBytesBeforeLocation+4) itemBinaryData)
+            return $ ItemBytes guid name prefix suffix randomID nEnchants location identified level
+                               quantity nSockets gems maxDmg armor addedDamages effectList effectList2
+                               trigList statList
+                               $ Partition (BS.take nBytesBeforeLocation itemBinaryData)
+                                           (BS.drop (nBytesBeforeLocation+4) itemBinaryData)
+
+    tryDmgParse getAddedDamageBytesNothing <|> tryDmgParse getAddedDamageBytesInnate
 
 -- Parsing LOCATION
 
@@ -126,14 +129,14 @@ putLocationBytes (LocationBytes {..}) = putWord16le lBytesSlotIndex >> putWord16
 -- Parsing ADDED DAMAGES, such as from enchants or sockets
 
 data AddedDamageBytes = AddedDamageBytes
-    { dBytesFromSocket :: Word32
+    { dBytesFromEffect :: Maybe Word32
+    , dBytesFromSocket :: Word32
     , dBytesFromEnchant :: Word32
     , dBytesDamageType :: Word32
     } deriving (Eq, Ord)
 
-getAddedDamageBytes = AddedDamageBytes <$> getWord32le <*> getWord32le <*> getWord32le
-
-
+getAddedDamageBytesNothing = AddedDamageBytes <$> return Nothing <*> getWord32le <*> getWord32le <*> getWord32le
+getAddedDamageBytesInnate  = AddedDamageBytes <$> (Just <$> getWord32le)    <*> getWord32le <*> getWord32le <*> getWord32le
 
 -- Parsing the EFFECTS that add special behaviors
 
@@ -205,17 +208,20 @@ hasFilePath 0x8541 = True
 hasFilePath 0x8149 = True
 hasFilePath 0x0140 = True
 hasFilePath 0x2141 = True
+hasFilePath 0xA541 = True -- found on enchanted mac of twin gods
 
 hasFilePath 0xa041 = False
 hasFilePath 0x8041 = False
 hasFilePath 0x8050 = False
 hasFilePath 0x0041 = False
 hasFilePath 0x8440 = False -- this is on the +5% poison dmg enchant
+hasFilePath 0x8441 = False -- found on enchanted mac of twin gods
 hasFilePath _ = False
 
 hasGUID 0xA141 = True
 hasGUID 0xA041 = True
 hasGUID 0x2141 = True
+hasGUID 0xA541 = True
 hasGUID _      = False
 
 hasExtraString 0x02 = True

@@ -113,7 +113,7 @@ makeBackups Paths{..} stashFile = do
         newDirName = L.intercalate "-" $ show y : map (printf "%02d") [m, d, hr, min]
         newDirectory = backupsDir </> (decodeString newDirName)
     oldDirectories <- getSubDirectoriesSorted (encodeString backupsDir)
-    traceShow oldDirectories $ return ()
+    
     when (length oldDirectories >= backupLimit && notElem newDirName oldDirectories) $
         removeTree . decodeString $ head oldDirectories -- remove older directories
     createDirectory True newDirectory
@@ -142,13 +142,17 @@ dumpArchive env msg = do
     writeBMessage msg $ Initializing $ ArchiveData allItems
 
 dumpRegistrations env messages fVers sharedStash = do
-
-    RegisterSummary newItems updatedItems noChange <- registerStash env fVers Stashed sharedStash
+    let (badItems, goodItems) = partitionEithers sharedStash
+    when (length badItems > 0) $ do
+        writeBMessage messages . Notice . Error $
+            "Number of items failed to parse: " ++ (show $ length badItems) ++ ". Each error shown below."
+        forM_ badItems $ \err -> writeBMessage messages $ Notice $ Error $ "--" ++ err
+    RegisterSummary newItems updatedItems noChange <- registerStash env fVers Stashed goodItems
     let numNew = length newItems
         numUpd = length updatedItems
         numNoC = length noChange
-    when (numNew > 0 ) $ writeBMessage messages $ Notice $ Info $ "Newly registered items: " ++ (show numNew)
-    when (numUpd > 0) $ writeBMessage messages $ Notice $ Info $ "Updated items: " ++ (show numUpd)
+    when (numNew > 0 ) $ writeBMessage messages . Notice . Info $ "Newly registered items: " ++ (show numNew)
+    when (numUpd > 0) $ writeBMessage messages . Notice . Info $ "Updated items: " ++ (show numUpd)
     -- writeBMessage messages $ Notice $ Info $ "No change items: " ++ (show numNoC)
 
 processImports env@Env{..} messages importDir fVers = do
@@ -157,27 +161,24 @@ processImports env@Env{..} messages importDir fVers = do
         -- read in each file
         files <- getRecursiveContents (encodeString importDir)
                     >>= return . filter (flip hasExtension "tl2i" . decodeString)
-        itemResults <- forM files $ \f -> BS.readFile f >>= \bs ->
+        (failedFiles, itemResults) <- fmap partitionEithers $ forM files $ \f -> BS.readFile f >>= \bs ->
             return $ runGetWithFail f (getItem env Nothing bs) bs
         RegisterSummary newItems updatedItems noChange <- registerStash env fVers Archived itemResults
         -- determine which files succeeded import and delete them
-        let failedFiles = lefts itemResults
-            successFiles = files L.\\ failedFiles
+        let successFiles = files L.\\ failedFiles
         forM_ successFiles (removeFile . decodeString)
         when (length files > 0) $ do
-            writeBMessage messages $ Notice $ Info $ "New registrations due to import: " ++ show (length newItems)
-            writeBMessage messages $ Notice $ Info $ "Updated registrations due to import: " ++ show (length updatedItems)
-            writeBMessage messages $ Notice $ Info $ "No change due to import: " ++ show (length noChange)
+            writeBMessage messages $ Notice . Info $ "New registrations due to import: " ++ show (length newItems)
+            writeBMessage messages $ Notice . Info $ "Updated registrations due to import: " ++ show (length updatedItems)
+            writeBMessage messages $ Notice . Info $ "No change due to import: " ++ show (length noChange)
             when (length failedFiles > 0) $
-                writeBMessage messages $ Notice $ Error $ "Failed imports (still in Import directory): " ++ show (length failedFiles)
+                writeBMessage messages . Notice . Error $ "Failed imports (still in Import directory): " ++ show (length failedFiles)
 
 
 
 -- Tries to register all non-registered items into the DB.  Retuns list of newly
 -- registered items.
-registerStash env fVers status sharedStash =
-    let parsedItems = rights sharedStash
-    in register env fVers status parsedItems
+registerStash = register
 
 -- This is the main backend event queue
 handleMessages env@Env{..} savePath m cryptoFile paths@Paths{..} (msg:rest) = do
