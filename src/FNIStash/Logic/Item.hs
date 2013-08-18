@@ -296,20 +296,22 @@ descTypeLookup _    = UnknownDescriptionType
 
 effectDescription maybeName effectNode (eff@EffectBytes {..}) =
     let prec = effectPrecisionVal effectNode
-        descType = case descTypeLookup eBytesDescriptionType of
-            GOODDES     -> vGOODDES
-            GOODDESOT   -> vGOODDESOT
-            BADDES      -> vBADDES
-            BADDESOT    -> vBADDESOT
+        (descType, backupType) = case descTypeLookup eBytesDescriptionType of
+            GOODDES     -> (vGOODDES, vGOODDESOT)
+            GOODDESOT   -> (vGOODDESOT, vGOODDES)
+            BADDES      -> (vBADDES, vBADDESOT)
+            BADDESOT    -> (vBADDESOT, vBADDES)
             UnknownDescriptionType ->
-                vUnknown (EffectDescription UnknownDescriptionType $
-                    "!Effect (type, index): " ++ show (eBytesType, eBytesIndex))
+                ( vUnknown (EffectDescription UnknownDescriptionType $
+                    "!Effect (type, index): " ++ show (eBytesType, eBytesIndex)),
+                  return Nothing)
         maybeSentence = (effectNode >>= descType)
+                    <|> (effectNode >>= backupType) 
     in (prec , case maybeSentence of
         Just (EffectDescription a sentence) -> EffectDescription a $
                             translateSentence (effectTranslator prec maybeName eff) sentence
         Nothing -> EffectDescription UnknownDescriptionType $
-                    "!No description of " ++ show eBytesDescriptionType ++ " for index " ++ show eBytesIndex
+                    "!No description for type " ++ show eBytesDescriptionType ++ " for index " ++ show eBytesIndex
         )
 
 effectPrecisionVal effectNode =
