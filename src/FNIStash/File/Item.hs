@@ -100,7 +100,7 @@ getItemBytes itemBinaryData = do
     bytes7 <- getByteString 4 -- different for equal items?
     bytes8 <- getByteString 12 -- 12x FF
     nDmgTypes <- getWord16le
-    let not8002Effects = filter ((0x8002 /=) . eBytesType) -- these show up on Plumb-Bob pants!!!
+    let not8002Effects = filter ((0x8002 /=) . eBytesType) -- these show up on Plumb-Bob pants file, but aren't displayed??
         tryDmgParse dmgAction = do
             addedDamages <- replicateM (fromIntegral nDmgTypes) dmgAction
             effectList <-  getEffectLists >>= return . not8002Effects . concat
@@ -115,7 +115,7 @@ getItemBytes itemBinaryData = do
                                $ Partition (BS.take nBytesBeforeLocation itemBinaryData)
                                            (BS.drop (nBytesBeforeLocation+4) itemBinaryData)
 
-    tryDmgParse getAddedDamageBytesNothing <|> tryDmgParse getAddedDamageBytesInnate
+    tryDmgParse getAddedDamageBytesInnate <|> tryDmgParse getAddedDamageBytesNothing
 
 -- Parsing LOCATION
 
@@ -130,14 +130,14 @@ putLocationBytes (LocationBytes {..}) = putWord16le lBytesSlotIndex >> putWord16
 -- Parsing ADDED DAMAGES, such as from enchants or sockets
 
 data AddedDamageBytes = AddedDamageBytes
-    { dBytesFromEffect :: Maybe Word32
+    { dBytesFromEffect :: Word32
     , dBytesFromSocket :: Word32
     , dBytesFromEnchant :: Word32
     , dBytesDamageType :: Word32
     } deriving (Eq, Ord)
 
-getAddedDamageBytesNothing = AddedDamageBytes <$> return Nothing <*> getWord32le <*> getWord32le <*> getWord32le
-getAddedDamageBytesInnate  = AddedDamageBytes <$> (Just <$> getWord32le)    <*> getWord32le <*> getWord32le <*> getWord32le
+getAddedDamageBytesNothing = AddedDamageBytes <$> return 0    <*> getWord32le <*> getWord32le <*> getWord32le
+getAddedDamageBytesInnate  = AddedDamageBytes <$> getWord32le <*> getWord32le <*> getWord32le <*> getWord32le
 
 -- Parsing the EFFECTS that add special behaviors
 

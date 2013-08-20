@@ -380,10 +380,11 @@ isEnchant (EffectBytes{..}) =
         notEnchant = [0x8000, 0x8100, 0xA000] -- list of bytes for nameless skills but NOT enchants
     in (null eBytesName && all (byteTest /=) notEnchant) || eBytesType == 0x8541
 
-instance Convertible AddedDamageBytes EffectBytes where
-    safeConvert (AddedDamageBytes{..}) = Right $
-        EffectBytes 0 "" Nothing Nothing 0 [] 0x0a dBytesDamageType 0 0 0 dBytesFromEnchant 0 Nothing
+convertEnchantAdded (AddedDamageBytes{..}) = 
+    EffectBytes 0 "" Nothing Nothing 0 [] 0x0a dBytesDamageType 0 0 0 dBytesFromEnchant 0 Nothing
 
+convertEffectAdded (AddedDamageBytes{..}) = 
+    EffectBytes 0 "" Nothing Nothing 0 [] 0x0a dBytesDamageType 0 0 0 dBytesFromEffect 0 Nothing
 
 ----- FOR DEALING WITH POINT VALUES LIKE DAMAGE AND ARMOR
 data PointValue = DamageVal Int | ArmorVal Int | NoVal deriving (Eq, Ord)
@@ -449,7 +450,7 @@ selectSpecialEffects env (ItemBytes{..}) =
 
         -- First determine enchants
 
-        convertedAdditions = map (decodeEffectBytes env . convert) enchantAdditions
+        convertedAdditions = map (decodeEffectBytes env . convertEnchantAdded) enchantAdditions
         enchantLabel = if iBytesNumEnchants > 0
             then [mkDescriptor "Enchantments: [*]" (fromIntegral iBytesNumEnchants) 0]
             else []
@@ -476,8 +477,12 @@ selectSpecialEffects env (ItemBytes{..}) =
                     ArmorVal 0 -> Nothing
                     ArmorVal i -> Just ("resist_physicalc", mkDescriptor "[*] Physical Armor" (fromIntegral i) 0)
                     _          -> Nothing
-                
-    in (useNormal, useEnchants, maybe [] (:[]) armor ++ useInnateDef)
+
+        -- get innate added damages (sometimes present)
+        innateAddedDamageDescriptors = map (mDescriptor . decodeEffectBytes env . convertEffectAdded) $
+            filter ((/=) 0 . dBytesFromEffect) iBytesAddedDamages
+        
+    in (innateAddedDamageDescriptors ++ useNormal, useEnchants, maybe [] (:[]) armor ++ useInnateDef)
 
 
 maybeToBool Nothing = False

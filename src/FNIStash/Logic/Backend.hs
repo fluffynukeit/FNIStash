@@ -161,11 +161,12 @@ processImports env@Env{..} messages importDir fVers = do
         -- read in each file
         files <- getRecursiveContents (encodeString importDir)
                     >>= return . filter (flip hasExtension "tl2i" . decodeString)
-        (failedFiles, itemResults) <- fmap partitionEithers $ forM files $ \f -> BS.readFile f >>= \bs ->
-            return $ runGetWithFail f (getItem env Nothing bs) bs
+        (failedFileErrors, itemResults) <- fmap partitionEithers $ forM files $ \f -> BS.readFile f >>= \bs ->
+            return $ runGetWithFail ("\""++f++"\"") (getItem env Nothing bs) bs
         RegisterSummary newItems updatedItems noChange <- registerStash env fVers Archived itemResults
-        -- determine which files succeeded import and delete them
-        let successFiles = files L.\\ failedFiles
+        -- determine which files succeeded import and delete them (maybe)
+        let failedFiles = filter (\f -> any (("\""++f++"\"") `L.isInfixOf`) failedFileErrors) files
+            successFiles = files L.\\ failedFiles
         forM_ successFiles (removeFile . decodeString)
         when (length files > 0) $ do
             writeBMessage messages $ Notice . Info $ "New registrations due to import: " ++ show (length newItems)
