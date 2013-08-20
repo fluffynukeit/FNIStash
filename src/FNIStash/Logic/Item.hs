@@ -348,10 +348,15 @@ effectTranslator precVal maybeName (eff@EffectBytes{..}) markup =
         "VALUE4"    -> fromList 4
         "VALUE3AND4"-> fromList 3
         "VALUE_OT"  -> dispVal $ (roundAt precVal $ wordToFloat eBytesValue)  * (wordToFloat eBytesDuration)
-        "NAME"      -> maybe ("?Name?") id maybeName
+        "NAME"      -> maybe ("!!Name") id maybeName
         "VALUE1ASDURATION" -> makeDurationString $ fromList 1
         _           -> "???"
             
+itemNameTranslator name markup =
+    case markup of
+        "ITEM" -> name
+        _      -> "!!Unknown item markup"
+
 
 decodeEffectBytes (Env{..}) (eff@EffectBytes {..}) =
     let effIndex = EffectIndex eBytesIndex
@@ -582,8 +587,11 @@ decodeItemBytes env id (itemBytes@ItemBytes {..}) =
         base = getItemBase env (GUID $ fromIntegral iBytesGUID) iBytesLevel
 
         effectIndexList = map (eBytesIndex) $ effectsOf itemBytes
+
+        fullNameTranslated = translateSentence (itemNameTranslator iBytesName) $ iBytesPrefix ++ iBytesSuffix
+        fullName = if length fullNameTranslated > 0 then fullNameTranslated else iBytesName
         item = Item
-               (mkDescriptor iBytesName 0 0)
+               (mkDescriptor fullName 0 0)
                iBytesRandomID
                (decodeIdentified iBytesIdentified)
                (decodeLocationBytes env iBytesLocation)
