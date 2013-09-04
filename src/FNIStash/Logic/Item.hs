@@ -296,20 +296,22 @@ descTypeLookup _    = UnknownDescriptionType
 
 effectDescription maybeName effectNode (eff@EffectBytes {..}) =
     let prec = effectPrecisionVal effectNode
-        descType = case descTypeLookup eBytesDescriptionType of
-            GOODDES     -> vGOODDES
-            GOODDESOT   -> vGOODDESOT
-            BADDES      -> vBADDES
-            BADDESOT    -> vBADDESOT
+        (descType, backupType) = case descTypeLookup eBytesDescriptionType of
+            GOODDES     -> (vGOODDES, vGOODDESOT)
+            GOODDESOT   -> (vGOODDESOT, vGOODDES)
+            BADDES      -> (vBADDES, vBADDESOT)
+            BADDESOT    -> (vBADDESOT, vBADDES)
             UnknownDescriptionType ->
-                vUnknown (EffectDescription UnknownDescriptionType $
-                    "!Effect (type, index): " ++ show (eBytesType, eBytesIndex))
+                ( vUnknown (EffectDescription UnknownDescriptionType $
+                    "!Effect (type, index): " ++ show (eBytesType, eBytesIndex)),
+                  return Nothing)
         maybeSentence = (effectNode >>= descType)
+                    <|> (effectNode >>= backupType) 
     in (prec , case maybeSentence of
         Just (EffectDescription a sentence) -> EffectDescription a $
                             translateSentence (effectTranslator prec maybeName eff) sentence
         Nothing -> EffectDescription UnknownDescriptionType $
-                    "!No description of " ++ show eBytesDescriptionType ++ " for index " ++ show eBytesIndex
+                    "!No description for type " ++ show eBytesDescriptionType ++ " for index " ++ show eBytesIndex
         )
 
 effectPrecisionVal effectNode =
@@ -325,6 +327,7 @@ showPrecision prec showable =
         else preDecimal ++ (take (prec+1) postDecimal)
 
 damageTypeLookup 0x00 = Physical
+damageTypeLookup 0x01 = Physical
 damageTypeLookup 0x02 = Fire
 damageTypeLookup 0x03 = Ice
 damageTypeLookup 0x04 = Electric
@@ -346,10 +349,15 @@ effectTranslator precVal maybeName (eff@EffectBytes{..}) markup =
         "VALUE4"    -> fromList 4
         "VALUE3AND4"-> fromList 3
         "VALUE_OT"  -> dispVal $ (roundAt precVal $ wordToFloat eBytesValue)  * (wordToFloat eBytesDuration)
-        "NAME"      -> maybe ("?Name?") id maybeName
+        "NAME"      -> maybe ("!!Name") id maybeName
         "VALUE1ASDURATION" -> makeDurationString $ fromList 1
         _           -> "???"
             
+itemNameTranslator name markup =
+    case markup of
+        "ITEM" -> name
+        _      -> "!!Unknown item markup"
+
 
 decodeEffectBytes (Env{..}) (eff@EffectBytes {..}) =
     let effIndex = EffectIndex eBytesIndex
@@ -378,10 +386,11 @@ isEnchant (EffectBytes{..}) =
         notEnchant = [0x8000, 0x8100, 0xA000] -- list of bytes for nameless skills but NOT enchants
     in (null eBytesName && all (byteTest /=) notEnchant) || eBytesType == 0x8541
 
-instance Convertible AddedDamageBytes EffectBytes where
-    safeConvert (AddedDamageBytes{..}) = Right $
-        EffectBytes 0 "" Nothing Nothing 0 [] 0x0a dBytesDamageType 0 0 0 dBytesFromEnchant 0 Nothing
+convertEnchantAdded (AddedDamageBytes{..}) = 
+    EffectBytes 0 "" Nothing Nothing 0 [] 0x0a dBytesDamageType 0 0 0 dBytesFromEnchant 0 Nothing
 
+convertEffectAdded (AddedDamageBytes{..}) = 
+    EffectBytes 0 "" Nothing Nothing 0 [] 0x0a dBytesDamageType 0 0 0 dBytesFromEffect 0 Nothing
 
 ----- FOR DEALING WITH POINT VALUES LIKE DAMAGE AND ARMOR
 data PointValue = DamageVal Int | ArmorVal Int | NoVal deriving (Eq, Ord)
@@ -447,7 +456,7 @@ selectSpecialEffects env (ItemBytes{..}) =
 
         -- First determine enchants
 
-        convertedAdditions = map (decodeEffectBytes env . convert) enchantAdditions
+        convertedAdditions = map (decodeEffectBytes env . convertEnchantAdded) enchantAdditions
         enchantLabel = if iBytesNumEnchants > 0
             then [mkDescriptor "Enchantments: [*]" (fromIntegral iBytesNumEnchants) 0]
             else []
@@ -474,8 +483,12 @@ selectSpecialEffects env (ItemBytes{..}) =
                     ArmorVal 0 -> Nothing
                     ArmorVal i -> Just ("resist_physicalc", mkDescriptor "[*] Physical Armor" (fromIntegral i) 0)
                     _          -> Nothing
-                
-    in (useNormal, useEnchants, maybe [] (:[]) armor ++ useInnateDef)
+
+        -- get innate added damages (sometimes present)
+        innateAddedDamageDescriptors = map (mDescriptor . decodeEffectBytes env . convertEffectAdded) $
+            filter ((/=) 0 . dBytesFromEffect) iBytesAddedDamages
+        
+    in (innateAddedDamageDescriptors ++ useNormal, useEnchants, maybe [] (:[]) armor ++ useInnateDef)
 
 
 maybeToBool Nothing = False
@@ -575,8 +588,11 @@ decodeItemBytes env id (itemBytes@ItemBytes {..}) =
         base = getItemBase env (GUID $ fromIntegral iBytesGUID) iBytesLevel
 
         effectIndexList = map (eBytesIndex) $ effectsOf itemBytes
+
+        fullNameTranslated = translateSentence (itemNameTranslator iBytesName) $ iBytesPrefix ++ iBytesSuffix
+        fullName = if length fullNameTranslated > 0 then fullNameTranslated else iBytesName
         item = Item
-               (mkDescriptor iBytesName 0 0)
+               (mkDescriptor fullName 0 0)
                iBytesRandomID
                (decodeIdentified iBytesIdentified)
                (decodeLocationBytes env iBytesLocation)
