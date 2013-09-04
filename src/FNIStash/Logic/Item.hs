@@ -327,6 +327,7 @@ showPrecision prec showable =
         else preDecimal ++ (take (prec+1) postDecimal)
 
 damageTypeLookup 0x00 = Physical
+damageTypeLookup 0x01 = Physical
 damageTypeLookup 0x02 = Fire
 damageTypeLookup 0x03 = Ice
 damageTypeLookup 0x04 = Electric
