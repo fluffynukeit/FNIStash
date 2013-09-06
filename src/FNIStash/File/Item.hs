@@ -102,7 +102,7 @@ getItemBytes itemBinaryData = do
     nDmgTypes <- getWord16le
     let not8002Effects = filter ((0x8002 /=) . eBytesType) -- these show up on Plumb-Bob pants file, but aren't displayed??
         tryDmgParse dmgAction = do
-            addedDamages <- replicateM (fromIntegral nDmgTypes) dmgAction
+            addedDamages <- dmgAction
             effectList <-  getEffectLists >>= return . not8002Effects . concat
             effectList2 <- getEffectLists >>= return . not8002Effects . concat
             
@@ -115,7 +115,9 @@ getItemBytes itemBinaryData = do
                                $ Partition (BS.take nBytesBeforeLocation itemBinaryData)
                                            (BS.drop (nBytesBeforeLocation+4) itemBinaryData)
 
-    tryDmgParse getAddedDamageBytesInnate <|> tryDmgParse getAddedDamageBytesNothing
+    tryDmgParse (getAddedDamageBytesInnate nDmgTypes)
+        <|> tryDmgParse (getAddedDamageBytesNothing nDmgTypes)
+        <|> tryDmgParse getAddedDamageBytes4bytes0
 
 -- Parsing LOCATION
 
@@ -136,8 +138,12 @@ data AddedDamageBytes = AddedDamageBytes
     , dBytesDamageType :: Word32
     } deriving (Eq, Ord)
 
-getAddedDamageBytesNothing = AddedDamageBytes <$> return 0    <*> getWord32le <*> getWord32le <*> getWord32le
-getAddedDamageBytesInnate  = AddedDamageBytes <$> getWord32le <*> getWord32le <*> getWord32le <*> getWord32le
+getAddedDamageBytesNothing nDmgTypes = replicateM (fromIntegral nDmgTypes)
+    $ AddedDamageBytes <$> return 0    <*> getWord32le <*> getWord32le <*> getWord32le
+getAddedDamageBytesInnate  nDmgTypes = replicateM (fromIntegral nDmgTypes)
+    $ AddedDamageBytes <$> getWord32le <*> getWord32le <*> getWord32le <*> getWord32le
+getAddedDamageBytes4bytes0 = getWord32le >> (return []) -- found on savage war axe
+
 
 -- Parsing the EFFECTS that add special behaviors
 
