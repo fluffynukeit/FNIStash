@@ -44,6 +44,7 @@ import Data.Binary.Put
 import Data.Maybe
 import Data.Time
 import Text.Printf
+import System.Random
 import qualified Data.List as L
 import qualified Data.Map as M
 import qualified Data.Set as S
@@ -58,8 +59,8 @@ ensurePaths maybeName = do
     -- Ensure we have an app path for both backend and GUI to access
     appRoot <- ensureAppRoot maybeName
     guiRoot <- ensureHtml appRoot
-    (importDir, exportDir, backupDir) <- ensureImportExportBackups appRoot
-    return $ Paths appRoot guiRoot importDir exportDir backupDir
+    (importDir, exportDir, backupDir, failedDir) <- ensureSubPaths appRoot
+    return $ Paths appRoot guiRoot importDir exportDir backupDir failedDir
 
 sendErrIO :: Messages -> IOException -> IO ()
 sendErrIO msg exc = traceShow exc $ writeBMessage msg $ Notice $ Error ("IO: " ++ show exc)
@@ -84,14 +85,14 @@ backend msg paths@Paths{..} mvar = handle (sendErrIO msg) $ handleDB (sendErrDB 
                 fileVers = fileVersion cryptoFile
                 sharedStashResult = parseSharedStash env ssData
             case sharedStashResult of
-                Left error -> writeBMessage msg $ Initializing $ InitError $ "Error reading shared stash: " ++ error
+                Left (error,_) -> writeBMessage msg $ Initializing $ InitError $ "Error reading shared stash: " ++ error
                 Right sharedStash -> do
                     writeBMessage msg $ Initializing BackupsStart
                     makeBackups paths (decodeString sharedStashCrypted)
                     writeBMessage msg $ Initializing ImportsStart
                     processImports env msg importDir fileVers
                     writeBMessage msg $ Initializing RegisterStart
-                    dumpRegistrations env msg fileVers sharedStash
+                    dumpRegistrations paths env msg fileVers sharedStash
                     dumpItemLocs msg env
                     writeBMessage msg $ Initializing ArchiveDataStart
                     dumpArchive env msg
@@ -141,18 +142,26 @@ dumpArchive env msg = do
     allItems <- allItemSummaries env
     writeBMessage msg $ Initializing $ ArchiveData allItems
 
-dumpRegistrations env messages fVers sharedStash = do
+dumpRegistrations Paths{..} env messages fVers sharedStash = do
     let (badItems, goodItems) = partitionEithers sharedStash
     when (length badItems > 0) $ do
+        forM_ badItems $ \(err, fromStrict -> bs) -> do
+            writeBMessage messages $ Notice $ Error $ "--" ++ err
+            roll <- getStdRandom (randomR (0,1000000000)) :: IO (Int)
+            writeItemBSToFile env bs failedItemsDir (show roll)
+
         writeBMessage messages . Notice . Error $
-            "Number of items failed to parse: " ++ (show $ length badItems) ++ ". Each error shown below."
-        forM_ badItems $ \err -> writeBMessage messages $ Notice $ Error $ "--" ++ err
+           "Number of items failed to parse: " ++ (show $ length badItems) ++ ". Each error shown above.\
+           \  Each failed item has been placed in the failed items folder.  Please report the bug \
+           \ and attached the failed item file."
+           
     RegisterSummary newItems updatedItems noChange <- registerStash env fVers Stashed goodItems
     let numNew = length newItems
         numUpd = length updatedItems
         numNoC = length noChange
     when (numNew > 0 ) $ writeBMessage messages . Notice . Info $ "Newly registered items: " ++ (show numNew)
     when (numUpd > 0) $ writeBMessage messages . Notice . Info $ "Updated items: " ++ (show numUpd)
+    return ()
     -- writeBMessage messages $ Notice $ Info $ "No change items: " ++ (show numNoC)
 
 processImports env@Env{..} messages importDir fVers = do
@@ -165,7 +174,7 @@ processImports env@Env{..} messages importDir fVers = do
             return $ runGetWithFail ("\""++f++"\"") (getItem env Nothing bs) bs
         RegisterSummary newItems updatedItems noChange <- registerStash env fVers Archived itemResults
         -- determine which files succeeded import and delete them (maybe)
-        let failedFiles = filter (\f -> any (("\""++f++"\"") `L.isInfixOf`) failedFileErrors) files
+        let failedFiles = filter (\f -> any (("\""++f++"\"") `L.isInfixOf`) $ map fst failedFileErrors) files
             successFiles = files L.\\ failedFiles
         forM_ successFiles (removeFile . decodeString)
         when (length files > 0) $ do
@@ -240,7 +249,7 @@ handleMessages env@Env{..} savePath m cryptoFile paths@Paths{..} (msg:rest) = do
 sharedStashToBS env ss = runPut (putSharedStash env ss)
 
 buildSaveFile env c ss =
-    let itemErrors = lefts ss
+    let itemErrors = map fst $ lefts ss
         i = sharedStashToBS env ss
         newSaveFile = CryptoFile (fileVersion c) (fileDummy c) (0) (i) (0)
     in (itemErrors, newSaveFile)
@@ -253,12 +262,12 @@ exportDB env@Env{..} msg Paths{..} = do
     when (length errors > 0) $ do
         forM_ errors $ \e -> writeBMessage msg $ Notice . Error $ "Database export parse error: " ++ e
         writeBMessage msg $ Notice . Error $ "Total database export parse errors: " ++ (show $ length errors)
-    forM_ numberedItems $ \(i, item) -> do
-        let dataBS  = runPut $ putItem env item
-        F.writeFile (exportDir </> (decodeString $ show i) <.> "tl2i") (toStrict $ BSL.drop 4 dataBS)
+    forM_ numberedItems $ \(i, item) -> writeItemBSToFile env (runPut $ putItem env item) exportDir (show i)
     return (errors, succs)
 
-
+writeItemBSToFile env dataBS dir filename =
+     F.writeFile (dir </> (decodeString filename) <.> "tl2i") (toStrict $ BSL.drop 4 dataBS)
+    
 dumpItemReport env mes = do
     guids <- allGUIDs env
     let report = buildReport env guids

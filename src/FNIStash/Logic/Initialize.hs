@@ -20,7 +20,7 @@ module FNIStash.Logic.Initialize
 ( initialize
 , ensureAppRoot
 , ensureHtml
-, ensureImportExportBackups
+, ensureSubPaths
 , Paths(..)
 ) where
 
@@ -74,6 +74,7 @@ data Paths = Paths
     , importDir :: F.FilePath
     , exportDir :: F.FilePath
     , backupsDir :: F.FilePath
+    , failedItemsDir :: F.FilePath
     } deriving (Eq, Show)
 
 -- Sets up paths, generates files, and builds the text environment
@@ -184,10 +185,11 @@ ensureGUIAssets root cfg = do
         withAssetsContaining guiPAK "SCREENS" $ exportScreen assetPath -- for backgrounds
         withAssetsContaining guiPAK ".IMAGESET" $ processImageSet assetPath guiPAK
 
-ensureImportExportBackups appRoot =
+ensureSubPaths appRoot =
     let importDir = appRoot </> "Import"
         exportDir = appRoot </> "Export"
         backupDir = appRoot </> "Backups"
+        failedDir = appRoot </> "FailedItems"
         makeIfMissing dir = do
             dirExists <- isDirectory dir
             when (not dirExists) $ createDirectory True dir
@@ -195,7 +197,8 @@ ensureImportExportBackups appRoot =
         makeIfMissing importDir
         makeIfMissing exportDir
         makeIfMissing backupDir
-        return (importDir, exportDir, backupDir)
+        makeIfMissing failedDir
+        return (importDir, exportDir, backupDir, failedDir)
         
 withAssetsContaining guiPAK subStr action =
     let pathDataTuples = mapsnd entryData $ M.toList $ pakWithKeysContaining subStr guiPAK

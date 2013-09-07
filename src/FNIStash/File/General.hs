@@ -144,11 +144,11 @@ copyStrict = SBS.copy
 
 -- Utilities for handling file Get errors
 
-runGetWithFail :: String -> SG.Get a -> SBS.ByteString -> Either String a
+runGetWithFail :: String -> SG.Get a -> SBS.ByteString -> Either (String,SBS.ByteString) a
 runGetWithFail msg action dataBS =
     let result = SG.runGet action dataBS
     in case result of
-        (Left errorStr, _) -> Left  (msg <> " <- " <> errorStr)
+        (Left errorStr, _) -> Left  (msg <> " <- " <> errorStr, dataBS)
         (Right record, _)  -> Right record
 
 runGetSuppress :: SG.Get a -> SBS.ByteString -> a

@@ -35,7 +35,7 @@ import Data.Word
 
 
 -- NOTE: type and to text functions should be in Logic for consistency, similar to Item
-type SharedStash = [Either String Item]
+type SharedStash = [Either (String, BS.ByteString) Item]
 
 parseSharedStash env ssData = runGetWithFail "Can't read shared stash file!" (getSharedStash env) (toStrict ssData)
 
