@@ -293,7 +293,9 @@ getItemFromDb (env@Env{..}) loc = do
     qResults <- quickQuery' dbConn query params
     return $ case qResults of
         []    -> Right Nothing -- no rows returns
-        [row] -> Just <$> parseItemRow env row
+        [row] -> Just <$> case parseItemRow env row of
+            Left (s, bs) -> Left s
+            Right item ->   Right item
 
 getSharedStashFromDb :: Env -> IO SharedStash
 getSharedStashFromDb env@Env{..} = do
@@ -306,8 +308,8 @@ parseItemRow env@Env{..} (dbID:lead:trail:c:s:p:name) =
     let
         bs = buildItemBytes env lead trail c s p
     in case fst $ runGet (getItem env (Just $ fromSql dbID) bs) bs of
-        Left err -> Left $ "Item with name '" ++ show name ++ 
-            "' was found in DB but binary parsing failed with error: " ++ err
+        Left err -> Left $ ("Item with name '" ++ show name ++ 
+            "' was found in DB but binary parsing failed with error: " ++ err, bs)
         Right item -> Right (item)
 
 buildItemBytes env lead trail c s p =
