@@ -130,7 +130,7 @@ register env@Env{..} fVers status items = do
     setStashedToElsewhere env
     registerResults <- forM items $ \item@(Item {..}) -> do
         getReg <- getRegistered env item
-
+        putStrLn $ "Attempting to register " ++ show iName
         case getReg of
             Just id -> do
                 dataHasChanged <- dataChange env id item
