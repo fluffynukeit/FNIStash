@@ -337,20 +337,22 @@ damageTypeLookup _ = UnknownDamageType
 
 effectTranslator precVal maybeName (eff@EffectBytes{..}) markup =
     let dispVal = showPrecision precVal
-        fromList i = dispVal $ wordToFloat $ (flip (!!) i) eBytesValueList
+        fromList i = if length eBytesValueList > i
+                     then dispVal $ wordToFloat $ (flip (!!) i) eBytesValueList
+                     else "!!UnknownVal" ++ show i
         makeDurationString valStr = (++) valStr (if valStr == "1" then " second" else " seconds")
     in case markup of
         "VALUE"     -> "[*]" -- leave VALUE unchanged so we can store in DB smarter
         "DURATION"  -> makeDurationString $ dispVal (wordToFloat eBytesDuration)
         "DMGTYPE"   -> show (damageTypeLookup eBytesDamageType)
-        "VALUE1"    -> fromList 1
-        "VALUE2"    -> fromList 2
-        "VALUE3"    -> fromList 3
-        "VALUE4"    -> fromList 4
-        "VALUE3AND4"-> fromList 3
+        "VALUE1"    -> fromList 0
+        "VALUE2"    -> fromList 1
+        "VALUE3"    -> fromList 2
+        "VALUE4"    -> fromList 3
+        "VALUE3AND4"-> fromList 2
         "VALUE_OT"  -> dispVal $ (roundAt precVal $ wordToFloat eBytesValue)  * (wordToFloat eBytesDuration)
         "NAME"      -> maybe ("!!Name") id maybeName
-        "VALUE1ASDURATION" -> makeDurationString $ fromList 1
+        "VALUE1ASDURATION" -> makeDurationString $ fromList 0
         _           -> "???"
             
 itemNameTranslator name markup =

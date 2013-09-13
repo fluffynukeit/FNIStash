@@ -62,12 +62,18 @@ ensurePaths maybeName = do
     (importDir, exportDir, backupDir, failedDir) <- ensureSubPaths appRoot
     return $ Paths appRoot guiRoot importDir exportDir backupDir failedDir
 
-sendErrIO :: Messages -> IOException -> IO ()
-sendErrIO msg exc = traceShow exc $ writeBMessage msg $ Notice $ Error ("IO: " ++ show exc)
-sendErrDB msg exc = traceShow exc $ writeBMessage msg $ Notice $ Error ("DB: " ++ show exc)
+-- Prep exception handling
+sendErrIO :: Messages -> (String -> BMessage) -> IOException -> IO ()
+sendErrIO msg c exc = traceShow exc $ writeBMessage msg $ c ("IO: " ++ show exc)
+sendErrDB msg c exc = traceShow exc $ writeBMessage msg $ c ("DB: " ++ show exc)
+
+handleIOExc c msg = handle   (sendErrIO msg c)
+handleDBExc c msg = handleDB (sendErrDB msg c)
+
+catchAs msg c = handleIOExc c msg . handleDBExc c msg
 
 -- The real meat of the program
-backend msg paths@Paths{..} mvar = handle (sendErrIO msg) $ handleDB (sendErrDB msg) $ do
+backend msg paths@Paths{..} mvar = catchAs msg (Initializing . InitError) $ do
     env <- initialize msg paths mvar
 
     -- Try to read the shared stash file
@@ -100,7 +106,8 @@ backend msg paths@Paths{..} mvar = handle (sendErrIO msg) $ handleDB (sendErrDB 
                     dumpItemReport env msg
                     writeBMessage msg $ Initializing Complete
                     msgList <- liftIO $ onlyFMessages msg
-                    handleMessages env (decodeString sharedStashCrypted) msg cryptoFile paths msgList
+                    catchAs msg (Notice . Error) $
+                        handleMessages env (decodeString sharedStashCrypted) msg cryptoFile paths msgList
 
 -- copy the shared stash and DB files to a backups directory, dated with the time
 makeBackups Paths{..} stashFile = do
