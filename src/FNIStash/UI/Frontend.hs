@@ -69,10 +69,17 @@ frontend messages = do
                 withLocVals locItemsList updateCell
                 updateButtonSaved False updateTxt >> return ()
 
-            Notice notice@(Saved msg)     -> addNotice notice msgWindow >> updateButtonSaved True updateTxt >> return () 
-            Notice notice                 -> addNotice notice msgWindow
-            Visibility idStatusList       -> setVisOfMatches idStatusList
-            ResponseItem elem mitem       -> maybe (return ()) (flip makePopUp elem) mitem
+            Notice notice@(Saved msg)     ->
+                addNotice notice msgWindow >> updateButtonSaved True updateTxt >> return ()
+                
+            Notice notice                 ->
+                addNotice notice msgWindow
+            
+            Visibility idStatusList       ->
+                setVisOfMatches idStatusList
+
+            ResponseItem elem mitem       ->
+                maybe (return ()) (flip makePopUp elem) mitem
                 
 
 addNotice notice msgWindow = noticeDisplay notice # addTo msgWindow >> scrollToBottom msgWindow
