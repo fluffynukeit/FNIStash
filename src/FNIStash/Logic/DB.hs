@@ -221,8 +221,9 @@ contToClass "SHARED_STASH_BAG_ARMS" = Arms
 contToClass "SHARED_STASH_BAG_CONSUMABLES" = Consumables
 contToClass "SHARED_STASH_BAG_SPELLS" = Spells
 
+-- Returns all items in the database with status not equal to ELSEWHERE or INSERTED.
 allDBItems env = do
-    allItemResults <- allItemsSatisfying env " where STATUS<>?" [toSql Inserted] -- returns all items in DB (not inserted)
+    allItemResults <- allItemsSatisfying env " where STATUS<>? and STATUS<>?" [toSql Inserted, toSql Elsewhere] -- returns all items in DB (not inserted)
     return $ flip map allItemResults $ \r -> r >>= return . snd -- toss out the location data but keep errors
 
 allItemsSatisfying env@Env{..} whereClause params = do
