@@ -35,10 +35,10 @@ import Data.Time.LocalTime
 import Debug.Trace
 import Data.Maybe
 
-frontend :: Messages -> TP ()
-frontend messages = do
+frontend :: String -> Messages -> TP ()
+frontend version messages = do
     forkTP handleEvents -- start the event handler.
-    setTitle "FNIStash"
+    setTitle $ "FNIStash - Version " ++ version
     body <- getBody
     (overlay, overlayMsg) <- overlay
     return overlay #+ body

@@ -30,6 +30,8 @@ import Filesystem.Path.CurrentOS
 import System.Environment
 import Data.Maybe
 
+version = "t1.2"
+
 main = do
 
     args <- getArgs
@@ -47,5 +49,5 @@ main = do
 launchAll paths mvar = do
     messages <- liftIO newMessages
     liftIO $ forkIO $ backend messages paths mvar
-    frontend messages
+    frontend version messages
 
