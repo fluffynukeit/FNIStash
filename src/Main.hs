@@ -30,7 +30,7 @@ import Filesystem.Path.CurrentOS
 import System.Environment
 import Data.Maybe
 
-version = "t1.2"
+version = "r1.2"
 
 main = do
 
