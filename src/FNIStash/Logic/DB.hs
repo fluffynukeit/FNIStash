@@ -304,11 +304,11 @@ getSharedStashFromDb env@Env{..} = do
     return $ map (parseItemRow env) rows
 
 
-parseItemRow env@Env{..} (dbID:lead:trail:c:s:p:name) =
+parseItemRow env@Env{..} (dbID:lead:trail:c:s:p:name:_) =
     let
         bs = buildItemBytes env lead trail c s p
     in case fst $ runGet (getItem env (Just $ fromSql dbID) bs) bs of
-        Left err -> Left $ ("Item with name '" ++ show name ++ 
+        Left err -> Left $ ("Item with name '" ++ show (fromSql name::String) ++ 
             "' was found in DB but binary parsing failed with error: " ++ err, bs)
         Right item -> Right (item)
 

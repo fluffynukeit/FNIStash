@@ -77,7 +77,7 @@ data EffectKey = EffectIndex
     }
     | EffectName
     { effectName :: String
-    } deriving (Eq, Ord)
+    } deriving (Eq, Ord, Show)
 
 
 -- build the lookup environment needed for app operations
