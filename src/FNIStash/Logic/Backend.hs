@@ -269,11 +269,11 @@ exportDB env@Env{..} msg Paths{..} = do
     when (length errors > 0) $ do
         forM_ errors $ \e -> writeBMessage msg $ Notice . Error $ "Database export parse error: " ++ e
         writeBMessage msg $ Notice . Error $ "Total database export parse errors: " ++ (show $ length errors)
-    forM_ numberedItems $ \(i, item) -> writeItemBSToFile env (runPut $ putItem env item) exportDir (show i)
+    forM_ numberedItems $ \(i, item) -> writeItemBSToFile env (BSL.drop 4 $ runPut $ putItem env item) exportDir (show i)
     return (errors, succs)
 
 writeItemBSToFile env dataBS dir filename =
-     F.writeFile (dir </> (decodeString filename) <.> "tl2i") (toStrict $ BSL.drop 4 dataBS)
+     F.writeFile (dir </> (decodeString filename) <.> "tl2i") (toStrict dataBS)
     
 dumpItemReport env mes = do
     guids <- allGUIDs env

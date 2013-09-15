@@ -221,8 +221,9 @@ contToClass "SHARED_STASH_BAG_ARMS" = Arms
 contToClass "SHARED_STASH_BAG_CONSUMABLES" = Consumables
 contToClass "SHARED_STASH_BAG_SPELLS" = Spells
 
+-- Returns all items in the database with status not equal to ELSEWHERE or INSERTED.
 allDBItems env = do
-    allItemResults <- allItemsSatisfying env " where STATUS<>?" [toSql Inserted] -- returns all items in DB (not inserted)
+    allItemResults <- allItemsSatisfying env " where STATUS<>? and STATUS<>?" [toSql Inserted, toSql Elsewhere] -- returns all items in DB (not inserted)
     return $ flip map allItemResults $ \r -> r >>= return . snd -- toss out the location data but keep errors
 
 allItemsSatisfying env@Env{..} whereClause params = do
@@ -304,11 +305,11 @@ getSharedStashFromDb env@Env{..} = do
     return $ map (parseItemRow env) rows
 
 
-parseItemRow env@Env{..} (dbID:lead:trail:c:s:p:name) =
+parseItemRow env@Env{..} (dbID:lead:trail:c:s:p:name:_) =
     let
         bs = buildItemBytes env lead trail c s p
     in case fst $ runGet (getItem env (Just $ fromSql dbID) bs) bs of
-        Left err -> Left $ ("Item with name '" ++ show name ++ 
+        Left err -> Left $ ("Item with name '" ++ show (fromSql name::String) ++ 
             "' was found in DB but binary parsing failed with error: " ++ err, bs)
         Right item -> Right (item)
 

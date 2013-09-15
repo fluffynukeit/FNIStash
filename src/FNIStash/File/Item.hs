@@ -142,7 +142,7 @@ getAddedDamageBytesNothing nDmgTypes = replicateM (fromIntegral nDmgTypes)
     $ AddedDamageBytes <$> return 0    <*> getWord32le <*> getWord32le <*> getWord32le
 getAddedDamageBytesInnate  nDmgTypes = replicateM (fromIntegral nDmgTypes)
     $ AddedDamageBytes <$> getWord32le <*> getWord32le <*> getWord32le <*> getWord32le
-getAddedDamageBytes4bytes0 = getWord32le >> (return []) -- found on savage war axe
+getAddedDamageBytes4bytes0 = getWord32le >> (return []) -- found on savage war axe.  Also giant war snout
 
 
 -- Parsing the EFFECTS that add special behaviors
@@ -173,6 +173,7 @@ getEffect = do
     numVals <- getWord8
     mValueList <- replicateM (fromIntegral numVals) getWord32le
     mUnknown1 <- getTorchText -- This is always 00 00??
+    m2ExtraBytes <- maybeAction (mType == 0x9141) getWord16le -- this is on Giant Tunnel Shark, Giant Flying Fish, Giant Warsnout
     mEffectIndex <- getWord32le
     mDmgType <- getWord32le
     mDescType <- getWord32le
@@ -216,6 +217,7 @@ hasFilePath 0x8149 = True
 hasFilePath 0x0140 = True
 hasFilePath 0x2141 = True
 hasFilePath 0xA541 = True -- found on enchanted mac of twin gods
+hasFilePath 0x9141 = True -- found on Giant Warsnout fish
 
 hasFilePath 0xa041 = False
 hasFilePath 0x8041 = False
