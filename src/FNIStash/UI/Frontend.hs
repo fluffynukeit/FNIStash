@@ -66,7 +66,7 @@ frontend version messages = do
                 handleInit x overlayMsg
                 
             LocationContents locItemsList -> do
-                withLocVals locItemsList updateCell
+                withLocVals locItemsList (updateCell messages)
                 updateButtonSaved False updateTxt >> return ()
 
             Notice notice@(Saved msg)     ->
@@ -80,6 +80,13 @@ frontend version messages = do
 
             ResponseItem elem mitem       ->
                 maybe (return ()) (flip makePopUp elem) mitem
+
+            RemoveItem loc@(Archive id)   -> let elID = (locToId loc) in do
+                el <- getElementById elID
+                maybe (addNotice (Error $ "Couldn't find element with id " ++ show elID ++ " to delete!") msgWindow)
+                    (delete) el
+
+            --_ -> addNotice (Error "Unknown frontend message type.") msgWindow
                 
 
 addNotice notice msgWindow = noticeDisplay notice # addTo msgWindow >> scrollToBottom msgWindow

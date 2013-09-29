@@ -246,6 +246,18 @@ handleMessages env@Env{..} savePath m cryptoFile paths@Paths{..} (msg:rest) = do
                     (_, succs) <- exportDB env m paths
                     return $ [Notice . Info $ "Exported " ++ (show $ length succs) ++ " items to " ++ encodeString exportDir]
 
+        DeleteItem (Archive id) -> do
+            numDeletes <- deleteID env id
+            when (numDeletes /= 1) $ writeBMessage m $
+                Notice . Error $ "Problem deleting item ID " ++ show id ++". Deleted " ++ show numDeletes ++ " items."
+            if  (numDeletes == 1) then do
+                writeBMessage m $ Notice . Info $ "Item will be permanently deleted on save."
+                return [RemoveItem (Archive id)]
+                else return []
+        DeleteItem _ -> return [Notice . Error $ "An attempt was made to delete an item without a proper item ID."]
+
+            
+
     -- send GUI updates
     forM_ outMessages $ \msg -> writeBMessage m msg
 

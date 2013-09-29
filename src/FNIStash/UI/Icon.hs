@@ -166,10 +166,20 @@ setSrc src = \x -> set "src" ("static/GUIAssets/" ++ src ++ ".png") x # set "alt
 
 setZ int = setStyle [("zIndex", show int)]
 
+makeButton offImg overImg explanation clickAction = do
+    cont <- new #. "imgbutton" # set "title" explanation
+    btn <- newIcon offImg #. "imgbuttonicon"
+    onHover cont $ \_ -> setSrc overImg btn # unit
+    onBlur  cont $ \_ -> setSrc offImg btn # unit
+    onClick cont $ \_ -> clickAction
+    text <- new #. "imgbuttontext"
+    return btn #+ cont
+    return text #+ cont
+    return (cont, text)
 
-makeArchiveRow m (ItemSummary{..}) id = do
+makeArchiveRow m (ItemSummary{..}) id itemID = do
     row <- new #. "archiverow" ## id
-    fillRow row id summaryIcon summaryName summaryStatus
+    fillRow row id summaryIcon summaryName summaryStatus m itemID
 
     -- Set up request and event handling for popup
     onHover row $ \_ -> killPopUp >> (liftIO $ writeFMessage m $ RequestItem row (Archive summaryDbID))
@@ -180,7 +190,7 @@ makeArchiveRow m (ItemSummary{..}) id = do
 setColorBy Archived = setStyle [("color", "black")]
 setColorBy _        = setStyle [("color", "gray")]
 
-fillRow row id icon name status = do
+fillRow row id icon name status m itemID = do
     let setColor = setColorBy status
     iconCell <- new #. "archivecell iconcell" # setColor ## (id ++ "icon")
     iconEl <- newIcon icon #. "archiveicon" ## (id++"iconimg") # blockDrag
@@ -189,20 +199,32 @@ fillRow row id icon name status = do
          return iconEl # setDragData id # allowDrag # set "onmousedown" "" # setColor # unit
     nameCell <- new #. "archivecell namecell" # setColor ## (id ++ "name")
     locCell  <- new #. "archivecell statuscell" # setColor ## (id ++ "status")
+    deleteCell <- new #. "archivecell deletecell" # setColor ## (id ++ "delete")
 
     return iconCell #+ row
     return nameCell #= name #+ row
     return locCell #= show status #+ row
+    if (status == Archived || status == Elsewhere) then do
+        (deleteBtn,_) <- makeButton "ig_automap_minus" "ig_automap_minus_rollover"
+            ("Deletes this " ++ show name ++ " from registry permanently!")
+            (liftIO $ writeFMessage m $ DeleteItem $ Archive itemID)
+        return deleteBtn #+ deleteCell # unit
+        else do
+            return deleteCell #= "" # unit
+    return deleteCell #+ row
 
-updateArchiveRow rowEl id (Just (item@Item{..})) = do
+        
+
+updateArchiveRow rowEl id (Just (item@Item{..})) m itemID = do
     let Descriptor n _ _ = iName
     --traceShow ("=============== Looking for ID J " ++ id) $ return ()
-    emptyEl rowEl >> fillRow rowEl id (iBaseIcon iBase) n Archived # unit
+    emptyEl rowEl >> fillRow rowEl id (iBaseIcon iBase) n Archived m itemID # unit
     
-updateArchiveRow rowEl id (Nothing) = do
+updateArchiveRow rowEl id (Nothing) m _ = do
     --traceShow ("=============== Looking for ID N " ++ id) $ return ()
-    cells <- getElementsById $ map (id++) ["iconimg", "icon", "name", "status"]
+    cells <- getElementsById $ map (id++) ["iconimg", "icon", "name", "status", "delete"]
     forM_ cells $ \c -> return c # setColorBy Stashed # unit
     return (cells !! 0) # blockDrag # set "onmousedown" "event.preventDefault()" # unit
     return (cells !! 3) #= "Stashed" # unit
+    return (cells !! 4) # emptyEl # unit   -- remove the Delete button if stashed
 

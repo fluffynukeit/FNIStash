@@ -31,6 +31,7 @@ module FNIStash.Logic.DB
 , allGUIDs
 , commitDB
 , allDBItems
+, deleteID
 , ItemClass(..)
 , ItemSummary(..)
 , ItemMatch(..)
@@ -165,7 +166,8 @@ cleanUpDB Env{..} = do
 
 deleteID Env{..} iD = do
     let query = "delete from ITEMS where ID = ?;"
-    void $ run dbConn query [toSql iD]
+    numDeletes <- run dbConn query [toSql iD]
+    return numDeletes
 
 dataChange env id item = do
     (Right (Just oldData)) <- getItemFromDb env (Archive id) -- dangerous pattern matching...
