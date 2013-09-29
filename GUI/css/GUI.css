@@ -170,12 +170,16 @@ input[type=text] {
 	vertical-align:middle;
 	}
 .namecell {
-	width: 260px;
+	width: 245px;
 	}
 .statuscell {
 	width:80px;
 	}
-	
+.deletecell {
+	width: 15px;
+	overflow: hidden;
+	padding-left: 0px;
+	}	
 .socket1 { top: 0px; 	left:  0px; position: absolute; }
 .socket2 { top: 15px; 	left:  0px; position: absolute; }
 .socket3 { top: 0px; 	right: 0px; position: absolute; }
