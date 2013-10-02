@@ -83,6 +83,7 @@ frontend version messages = do
 
             RemoveItem loc@(Archive id)   -> let elID = (locToId loc) in do
                 el <- getElementById elID
+                updateButtonSaved False updateTxt
                 maybe (addNotice (Error $ "Couldn't find element with id " ++ show elID ++ " to delete!") msgWindow)
                     (delete) el
 
