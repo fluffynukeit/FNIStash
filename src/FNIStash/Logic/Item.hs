@@ -52,6 +52,7 @@ import Data.Binary.Strict.Get
 import qualified Data.Text as T
 import qualified Data.ByteString as BS
 import qualified Data.List as L
+import Data.String.Utils
 
 
 import Debug.Trace
@@ -592,7 +593,7 @@ decodeItemBytes env id (itemBytes@ItemBytes {..}) =
         effectIndexList = map (eBytesIndex) $ effectsOf itemBytes
 
         fullNameTranslated = translateSentence (itemNameTranslator iBytesName) $ iBytesPrefix ++ iBytesSuffix
-        fullName = if length fullNameTranslated > 0 then fullNameTranslated else iBytesName
+        fullName = if length fullNameTranslated > 0 then strip fullNameTranslated else iBytesName
         item = Item
                (mkDescriptor fullName 0 0)
                iBytesRandomID

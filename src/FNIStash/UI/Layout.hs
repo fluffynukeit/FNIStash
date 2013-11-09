@@ -236,12 +236,12 @@ withLocVals locValList actionOfElValId = do
     forM_ tuples $ \(e,l,v,i) -> actionOfElValId e l v i
 
 
-updateCell el (Location _ _ _) (Just item) id =
+updateCell m el (Location _ _ _) (Just item) id =
     emptyEl el >> newItemIcon item # setDragData id #+ el # unit
-updateCell el (Location _ _ _) Nothing id =
+updateCell m el (Location _ _ _) Nothing id =
     emptyEl el # unit
-updateCell el (Archive _) mItem id =
-    updateArchiveRow el id mItem
+updateCell m el (Archive itemID) mItem id =
+    updateArchiveRow el id mItem m itemID
 
 populateArchiveTable m summs =
     let armsSumms = filter ((== Arms) . summaryItemClass) summs
@@ -256,18 +256,7 @@ populateArchiveTable m summs =
         appendArchiveRows m spellsTab spellsSumms
 
 appendArchiveRows m table summs = forM_ summs $ \(i@ItemSummary{..}) ->
-    makeArchiveRow m i (locToId $ Archive summaryDbID) #+ table
-
-makeButton offImg overImg explanation clickAction = do
-    cont <- new #. "imgbutton" # set "title" explanation
-    btn <- newIcon offImg #. "imgbuttonicon"
-    onHover cont $ \_ -> setSrc overImg btn # unit
-    onBlur  cont $ \_ -> setSrc offImg btn # unit
-    onClick cont $ \_ -> clickAction
-    text <- new #. "imgbuttontext"
-    return btn #+ cont
-    return text #+ cont
-    return (cont, text)
+    makeArchiveRow m i (locToId $ Archive summaryDbID) summaryDbID #+ table
 
 
 batchArchiveButton mes locMaker = do

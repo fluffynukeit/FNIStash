@@ -57,6 +57,7 @@ data BMessage = Initializing InitEvent
               | Notice Notice
               | Visibility [ItemMatch]
               | ResponseItem Element (Maybe Item)
+              | RemoveItem Location
 
 data InitEvent = CfgStart
                | DBStart
@@ -82,6 +83,7 @@ data FMessage = Move [(Location, Location)] -- order is FROM then TO
               | Search String
               | RequestItem Element Location
               | ExportDB
+              | DeleteItem Location
               deriving Show
 
 data Messages = Messages
