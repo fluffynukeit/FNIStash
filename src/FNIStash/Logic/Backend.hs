@@ -31,11 +31,13 @@ import FNIStash.File.Variables
 import FNIStash.File.General
 
 import Filesystem.Path
+import Filesystem.Path as F
 import Filesystem.Path.CurrentOS
 import Filesystem
 import qualified Filesystem as F
 import Control.Monad.Trans
 import Control.Monad
+import Data.Monoid
 import Control.Exception
 import Control.Applicative
 import Data.Either
@@ -94,7 +96,7 @@ backend msg paths@Paths{..} mvar = catchAs msg (Initializing . InitError) $ do
                 Left (error,_) -> writeBMessage msg $ Initializing $ InitError $ "Error reading shared stash: " ++ error
                 Right sharedStash -> do
                     writeBMessage msg $ Initializing BackupsStart
-                    makeBackups paths (decodeString sharedStashCrypted)
+                    makeBackups paths env (decodeString sharedStashCrypted)
                     writeBMessage msg $ Initializing ImportsStart
                     processImports env msg importDir fileVers
                     writeBMessage msg $ Initializing RegisterStart
@@ -110,7 +112,7 @@ backend msg paths@Paths{..} mvar = catchAs msg (Initializing . InitError) $ do
                         handleMessages env (decodeString sharedStashCrypted) msg cryptoFile paths msgList
 
 -- copy the shared stash and DB files to a backups directory, dated with the time
-makeBackups Paths{..} stashFile = do
+makeBackups Paths{..} (dbPath->dbPath) stashFile = do
     backupsExists <- isDirectory backupsDir
     when (not backupsExists) $ createDirectory True backupsDir
     let backupLimit = 10
@@ -125,7 +127,7 @@ makeBackups Paths{..} stashFile = do
     when (length oldDirectories >= backupLimit && notElem newDirName oldDirectories) $
         removeTree . decodeString $ head oldDirectories -- remove older directories
     createDirectory True newDirectory
-    let dbBackupPath = appRoot </> "fnistash.db_bak"
+    let dbBackupPath = decodeString $ (encodeString dbPath) <> "_bak"
     dbBackupExists <- isFile dbBackupPath
     when dbBackupExists $ copyFile dbBackupPath (newDirectory </> filename dbBackupPath)
                       >> removeFile dbBackupPath

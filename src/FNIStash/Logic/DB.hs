@@ -108,11 +108,11 @@ handleDB = handleSql
 commitDB Env{..} = commit dbConn
 
 
-initializeDB appRoot = do
-    let dbPath = appRoot </> "fnistash.db"
+initializeDB dbLoc = do
+    let dbPath = dbLoc </> "fnistash.db"
     dbExists <- isFile dbPath
 
-    when dbExists $ copyFile dbPath (appRoot </> "fnistash.db_bak")
+    when dbExists $ copyFile dbPath (dbLoc </> "fnistash.db_bak")
     
     conn <- connectSqlite3 $ encodeString dbPath
 
@@ -121,7 +121,7 @@ initializeDB appRoot = do
 
     when (not dbExists) $ setUpAllTables conn >> commit conn
 
-    return conn
+    return (conn, dbPath)
 
 rollbackDB Env{..} = rollback dbConn
 

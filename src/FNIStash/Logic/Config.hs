@@ -42,7 +42,7 @@ data ConfigItem = Comment {comment :: String }
                 | Item {description:: String, name :: ConfigName, value :: String}
 
 -- Use a data type deriving Show to get extra type safey for our config keys
-data ConfigName = MANFILE | PAKFILE | SHAREDSTASHLOCATION | SHAREDSTASHFILE
+data ConfigName = MANFILE | PAKFILE | SHAREDSTASHLOCATION | SHAREDSTASHFILE | DBLOCATION
     deriving (Eq, Show)
 
 -- A configuration file is a list of config items.
@@ -63,7 +63,10 @@ defaultConfigOut docDirectory =
                  SHAREDSTASHLOCATION $
                  slashPath $ "\"" <> (encodeString $ docDirectory </> "My Games\\Runic Games\\Torchlight 2\\save") <> "\"",
             Item "The file name of the shared stash file."
-                SHAREDSTASHFILE "\"sharedstash_v2.bin\""
+                SHAREDSTASHFILE "\"sharedstash_v2.bin\"",
+            Comment "The parameter below is optional. You should only set it to support an unusual use case.",
+            Comment ("The absolute path of the folder containing the fnistash.db file.  Usually it is in AppData\\FNIStash.\n\
+                    \# DBLOCATION = \"" <> slashPath "C:\\Example\\Abs\\Path\\AppData\\FNIStash\"")
           ]
 
 -- Utility method for transforming normal slashes to \\.  Configurator doesn't like normal slashes in strings.

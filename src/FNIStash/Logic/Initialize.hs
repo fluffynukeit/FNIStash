@@ -49,6 +49,7 @@ import qualified Data.Text.IO as T
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Configurator
+import Data.Configurator as Conf
 import Data.Monoid
 import Control.Monad
 import Control.Concurrent
@@ -90,7 +91,9 @@ initialize messages Paths{..} envMVar = do
         
         -- Construct the DB
         writeBMessage messages $ Initializing DBStart
-        conn <- initializeDB appRoot
+        dbLocConf <- Conf.lookup cfg $ T.pack $ show DBLOCATION
+        let dbLoc = maybe appRoot  F.decodeString dbLocConf -- default to appRoot for DB location
+        (conn, dbPath) <- initializeDB dbLoc
 
         writeBMessage messages $ Initializing AssetsStart
         ensureGUIAssets guiRoot cfg
@@ -100,7 +103,7 @@ initialize messages Paths{..} envMVar = do
         pak <- readPAKPrefixes cfg envPrefixes
 
         -- Build the data lookup environment
-        putMVar envMVar $ buildEnv pak conn cfg
+        putMVar envMVar $ buildEnv pak conn cfg dbPath
 
     -- If we are returning the cached value, be sure to send all events
     when (not envNotBuiltYet) $ mapM_ (writeBMessage messages)

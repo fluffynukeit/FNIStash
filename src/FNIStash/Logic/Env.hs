@@ -48,6 +48,7 @@ import Data.Configurator.Types
 import Data.Configurator
 
 import System.FilePath.Windows
+import qualified Filesystem.Path.CurrentOS as F
 
 import Debug.Trace
 
@@ -70,6 +71,7 @@ data Env = Env
     , allItems :: DATFiles GUID -- map of GUID to item nodes
     , dbConn :: Connection
     , config :: Config
+    , dbPath :: F.FilePath
     }
 
 data EffectKey = EffectIndex
@@ -81,7 +83,7 @@ data EffectKey = EffectIndex
 
 
 -- build the lookup environment needed for app operations
-buildEnv pak conn cfg =
+buildEnv pak conn cfg dbPath =
     let effects = effectLookup pak
         skills = skillLookup pak
         (bytesToNodesFxn, nodesToBytesFxn) = locLookup pak
@@ -99,6 +101,7 @@ buildEnv pak conn cfg =
             spawn sets
             allItemsMap conn
             cfg
+            dbPath
 
 
 sharedStashPath Env{..} = do
