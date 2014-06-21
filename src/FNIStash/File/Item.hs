@@ -210,27 +210,36 @@ getEffectLists = do
 
 hasFilePath 0x8141 = True
 hasFilePath 0x8140 = True
-hasFilePath 0xa141 = True
 hasFilePath 0x9041 = True
 hasFilePath 0x8541 = True
 hasFilePath 0x8149 = True
+hasFilePath 0x8148 = True -- found on Palisade's Heights
 hasFilePath 0x0140 = True
 hasFilePath 0x2141 = True
 hasFilePath 0xA541 = True -- found on enchanted mac of twin gods
 hasFilePath 0x9141 = True -- found on Giant Warsnout fish
+hasFilePath 0x8150 = True -- found on Blackstaff
+hasFilePath 0xA141 = True -- found on Impulse legendary
+hasFilePath 0x8158 = True -- found on Land Chewer
+hasFilePath 0x8159 = True -- found on Land Chewer
+hasFilePath 0x0141 = True -- found on Carlsbelt
+hasFilePath 0x814c = True -- found on Blackfang Bludgeon
 
 hasFilePath 0xa041 = False
-hasFilePath 0x8041 = False
-hasFilePath 0x8050 = False
+hasFilePath 0x8041 = False -- found on Wraith Lord's Hammer
+hasFilePath 0x8050 = False -- found on Wraith Lord's Hammer
 hasFilePath 0x0041 = False
 hasFilePath 0x8440 = False -- this is on the +5% poison dmg enchant
 hasFilePath 0x8441 = False -- found on enchanted mac of twin gods
+hasFilePath 0x8045 = False -- found on Wraith Lord's Hammer
 hasFilePath _ = False
 
 hasGUID 0xA141 = True
 hasGUID 0xA041 = True
 hasGUID 0x2141 = True
+hasGUID 0x2041 = True -- found on Skull of Yanfeer in Transcendent Sash
 hasGUID 0xA541 = True
+hasGUID 0x8158 = False
 hasGUID _      = False
 
 hasExtraString 0x02 = True
