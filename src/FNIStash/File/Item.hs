@@ -219,18 +219,20 @@ hasFilePath 0x2141 = True
 hasFilePath 0xA541 = True -- found on enchanted mac of twin gods
 hasFilePath 0x9141 = True -- found on Giant Warsnout fish
 hasFilePath 0x8150 = True -- found on Blackstaff
+hasFilePath 0x8151 = True -- found on Hack-Hack
 hasFilePath 0xA141 = True -- found on Impulse legendary
 hasFilePath 0x8158 = True -- found on Land Chewer
 hasFilePath 0x8159 = True -- found on Land Chewer
-hasFilePath 0x0141 = True -- found on Carlsbelt
+hasFilePath 0x0141 = True -- found on Carlsbelt, Rift Ember
 hasFilePath 0x814c = True -- found on Blackfang Bludgeon
+hasFilePath 0x8145 = True -- found on Tunic of Taskmaster Tempus
 
 hasFilePath 0xa041 = False
 hasFilePath 0x8041 = False -- found on Wraith Lord's Hammer
 hasFilePath 0x8050 = False -- found on Wraith Lord's Hammer
 hasFilePath 0x0041 = False
 hasFilePath 0x8440 = False -- this is on the +5% poison dmg enchant
-hasFilePath 0x8441 = False -- found on enchanted mac of twin gods
+hasFilePath 0x8441 = False -- found on enchanted mace of twin gods
 hasFilePath 0x8045 = False -- found on Wraith Lord's Hammer
 hasFilePath _ = False
 
