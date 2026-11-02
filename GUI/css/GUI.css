@@ -1,0 +1,317 @@
+/* Set up custom assets */
+
+@font-face {
+	font-family: 'huge';
+	src: url('/static/GUIAssets/HUGE.TTF');
+	}
+
+* {
+	font-family:Arial;
+	font-size:10pt;
+	}
+
+/* Macro layout stuff */
+
+#underlay {
+	background-color: white;
+	text-align: center;
+	background-repeat: no-repeat;
+	background-size: cover;
+	background-position: center;
+	top: 0%;
+	left: 0%;
+	width: 100%;
+	height: 100%;
+	}
+
+	
+#frame {
+	padding: 15px;
+	margin: 0 auto;
+	border-radius: 5px;
+	background-color: transparent;
+	display: inline-block;
+	text-align: left;
+	}
+
+#msgwindow {
+	height: 90px;
+	width: 510px;
+	border-style:solid;
+	border-width:2px;
+	border-color:gray;
+	overflow:scroll;
+	background-color: white;
+	}
+
+#sharedstash{
+	position: relative;
+	}
+    
+#sharedstash_stack {    
+    position: absolute;
+    top: 42px;
+	left: 19px;
+    } 
+    
+#ig_inventorytabs_arms {
+	position: absolute;
+	left: 153px;
+    top:300px;
+	}
+	
+#ig_inventorytabs_consumables {
+	position: absolute;
+	left: 208px;
+    top:300px;
+	}
+	
+#ig_inventorytabs_spells {
+	position: absolute;
+	left: 263px;
+    top:300px;
+	}
+    
+/* General layout */
+ .grid {
+	display: table;
+    table-layout:fixed;
+    border-spacing: 2px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    }
+
+.gridrow {
+	display: table-row;
+    }
+
+.gridcell {
+    height: 57px;
+    min-height: 57px;
+    max-height: 57px;
+    width: 57px;
+    min-width: 57px;
+    max-width: 57px;
+	border-style:hidden;
+	border-width:1px;
+	display: table-cell;
+    padding: 0 0 0 0;
+    overflow:hidden;
+    }
+   
+.item {
+    max-height: 57px;
+    display: block;
+    cursor:pointer;cursor:hand;
+    }
+
+.socket1 { top: 0px; 	left:  0px; position: absolute; }
+.socket2 { top: 15px; 	left:  0px; position: absolute; }
+.socket3 { top: 0px; 	right: 0px; position: absolute; }
+.socket4 { top: 15px; 	right: 0px; position: absolute; }
+.socket5 { top: 30px; 	left:  0px; position: absolute; }
+.socket6 { top: 30px; 	right: 0px; position: absolute; }
+.socket7 { top: 45px; 	left:  0px; position: absolute; }
+.socket8 { top: 45px; 	right: 0px; position: absolute; }
+	
+/* Item display popup */
+.itempopup {
+    max-width: 350px;
+    position: absolute;
+    /*top: 65px;
+    left: 630px;*/
+    background-color:rgba(0, 0, 0, 0.9);
+    border-color: orange;
+    border-style: solid;
+	text-align: left;
+	padding: 10px;
+    }
+
+.poptitlearea {
+	display: block;
+	overflow: auto;
+	min-height: 80px;
+	}
+	
+.poplevel {
+    position: absolute;
+    right: 10px;
+    color: white;
+	font-family: huge;
+	font-size: 10pt;
+    }
+
+.popicon {
+	border-style: solid;
+	border-width: 2px;
+	border-color: orange;
+	border-radius: 3px;
+	float: left;
+	}
+	
+.popunique {
+    font-size: 16pt;
+    color: orange;
+	font-family: huge;
+	position: relative;
+	top: 15px;
+    }
+
+.popnormal {
+    font-size: 16pt;
+    color: white;
+	font-family: huge;
+	position: relative;
+	top: 15px;
+    }
+
+.popmagic {
+    font-size: 16pt;
+    color: #3366FF;
+	font-family: huge;
+	position: relative;
+	top: 15px;
+    }
+
+.poplegendary {
+    font-size: 16pt;
+    color: #E60000;
+	font-family: huge;
+	position: relative;
+	top: 15px;
+    }
+
+.popinnatedeficon {
+	max-height: 18px;
+	height: 18px;
+	float: left;
+	}
+	
+.popinnate {
+	font-size:12pt;
+	color: white;
+	}
+	
+.popeffect {
+    font-size: 12pt;
+    color: blue;
+    }
+
+.popenchant {
+	font-size:12pt;
+	color: #00FF99;
+	}
+
+.poptriggerable {
+	font-size: 12pt;
+	color: #FFD633;
+	}
+	
+.popstatreq {
+	font-size: 12pt;
+	color: white;
+	}
+
+.popdescription {
+	font-size: 12pt;
+	color: #00FF00;
+	}
+
+.popemptysocket {
+	font-size: 12pt;
+	color: #747474;
+}
+.popemptysocketicon {
+	float: left;
+	}
+.popemptysockettext {
+	font-size: inherit;
+	}
+	
+.popfullsocketicon {
+	max-height: 20px;
+	float: left;
+	}
+	
+.popfullsockettext {
+	font-size: 12pt;
+	color: #E6E600;
+	}
+	
+.popfullsocketeffect {
+	font-size: 12pt;
+	color: #E6E600;
+	}
+
+
+/* Message window stuff */
+#msgwindow {
+	width: 95%;
+	margin-left: auto;
+	margin-right: auto;
+	height: 80px;
+	}
+
+#msgwindow .error {
+	color:red;
+	}
+
+#msgwindow .info {
+	color:black;
+	}
+
+#msgwindow .saved {
+	color:green;
+	}
+
+/* Filter box stuff */
+.searchbox {
+	height: 1.2em;
+	font-size: 1em;
+	display: inline-block;
+	width: 85%;
+}
+
+.searchlabel {
+	font-size: 1.2em;
+	font-family: huge;
+	color: white;
+	display: inline-block;
+	margin-right: 2%;
+	}
+
+.searchpanel {
+	width: 95%;
+	margin-left: auto;
+	margin-right: auto;
+	}
+	
+/* Overlay */
+#overlay {
+	position: absolute;
+	left: 0%;
+	top: 0%;
+	width: 100%;
+	height: 100%;
+	z-index: 100;
+	background-color: white;
+	text-align: center;
+	}
+
+#overlaycontent {
+	margin-left: auto;
+	margin-right: auto;
+	margin-top: 350px;
+	border-style: solid;
+	border-width: 3px;
+	border-radius: 15px;
+	padding: 10px;
+	display: inline-block;
+	}
+	
+#overlaylogo {
+	font-family: huge;
+	font-size: 40pt;
+	color: black;
+	}
